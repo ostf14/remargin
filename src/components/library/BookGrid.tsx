@@ -1,12 +1,16 @@
+import { useState } from 'react';
+import type { Book } from '../../types';
 import { useLibrary } from '../../hooks/useLibrary';
 import { useReader } from '../../hooks/useReader';
 import { BookCard } from './BookCard';
 import { ImportDropzone } from './ImportDropzone';
+import { ConfirmDialog } from './ConfirmDialog';
 import styles from './BookGrid.module.css';
 
 export function BookGrid() {
   const { books, removeBook } = useLibrary();
   const { openBook, theme, toggleTheme } = useReader();
+  const [pendingDelete, setPendingDelete] = useState<Book | null>(null);
 
   return (
     <div className={styles.container}>
@@ -38,10 +42,23 @@ export function BookGrid() {
               key={book.id}
               book={book}
               onClick={() => openBook(book)}
-              onRemove={() => removeBook(book.id)}
+              onRemove={() => setPendingDelete(book)}
             />
           ))}
         </div>
+      )}
+
+      {pendingDelete && (
+        <ConfirmDialog
+          title="Delete book?"
+          message={`"${pendingDelete.title}" will be permanently removed from your library. This can't be undone.`}
+          confirmLabel="Delete"
+          onConfirm={() => {
+            removeBook(pendingDelete.id);
+            setPendingDelete(null);
+          }}
+          onCancel={() => setPendingDelete(null)}
+        />
       )}
     </div>
   );
