@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import * as pdfjsLib from 'pdfjs-dist';
 import type { PDFDocumentProxy } from 'pdfjs-dist';
+import workerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 import type { Book } from '../../types';
 import { useLibrary } from '../../hooks/useLibrary';
 import { useAnnotations } from '../../hooks/useAnnotations';
@@ -10,7 +11,7 @@ import { ReaderToolbar } from './ReaderToolbar';
 import { AnnotationPanel } from '../annotations/AnnotationPanel';
 import styles from './PdfReader.module.css';
 
-pdfjsLib.GlobalWorkerOptions.workerSrc = '';
+pdfjsLib.GlobalWorkerOptions.workerSrc = workerUrl;
 
 interface Props {
   book: Book;
