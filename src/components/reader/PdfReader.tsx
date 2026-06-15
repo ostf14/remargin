@@ -145,6 +145,16 @@ export function PdfReader({ book }: Props) {
     return () => document.removeEventListener('keydown', handleKey);
   }, [totalPages]);
 
+  const handleCopy = useCallback((e: React.ClipboardEvent<HTMLDivElement>) => {
+    const raw = window.getSelection()?.toString() ?? '';
+    if (!raw) return;
+    const cleaned = raw
+      .replace(/(\w)-\n(\w)/g, '$1$2')
+      .replace(/([^\n])\n([^\n])/g, '$1 $2');
+    e.clipboardData.setData('text/plain', cleaned);
+    e.preventDefault();
+  }, []);
+
   const percentage = totalPages > 0 ? Math.round((page / totalPages) * 100) : 0;
 
   return (
@@ -156,7 +166,11 @@ export function PdfReader({ book }: Props) {
           <div className={styles.canvasWrap}>
             <div className={styles.pageContainer}>
               <canvas ref={canvasRef} />
-              <div ref={textLayerRef} className={`${styles.textLayer} textLayer`} />
+              <div
+                ref={textLayerRef}
+                className={`${styles.textLayer} textLayer`}
+                onCopy={handleCopy}
+              />
             </div>
           </div>
           <div className={styles.pageNav}>
