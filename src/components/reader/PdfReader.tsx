@@ -48,21 +48,29 @@ export function PdfReader({ book }: Props) {
     }
     const p = await pdf.getPage(num);
     const viewport = p.getViewport({ scale: 1.5 });
+    const dpr = window.devicePixelRatio || 1;
+    const cssWidth = Math.floor(viewport.width);
+    const cssHeight = Math.floor(viewport.height);
+
     const canvas = canvasRef.current;
-    canvas.width = viewport.width;
-    canvas.height = viewport.height;
-    console.log('[pdf] canvas size', canvas.width, canvas.height, 'inDOM=', document.body.contains(canvas));
+    canvas.width = Math.floor(viewport.width * dpr);
+    canvas.height = Math.floor(viewport.height * dpr);
+    canvas.style.width = `${cssWidth}px`;
+    canvas.style.height = `${cssHeight}px`;
+    console.log('[pdf] canvas bitmap', canvas.width, canvas.height, 'css', cssWidth, cssHeight, 'dpr', dpr);
+
     const canvasContext = canvas.getContext('2d')!;
-    console.log('[pdf] ctx?', !!canvasContext, 'starting render');
-    await p.render({ canvasContext, viewport }).promise;
+    const transform = dpr !== 1 ? [dpr, 0, 0, dpr, 0, 0] : undefined;
+    console.log('[pdf] starting render, transform=', transform);
+    await p.render({ canvasContext, viewport, transform }).promise;
     console.log('[pdf] render done for page', num);
 
     const layerEl = textLayerRef.current;
     if (layerEl) {
       currentTextLayerRef.current?.cancel();
       layerEl.replaceChildren();
-      layerEl.style.width = `${viewport.width}px`;
-      layerEl.style.height = `${viewport.height}px`;
+      layerEl.style.width = `${cssWidth}px`;
+      layerEl.style.height = `${cssHeight}px`;
       layerEl.style.setProperty('--scale-factor', String(viewport.scale));
       const textContentSource = p.streamTextContent({
         includeMarkedContent: true,
