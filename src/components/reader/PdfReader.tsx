@@ -186,8 +186,6 @@ export function PdfReader({ book }: Props) {
   // without re-creating and without stale closures in timeouts/listeners.
   const visualZoomRef = useRef(1);
   visualZoomRef.current = visualZoom;
-  const renderScaleRef = useRef(1);
-  renderScaleRef.current = renderScale;
   const pageRef = useRef(page);
   pageRef.current = page;
 
@@ -211,21 +209,6 @@ export function PdfReader({ book }: Props) {
     }
     const zoom = visualZoomRef.current;
     const scale = baseScale * zoom;
-
-    // Only a zoom re-render resizes the canvas under a fixed viewport — preserve
-    // the scroll centre across it. Page changes / first load render at the same
-    // zoom, so we leave their scroll alone (else the first page opens mid-scroll).
-    const preserveScroll = !!wrap && zoom !== renderScaleRef.current;
-    const oldScroll =
-      preserveScroll && wrap
-        ? {
-            centerX: wrap.scrollLeft + wrap.clientWidth / 2,
-            centerY: wrap.scrollTop + wrap.clientHeight / 2,
-            width: wrap.scrollWidth,
-            height: wrap.scrollHeight,
-          }
-        : null;
-
     const viewport = p.getViewport({ scale });
     const dpr = window.devicePixelRatio || 1;
     const cssWidth = Math.floor(viewport.width);
@@ -271,21 +254,11 @@ export function PdfReader({ book }: Props) {
       selectionCleanupRef.current = bindTextLayerSelection(layerEl);
       selectionLayerRef.current?.replaceChildren();
     }
-    // Canvas now reflects this zoom — drop any transient CSS transform.
+    // The canvas is now rasterised at this zoom. Snap the transform back to 1
+    // imperatively first, then update state — so React's re-render finds the DOM
+    // already correct (new-size canvas, scale 1) and produces no visible step.
+    pageContainerRef.current?.style.setProperty('transform', 'scale(1)');
     setRenderScale(zoom);
-
-    // Keep the same content centred after the canvas changes size.
-    if (oldScroll && wrap) {
-      const s = oldScroll;
-      requestAnimationFrame(() => {
-        const newWidth = wrap.scrollWidth;
-        const newHeight = wrap.scrollHeight;
-        const ratioX = s.width > 0 ? s.centerX / s.width : 0.5;
-        const ratioY = s.height > 0 ? s.centerY / s.height : 0.5;
-        wrap.scrollLeft = ratioX * newWidth - wrap.clientWidth / 2;
-        wrap.scrollTop = ratioY * newHeight - wrap.clientHeight / 2;
-      });
-    }
   }, []);
 
   useEffect(() => {
@@ -421,7 +394,6 @@ export function PdfReader({ book }: Props) {
               style={{
                 transform: `scale(${transformScale})`,
                 transformOrigin: 'top center',
-                transition: 'transform 0.15s ease-out',
               }}
             >
               <canvas ref={canvasRef} />
