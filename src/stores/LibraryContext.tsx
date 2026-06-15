@@ -1,6 +1,11 @@
 import { createContext, useCallback, useState, type ReactNode } from 'react';
 import type { Book } from '../types';
-import { loadBooks, saveBooks, deleteBookFile } from '../services/storage';
+import {
+  loadBooks,
+  saveBooks,
+  deleteBookFile,
+  deleteAnnotationsForBook,
+} from '../services/storage';
 
 interface LibraryState {
   books: Book[];
@@ -38,6 +43,9 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
       return next;
     });
     deleteBookFile(id).catch((err) => console.error('Failed to delete book file:', err));
+    deleteAnnotationsForBook(id).catch((err) =>
+      console.error('Failed to delete book annotations:', err),
+    );
   }, []);
 
   const updateBook = useCallback((book: Book) => {

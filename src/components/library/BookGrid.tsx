@@ -51,7 +51,7 @@ export function BookGrid() {
       {pendingDelete && (
         <ConfirmDialog
           title="Delete book?"
-          message={`"${pendingDelete.title}" will be permanently removed from your library. This can't be undone.`}
+          message={`"${pendingDelete.title}" and all its annotations will be permanently removed. This can't be undone.`}
           confirmLabel="Delete"
           onConfirm={() => {
             removeBook(pendingDelete.id);

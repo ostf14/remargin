@@ -117,3 +117,23 @@ export function saveAnnotation(annotation: Annotation): Promise<void> {
 export function deleteAnnotation(id: string): Promise<void> {
   return tx<undefined>(ANNOTATIONS_STORE, 'readwrite', (s) => s.delete(id)).then(() => undefined);
 }
+
+export function deleteAnnotationsForBook(bookId: string): Promise<void> {
+  return openDb().then(
+    (db) =>
+      new Promise<void>((resolve, reject) => {
+        const transaction = db.transaction(ANNOTATIONS_STORE, 'readwrite');
+        const store = transaction.objectStore(ANNOTATIONS_STORE);
+        const req = store.index('bookId').openKeyCursor(IDBKeyRange.only(bookId));
+        req.onsuccess = () => {
+          const cursor = req.result;
+          if (cursor) {
+            store.delete(cursor.primaryKey);
+            cursor.continue();
+          }
+        };
+        transaction.oncomplete = () => resolve();
+        transaction.onerror = () => reject(transaction.error);
+      }),
+  );
+}
