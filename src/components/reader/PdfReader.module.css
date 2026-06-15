@@ -38,20 +38,11 @@
   display: block;
 }
 
-.textLayer {
-  position: absolute;
-  inset: 0;
-  overflow: hidden;
-  opacity: 0.25;
-  line-height: 1;
-  text-align: initial;
-  forced-color-adjust: none;
-  transform-origin: 0 0;
+:global(.textLayer) {
   z-index: 2;
-  pointer-events: auto;
 }
 
-.textLayer ::selection {
+:global(.textLayer) ::selection {
   background: var(--highlight-yellow);
 }
 

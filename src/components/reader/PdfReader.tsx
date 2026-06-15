@@ -168,7 +168,7 @@ export function PdfReader({ book }: Props) {
               <canvas ref={canvasRef} />
               <div
                 ref={textLayerRef}
-                className={`${styles.textLayer} textLayer`}
+                className="textLayer"
                 onCopy={handleCopy}
               />
             </div>
