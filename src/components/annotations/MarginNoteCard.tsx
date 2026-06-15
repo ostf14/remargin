@@ -1,11 +1,9 @@
 import { forwardRef, useEffect, useRef, useState } from 'react';
-import type { HighlightColor } from '../../types';
 import styles from './MarginNotes.module.css';
 
 interface Props {
   top: number;
   note: string;
-  color: HighlightColor;
   autoFocus: boolean;
   onSave: (text: string) => void;
   onDelete: () => void;
@@ -15,7 +13,7 @@ interface Props {
 const TRUNCATE_AT = 180;
 
 export const MarginNoteCard = forwardRef<HTMLDivElement, Props>(function MarginNoteCard(
-  { top, note, color, autoFocus, onSave, onDelete, onBlurEmpty },
+  { top, note, autoFocus, onSave, onDelete, onBlurEmpty },
   ref,
 ) {
   const [editing, setEditing] = useState(autoFocus || note === '');
@@ -47,8 +45,7 @@ export const MarginNoteCard = forwardRef<HTMLDivElement, Props>(function MarginN
   const shown = !expanded && long ? `${note.slice(0, TRUNCATE_AT)}…` : note;
 
   return (
-    <div ref={ref} className={styles.card} style={{ top }} data-color={color}>
-      <span className={styles.colorTab} style={{ background: `var(--highlight-${color})` }} />
+    <div ref={ref} className={styles.card} style={{ top }}>
       {editing ? (
         <textarea
           ref={textareaRef}

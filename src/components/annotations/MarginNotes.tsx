@@ -75,7 +75,6 @@ export const MarginNotes = forwardRef<HTMLDivElement, Props>(function MarginNote
           }}
           top={tops[n.id] ?? n.anchorTop}
           note={n.note}
-          color={n.color}
           autoFocus={n.id === autoFocusId}
           onSave={(text) => onSave(n.id, text)}
           onDelete={() => onDelete(n.id)}
