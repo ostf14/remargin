@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import * as pdfjsLib from 'pdfjs-dist';
-import type { PDFDocumentProxy } from 'pdfjs-dist';
+import type { PDFDocumentProxy, RenderTask } from 'pdfjs-dist';
 import workerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 import 'pdfjs-dist/web/pdf_viewer.css';
 import type { Book } from '../../types';
@@ -163,10 +163,12 @@ interface Props {
 
 export function PdfReader({ book }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const canvasWrapRef = useRef<HTMLDivElement>(null);
   const pageContainerRef = useRef<HTMLDivElement>(null);
   const textLayerRef = useRef<HTMLDivElement>(null);
   const selectionLayerRef = useRef<HTMLDivElement>(null);
   const pdfRef = useRef<PDFDocumentProxy | null>(null);
+  const renderTaskRef = useRef<RenderTask | null>(null);
   const currentTextLayerRef = useRef<TextLayerInstance | null>(null);
   const selectionCleanupRef = useRef<(() => void) | null>(null);
   const { updateBook } = useLibrary();
@@ -175,15 +177,28 @@ export function PdfReader({ book }: Props) {
   const [page, setPage] = useState(Number(book.progress?.location) || 1);
   const [totalPages, setTotalPages] = useState(book.totalPages || 0);
   const [loading, setLoading] = useState(true);
+  const [zoomLevel, setZoomLevel] = useState(1);
 
   const renderPage = useCallback(async (pdf: PDFDocumentProxy, num: number) => {
-    console.log('[pdf] renderPage num=', num, 'canvasRef?', !!canvasRef.current);
-    if (!canvasRef.current) {
-      console.warn('[pdf] renderPage abort: no canvas');
-      return;
-    }
+    if (!canvasRef.current) return;
+    // Cancel any in-flight render so rapid zoom/page changes can't collide on the canvas.
+    renderTaskRef.current?.cancel();
+
     const p = await pdf.getPage(num);
-    const viewport = p.getViewport({ scale: 1.5 });
+
+    // Fit-width base scale: page width filling the scroll container (minus padding),
+    // multiplied by the user zoom level (1.0 = fit width).
+    const unscaled = p.getViewport({ scale: 1 });
+    let baseScale = 1;
+    const wrap = canvasWrapRef.current;
+    if (wrap) {
+      const cs = getComputedStyle(wrap);
+      const padX = parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight);
+      const avail = wrap.clientWidth - padX;
+      if (avail > 0) baseScale = avail / unscaled.width;
+    }
+    const scale = baseScale * zoomLevel;
+    const viewport = p.getViewport({ scale });
     const dpr = window.devicePixelRatio || 1;
     const cssWidth = Math.floor(viewport.width);
     const cssHeight = Math.floor(viewport.height);
@@ -193,13 +208,18 @@ export function PdfReader({ book }: Props) {
     canvas.height = Math.floor(viewport.height * dpr);
     canvas.style.width = `${cssWidth}px`;
     canvas.style.height = `${cssHeight}px`;
-    console.log('[pdf] canvas bitmap', canvas.width, canvas.height, 'css', cssWidth, cssHeight, 'dpr', dpr);
 
     const canvasContext = canvas.getContext('2d')!;
     const transform = dpr !== 1 ? [dpr, 0, 0, dpr, 0, 0] : undefined;
-    console.log('[pdf] starting render, transform=', transform);
-    await p.render({ canvasContext, viewport, transform }).promise;
-    console.log('[pdf] render done for page', num);
+    const task = p.render({ canvasContext, viewport, transform });
+    renderTaskRef.current = task;
+    try {
+      await task.promise;
+    } catch (e: unknown) {
+      // A superseded render was cancelled — let the newer one finish.
+      if (e instanceof Error && /cancel/i.test(`${e.name} ${e.message}`)) return;
+      throw e;
+    }
 
     const layerEl = textLayerRef.current;
     if (layerEl) {
@@ -222,9 +242,8 @@ export function PdfReader({ book }: Props) {
       await tl.render();
       selectionCleanupRef.current = bindTextLayerSelection(layerEl);
       selectionLayerRef.current?.replaceChildren();
-      console.log('[pdf] textLayer rendered for page', num);
     }
-  }, []);
+  }, [zoomLevel]);
 
   useEffect(() => {
     console.log('[pdf] effect mount, book.id=', book.id, 'progress.location=', book.progress?.location);
@@ -250,6 +269,7 @@ export function PdfReader({ book }: Props) {
 
     return () => {
       cancelled = true;
+      renderTaskRef.current?.cancel();
       selectionCleanupRef.current?.();
       selectionCleanupRef.current = null;
       currentTextLayerRef.current?.cancel();
@@ -315,6 +335,27 @@ export function PdfReader({ book }: Props) {
     e.preventDefault();
   }, []);
 
+  const ZOOM_MIN = 0.5;
+  const ZOOM_MAX = 3;
+  const clampZoom = (z: number) => Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, +z.toFixed(2)));
+  const zoomIn = () => setZoomLevel((z) => clampZoom(z + 0.25));
+  const zoomOut = () => setZoomLevel((z) => clampZoom(z - 0.25));
+  const fitWidth = () => setZoomLevel(1);
+
+  // Ctrl + wheel zoom (preventDefault so the browser doesn't zoom the whole page).
+  useEffect(() => {
+    const wrap = canvasWrapRef.current;
+    if (!wrap) return;
+    const onWheel = (e: WheelEvent) => {
+      if (!e.ctrlKey) return;
+      e.preventDefault();
+      setZoomLevel((z) => clampZoom(z + (e.deltaY < 0 ? 0.25 : -0.25)));
+    };
+    wrap.addEventListener('wheel', onWheel, { passive: false });
+    return () => wrap.removeEventListener('wheel', onWheel);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const percentage = totalPages > 0 ? Math.round((page / totalPages) * 100) : 0;
 
   return (
@@ -323,7 +364,7 @@ export function PdfReader({ book }: Props) {
       <div className={styles.wrapper}>
         <div className={styles.readerArea}>
           {loading && <div className={styles.loading}>Loading PDF...</div>}
-          <div className={styles.canvasWrap}>
+          <div ref={canvasWrapRef} className={styles.canvasWrap}>
             <div ref={pageContainerRef} className={styles.pageContainer}>
               <canvas ref={canvasRef} />
               <div ref={selectionLayerRef} className={styles.selectionLayer} />
@@ -352,6 +393,27 @@ export function PdfReader({ book }: Props) {
             >
               Next &rarr;
             </button>
+            <div className={styles.zoomGroup}>
+              <button
+                className={styles.pageBtn}
+                onClick={zoomOut}
+                disabled={zoomLevel <= ZOOM_MIN}
+                aria-label="Zoom out"
+              >
+                &minus;
+              </button>
+              <button className={styles.zoomLevel} onClick={fitWidth} title="Fit width">
+                {Math.round(zoomLevel * 100)}%
+              </button>
+              <button
+                className={styles.pageBtn}
+                onClick={zoomIn}
+                disabled={zoomLevel >= ZOOM_MAX}
+                aria-label="Zoom in"
+              >
+                +
+              </button>
+            </div>
           </div>
         </div>
 
