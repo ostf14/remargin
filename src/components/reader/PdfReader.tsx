@@ -92,57 +92,68 @@ function bindTextLayerSelection(div: HTMLElement): () => void {
   };
 }
 
-// pdf.js renders one absolutely-positioned <span> per text chunk with gaps
-// between them, so a drag-selection paints disjoint boxes. Stretch each span
-// rightward to the next span's left edge to close those gaps.
-// Robust to pdf.js positioning: spans use percentage left/top and a CSS
-// transform (scaleX/scale/rotate), so we measure with getBoundingClientRect
-// (post-transform px) and derive the effective horizontal scale as
-// renderedWidth / offsetWidth to convert a rendered gap back into a layout width.
-function expandTextLayerSpans(container: HTMLElement) {
-  const spans = Array.from(
-    container.querySelectorAll<HTMLSpanElement>('span:not(.markedContent)'),
-  );
-  // Snapshot geometry first (reads), then mutate (writes) — avoids layout thrash.
-  const items = spans
-    .map((el) => {
-      const rect = el.getBoundingClientRect();
-      return {
-        el,
-        top: rect.top,
-        left: rect.left,
-        right: rect.right,
-        height: rect.height,
-        renderedWidth: rect.width,
-        layoutWidth: el.offsetWidth,
-      };
-    })
-    .filter((it) => it.renderedWidth > 0 && it.layoutWidth > 0);
-  if (items.length < 2) return;
+// pdf.js text spans are transparent and only exist so the browser can build a
+// Selection/Range. Native ::selection paints each absolutely-positioned span
+// separately, leaving gaps between words — so we hide it and paint our own
+// highlight from range.getClientRects(), merging same-line rects into one band.
+function paintSelectionHighlight(
+  textLayer: HTMLElement,
+  pageContainer: HTMLElement,
+  selectionLayer: HTMLElement,
+) {
+  selectionLayer.replaceChildren();
+  const selection = document.getSelection();
+  if (!selection || selection.isCollapsed || selection.rangeCount === 0) return;
 
-  // Group spans into lines by vertical position.
-  items.sort((a, b) => a.top - b.top || a.left - b.left);
-  const lines: (typeof items)[] = [];
-  for (const it of items) {
+  const base = pageContainer.getBoundingClientRect();
+  const raw: { left: number; top: number; right: number; bottom: number }[] = [];
+  for (let i = 0; i < selection.rangeCount; i++) {
+    const range = selection.getRangeAt(i);
+    if (!range.intersectsNode(textLayer)) continue;
+    const clientRects = range.getClientRects();
+    for (let j = 0; j < clientRects.length; j++) {
+      const r = clientRects[j];
+      if (r.width <= 0 || r.height <= 0) continue;
+      // Skip the full-page endOfContent helper rect (selection stabilizer).
+      if (r.height > base.height * 0.5) continue;
+      // Keep only rects that fall within this page.
+      if (r.bottom <= base.top || r.top >= base.bottom) continue;
+      if (r.right <= base.left || r.left >= base.right) continue;
+      raw.push({
+        left: r.left - base.left,
+        top: r.top - base.top,
+        right: r.right - base.left,
+        bottom: r.bottom - base.top,
+      });
+    }
+  }
+  if (!raw.length) return;
+
+  // Merge vertically-overlapping rects into one continuous band per line.
+  raw.sort((a, b) => a.top - b.top || a.left - b.left);
+  const lines: typeof raw = [];
+  for (const r of raw) {
     const line = lines[lines.length - 1];
-    if (line && Math.abs(it.top - line[0].top) <= Math.max(it.height, line[0].height) * 0.5) {
-      line.push(it);
+    if (line && r.top < line.bottom - 1 && r.bottom > line.top + 1) {
+      line.left = Math.min(line.left, r.left);
+      line.right = Math.max(line.right, r.right);
+      line.top = Math.min(line.top, r.top);
+      line.bottom = Math.max(line.bottom, r.bottom);
     } else {
-      lines.push([it]);
+      lines.push({ ...r });
     }
   }
 
   for (const line of lines) {
-    line.sort((a, b) => a.left - b.left);
-    for (let i = 0; i < line.length - 1; i++) {
-      const cur = line[i];
-      const next = line[i + 1];
-      if (next.left <= cur.right) continue; // already touching / overlapping
-      const scaleX = cur.renderedWidth / cur.layoutWidth;
-      if (scaleX <= 0) continue;
-      const newLayoutWidth = (next.left - cur.left) / scaleX;
-      cur.el.style.width = `${newLayoutWidth}px`;
-    }
+    const div = document.createElement('div');
+    div.style.position = 'absolute';
+    div.style.left = `${line.left}px`;
+    div.style.top = `${line.top}px`;
+    div.style.width = `${line.right - line.left}px`;
+    div.style.height = `${line.bottom - line.top}px`;
+    div.style.background = 'rgba(252, 211, 77, 0.35)';
+    div.style.borderRadius = '2px';
+    selectionLayer.append(div);
   }
 }
 
@@ -152,7 +163,9 @@ interface Props {
 
 export function PdfReader({ book }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const pageContainerRef = useRef<HTMLDivElement>(null);
   const textLayerRef = useRef<HTMLDivElement>(null);
+  const selectionLayerRef = useRef<HTMLDivElement>(null);
   const pdfRef = useRef<PDFDocumentProxy | null>(null);
   const currentTextLayerRef = useRef<TextLayerInstance | null>(null);
   const selectionCleanupRef = useRef<(() => void) | null>(null);
@@ -208,7 +221,7 @@ export function PdfReader({ book }: Props) {
       currentTextLayerRef.current = tl;
       await tl.render();
       selectionCleanupRef.current = bindTextLayerSelection(layerEl);
-      expandTextLayerSpans(layerEl);
+      selectionLayerRef.current?.replaceChildren();
       console.log('[pdf] textLayer rendered for page', num);
     }
   }, []);
@@ -272,6 +285,26 @@ export function PdfReader({ book }: Props) {
     return () => document.removeEventListener('keydown', handleKey);
   }, [totalPages]);
 
+  // Paint our own selection highlight (native ::selection leaves word gaps).
+  useEffect(() => {
+    const layer = textLayerRef.current;
+    const pageContainer = pageContainerRef.current;
+    const selectionLayer = selectionLayerRef.current;
+    if (!layer || !pageContainer || !selectionLayer) return;
+
+    const paint = () => paintSelectionHighlight(layer, pageContainer, selectionLayer);
+    const clear = () => selectionLayer.replaceChildren();
+
+    layer.addEventListener('mousedown', clear);
+    layer.addEventListener('mouseup', paint);
+    document.addEventListener('selectionchange', paint);
+    return () => {
+      layer.removeEventListener('mousedown', clear);
+      layer.removeEventListener('mouseup', paint);
+      document.removeEventListener('selectionchange', paint);
+    };
+  }, []);
+
   const handleCopy = useCallback((e: React.ClipboardEvent<HTMLDivElement>) => {
     const raw = window.getSelection()?.toString() ?? '';
     if (!raw) return;
@@ -291,8 +324,9 @@ export function PdfReader({ book }: Props) {
         <div className={styles.readerArea}>
           {loading && <div className={styles.loading}>Loading PDF...</div>}
           <div className={styles.canvasWrap}>
-            <div className={styles.pageContainer}>
+            <div ref={pageContainerRef} className={styles.pageContainer}>
               <canvas ref={canvasRef} />
+              <div ref={selectionLayerRef} className={styles.selectionLayer} />
               <div
                 ref={textLayerRef}
                 className="textLayer"

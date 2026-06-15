@@ -38,12 +38,20 @@
   display: block;
 }
 
+.selectionLayer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+}
+
 :global(.textLayer) {
   z-index: 2;
 }
 
+/* Native selection is hidden — we paint a gap-free highlight into .selectionLayer. */
 :global(.textLayer) ::selection {
-  background: var(--highlight-yellow);
+  background: transparent;
 }
 
 .pageNav {
