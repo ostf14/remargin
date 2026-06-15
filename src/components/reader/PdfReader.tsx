@@ -58,6 +58,7 @@ export function PdfReader({ book }: Props) {
         pdfRef.current = pdf;
         setTotalPages(pdf.numPages);
         setLoading(false);
+        renderPage(pdf, page);
       });
     });
 
