@@ -24,6 +24,74 @@ type TextLayerCtor = new (params: {
   viewport: unknown;
 }) => TextLayerInstance;
 
+// Port of pdf.js TextLayerBuilder selection stabilization (single-layer).
+// The bare TextLayer class only renders spans; the ".endOfContent" helper div +
+// these listeners are what keep a drag-selection a continuous band instead of
+// jumping between lines. Mirrors web/pdf_viewer.mjs #bindMouse + selectionchange.
+function bindTextLayerSelection(div: HTMLElement): () => void {
+  const endOfContent = document.createElement('div');
+  endOfContent.className = 'endOfContent';
+  div.append(endOfContent);
+
+  const reset = () => {
+    div.append(endOfContent);
+    endOfContent.style.width = '';
+    endOfContent.style.height = '';
+    endOfContent.classList.remove('active');
+  };
+
+  const onMouseDown = () => endOfContent.classList.add('active');
+  const onPointerUp = () => reset();
+
+  let prevRange: Range | null = null;
+  const onSelectionChange = () => {
+    const selection = document.getSelection();
+    if (!selection || selection.rangeCount === 0) {
+      reset();
+      return;
+    }
+    let active = false;
+    for (let i = 0; i < selection.rangeCount; i++) {
+      if (selection.getRangeAt(i).intersectsNode(div)) {
+        active = true;
+        break;
+      }
+    }
+    if (!active) {
+      reset();
+      return;
+    }
+    endOfContent.classList.add('active');
+
+    const range = selection.getRangeAt(0);
+    const modifyStart =
+      !!prevRange &&
+      (range.compareBoundaryPoints(Range.END_TO_END, prevRange) === 0 ||
+        range.compareBoundaryPoints(Range.START_TO_END, prevRange) === 0);
+    let anchor: Node | null = modifyStart ? range.startContainer : range.endContainer;
+    if (anchor.nodeType === Node.TEXT_NODE) anchor = anchor.parentNode;
+    const anchorEl = anchor as HTMLElement | null;
+    const parent = anchorEl?.parentElement;
+    if (anchorEl && parent && parent.closest('.textLayer') === div) {
+      endOfContent.style.width = div.style.width;
+      endOfContent.style.height = div.style.height;
+      parent.insertBefore(endOfContent, modifyStart ? anchorEl : anchorEl.nextSibling);
+    }
+    prevRange = range.cloneRange();
+  };
+
+  div.addEventListener('mousedown', onMouseDown);
+  document.addEventListener('pointerup', onPointerUp);
+  document.addEventListener('selectionchange', onSelectionChange);
+
+  return () => {
+    div.removeEventListener('mousedown', onMouseDown);
+    document.removeEventListener('pointerup', onPointerUp);
+    document.removeEventListener('selectionchange', onSelectionChange);
+    endOfContent.remove();
+  };
+}
+
 interface Props {
   book: Book;
 }
@@ -33,6 +101,7 @@ export function PdfReader({ book }: Props) {
   const textLayerRef = useRef<HTMLDivElement>(null);
   const pdfRef = useRef<PDFDocumentProxy | null>(null);
   const currentTextLayerRef = useRef<TextLayerInstance | null>(null);
+  const selectionCleanupRef = useRef<(() => void) | null>(null);
   const { updateBook } = useLibrary();
   const { showAnnotations } = useReader();
   const { annotations, updateAnnotation, deleteAnnotation } = useAnnotations(book.id);
@@ -67,10 +136,10 @@ export function PdfReader({ book }: Props) {
 
     const layerEl = textLayerRef.current;
     if (layerEl) {
+      selectionCleanupRef.current?.();
+      selectionCleanupRef.current = null;
       currentTextLayerRef.current?.cancel();
       layerEl.replaceChildren();
-      layerEl.style.width = `${cssWidth}px`;
-      layerEl.style.height = `${cssHeight}px`;
       layerEl.style.setProperty('--scale-factor', String(viewport.scale));
       const textContentSource = p.streamTextContent({
         includeMarkedContent: true,
@@ -84,6 +153,7 @@ export function PdfReader({ book }: Props) {
       });
       currentTextLayerRef.current = tl;
       await tl.render();
+      selectionCleanupRef.current = bindTextLayerSelection(layerEl);
       console.log('[pdf] textLayer rendered for page', num);
     }
   }, []);
@@ -112,6 +182,8 @@ export function PdfReader({ book }: Props) {
 
     return () => {
       cancelled = true;
+      selectionCleanupRef.current?.();
+      selectionCleanupRef.current = null;
       currentTextLayerRef.current?.cancel();
       pdfRef.current?.cleanup();
     };
