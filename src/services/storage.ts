@@ -1,6 +1,7 @@
-import type { Book, Annotation } from '../types';
+import type { Book, Annotation, AppState } from '../types';
 
 const BOOKS_KEY = 'remargin_books';
+const APP_STATE_KEY = 'remargin_app_state';
 const DB_NAME = 'remargin';
 const DB_VERSION = 1;
 const FILES_STORE = 'files';
@@ -56,6 +57,26 @@ export function loadBooks(): Book[] {
 
 export function saveBooks(books: Book[]): void {
   localStorage.setItem(BOOKS_KEY, JSON.stringify(books));
+}
+
+const DEFAULT_APP_STATE: AppState = {
+  lastView: 'library',
+  lastBookId: null,
+  theme: 'dark',
+  epubFontSizeOffset: 0,
+};
+
+export function loadAppState(): AppState {
+  try {
+    const raw = localStorage.getItem(APP_STATE_KEY);
+    return raw ? { ...DEFAULT_APP_STATE, ...JSON.parse(raw) } : { ...DEFAULT_APP_STATE };
+  } catch {
+    return { ...DEFAULT_APP_STATE };
+  }
+}
+
+export function saveAppState(state: AppState): void {
+  localStorage.setItem(APP_STATE_KEY, JSON.stringify(state));
 }
 
 export function saveBookFile(bookId: string, data: ArrayBuffer): Promise<void> {

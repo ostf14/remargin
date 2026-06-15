@@ -1,4 +1,4 @@
-import { createContext, useCallback, useEffect, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useState, type ReactNode } from 'react';
 import type { Book } from '../types';
 import { loadBooks, saveBooks, deleteBookFile } from '../services/storage';
 
@@ -19,11 +19,9 @@ export const LibraryContext = createContext<LibraryState>({
 });
 
 export function LibraryProvider({ children }: { children: ReactNode }) {
-  const [books, setBooks] = useState<Book[]>([]);
-
-  useEffect(() => {
-    setBooks(loadBooks());
-  }, []);
+  // Lazy init so books are available on the first render — lets the reader
+  // restore the last-open book synchronously, with no library flash.
+  const [books, setBooks] = useState<Book[]>(() => loadBooks());
 
   const addBook = useCallback((book: Book) => {
     setBooks((prev) => {
