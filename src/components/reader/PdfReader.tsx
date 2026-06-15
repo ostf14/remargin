@@ -11,6 +11,7 @@ import { getBookFile } from '../../services/storage';
 import { ReaderToolbar } from './ReaderToolbar';
 import { AnnotationPanel } from '../annotations/AnnotationPanel';
 import { HighlightPopover } from '../annotations/HighlightPopover';
+import { MarginNotes, type PositionedNote } from '../annotations/MarginNotes';
 import styles from './PdfReader.module.css';
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = workerUrl;
@@ -170,6 +171,7 @@ interface Props {
 
 export function PdfReader({ book }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const readerAreaRef = useRef<HTMLDivElement>(null);
   const canvasWrapRef = useRef<HTMLDivElement>(null);
   const pageContainerRef = useRef<HTMLDivElement>(null);
   const highlightLayerRef = useRef<HTMLDivElement>(null);
@@ -194,6 +196,10 @@ export function PdfReader({ book }: Props) {
   const [savedPopover, setSavedPopover] = useState<{ x: number; y: number; id: string } | null>(
     null,
   );
+  const [notePositions, setNotePositions] = useState<PositionedNote[]>([]);
+  const [autoFocusId, setAutoFocusId] = useState<string | null>(null);
+  const autoFocusIdRef = useRef<string | null>(null);
+  autoFocusIdRef.current = autoFocusId;
   // renderScale = zoom the canvas is actually rasterized at; visualZoom = live
   // target. Zooming only updates visualZoom (instant CSS transform); the canvas
   // is re-rendered (debounced) once the user stops, then renderScale catches up.
@@ -228,6 +234,35 @@ export function PdfReader({ book }: Props) {
         layer.append(div);
       }
     }
+  }, []);
+
+  // Position margin-note cards opposite their highlight. A note is shown when it
+  // has text, or when it's the freshly created one being focused. Vertical anchor
+  // = page-container top (accounts for scroll) + rect.y × scale, in reader coords.
+  const recomputeNotePositions = useCallback(() => {
+    const readerArea = readerAreaRef.current;
+    const pageContainer = pageContainerRef.current;
+    if (!readerArea || !pageContainer) {
+      setNotePositions([]);
+      return;
+    }
+    const baseTop = readerArea.getBoundingClientRect().top;
+    const pcTop = pageContainer.getBoundingClientRect().top;
+    const scale = currentScaleRef.current || 1;
+    const result: PositionedNote[] = [];
+    for (const a of annotationsRef.current) {
+      if (a.anchor.kind !== 'pdf' || a.anchor.page !== pageRef.current) continue;
+      if (a.note.trim() === '' && a.id !== autoFocusIdRef.current) continue;
+      const first = a.anchor.rects[0];
+      if (!first) continue;
+      result.push({
+        id: a.id,
+        anchorTop: pcTop + first.y * scale - baseTop,
+        note: a.note,
+        color: a.color,
+      });
+    }
+    setNotePositions(result);
   }, []);
 
   const renderPage = useCallback(async (pdf: PDFDocumentProxy, num: number) => {
@@ -402,6 +437,28 @@ export function PdfReader({ book }: Props) {
     paintSavedHighlights(pageRef.current);
   }, [annotations, paintSavedHighlights]);
 
+  // Recompute margin-note positions on anything that moves the highlights.
+  useEffect(() => {
+    recomputeNotePositions();
+  }, [annotations, page, renderScale, autoFocusId, recomputeNotePositions]);
+
+  useEffect(() => {
+    const wrap = canvasWrapRef.current;
+    if (!wrap) return;
+    let raf = 0;
+    const onScroll = () => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(recomputeNotePositions);
+    };
+    wrap.addEventListener('scroll', onScroll, { passive: true });
+    window.addEventListener('resize', onScroll);
+    return () => {
+      cancelAnimationFrame(raf);
+      wrap.removeEventListener('scroll', onScroll);
+      window.removeEventListener('resize', onScroll);
+    };
+  }, [recomputeNotePositions]);
+
   const handleCopy = useCallback((e: React.ClipboardEvent<HTMLDivElement>) => {
     const raw = window.getSelection()?.toString() ?? '';
     if (!raw) return;
@@ -461,6 +518,39 @@ export function PdfReader({ book }: Props) {
     }
   };
 
+  // "Note" in the create popover: persist a highlight and open its margin card.
+  const handleCreateNote = () => {
+    const layer = textLayerRef.current;
+    const pageContainer = pageContainerRef.current;
+    const text = document.getSelection()?.toString().trim() ?? '';
+    if (!layer || !pageContainer || !text) {
+      setSelPopover(null);
+      return;
+    }
+    const lines = computeSelectionLineRects(layer, pageContainer);
+    const scale = currentScaleRef.current || 1;
+    const rects = lines.map((l) => ({
+      x: l.left / scale,
+      y: l.top / scale,
+      width: (l.right - l.left) / scale,
+      height: (l.bottom - l.top) / scale,
+    }));
+    if (!rects.length) {
+      setSelPopover(null);
+      return;
+    }
+    const ann = addAnnotation(text, { kind: 'pdf', page: pageRef.current, rects }, 'yellow');
+    document.getSelection()?.removeAllRanges();
+    selectionLayerRef.current?.replaceChildren();
+    setSelPopover(null);
+    if (ann) setAutoFocusId(ann.id);
+  };
+
+  const handleSaveNote = (id: string, text: string) => {
+    updateAnnotation(id, { note: text });
+    if (autoFocusId === id) setAutoFocusId(null);
+  };
+
   const ZOOM_MIN = 0.5;
   const ZOOM_MAX = 3;
   const clampZoom = (z: number) => Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, z));
@@ -499,7 +589,7 @@ export function PdfReader({ book }: Props) {
     <>
       <ReaderToolbar chapter={`Page ${page}`} percentage={percentage} />
       <div className={styles.wrapper}>
-        <div className={styles.readerArea}>
+        <div ref={readerAreaRef} className={styles.readerArea}>
           {loading && <div className={styles.loading}>Loading PDF...</div>}
           <div ref={canvasWrapRef} className={styles.canvasWrap}>
             <div
@@ -563,6 +653,14 @@ export function PdfReader({ book }: Props) {
           </div>
         </div>
 
+        <MarginNotes
+          notes={notePositions}
+          autoFocusId={autoFocusId}
+          onSave={handleSaveNote}
+          onDelete={deleteAnnotation}
+          onBlurEmpty={() => setAutoFocusId(null)}
+        />
+
         {showAnnotations && (
           <AnnotationPanel
             annotations={annotations}
@@ -578,6 +676,7 @@ export function PdfReader({ book }: Props) {
           x={selPopover.x}
           y={selPopover.y}
           onHighlight={handleCreateHighlight}
+          onNote={handleCreateNote}
           onDismiss={() => setSelPopover(null)}
         />
       )}
@@ -590,6 +689,15 @@ export function PdfReader({ book }: Props) {
             updateAnnotation(savedPopover.id, { color });
             setSavedPopover(null);
           }}
+          onNote={() => {
+            setAutoFocusId(savedPopover.id);
+            setSavedPopover(null);
+          }}
+          noteLabel={
+            annotations.find((a) => a.id === savedPopover.id)?.note.trim()
+              ? 'Edit note'
+              : 'Note'
+          }
           onDelete={() => {
             deleteAnnotation(savedPopover.id);
             setSavedPopover(null);

@@ -37,6 +37,23 @@
 .red { background: var(--highlight-red); }
 .purple { background: var(--highlight-purple); }
 
+.noteBtn {
+  height: 28px;
+  padding: 0 var(--space-sm);
+  margin-left: 2px;
+  border-radius: var(--radius-sm);
+  border-left: 1px solid var(--border);
+  color: var(--text-secondary);
+  font-size: var(--text-xs);
+  white-space: nowrap;
+  transition: color var(--transition-fast), background var(--transition-fast);
+}
+
+.noteBtn:hover {
+  color: var(--text-primary);
+  background: var(--bg-hover);
+}
+
 .deleteBtn {
   width: 28px;
   height: 28px;

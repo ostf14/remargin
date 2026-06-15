@@ -8,6 +8,7 @@ import { getBookFile } from '../../services/storage';
 import { ReaderToolbar } from './ReaderToolbar';
 import { AnnotationPanel } from '../annotations/AnnotationPanel';
 import { HighlightPopover } from '../annotations/HighlightPopover';
+import { MarginNotes, type PositionedNote } from '../annotations/MarginNotes';
 import styles from './EpubReader.module.css';
 
 interface Props {
@@ -24,16 +25,61 @@ interface PopoverState {
 
 export function EpubReader({ book }: Props) {
   const viewerRef = useRef<HTMLDivElement>(null);
+  const readerAreaRef = useRef<HTMLDivElement>(null);
   const epubRef = useRef<EpubBook | null>(null);
   const renditionRef = useRef<Rendition | null>(null);
   const { updateBook } = useLibrary();
   const { showAnnotations } = useReader();
   const { annotations, addAnnotation, updateAnnotation, deleteAnnotation } =
     useAnnotations(book.id);
+  const annotationsRef = useRef(annotations);
+  annotationsRef.current = annotations;
   const [chapter, setChapter] = useState('');
   const [percentage, setPercentage] = useState(book.progress ?? 0);
   const [loading, setLoading] = useState(true);
   const [popover, setPopover] = useState<PopoverState | null>(null);
+  const [notePositions, setNotePositions] = useState<PositionedNote[]>([]);
+  const [autoFocusId, setAutoFocusId] = useState<string | null>(null);
+  const autoFocusIdRef = useRef<string | null>(null);
+  autoFocusIdRef.current = autoFocusId;
+  const [relocateTick, setRelocateTick] = useState(0);
+
+  // Position margin notes opposite their highlight: resolve the cfi to a live
+  // Range, take its on-screen top (offset by the iframe), relative to readerArea.
+  // Ranges outside the visible page are skipped so only current-page notes show.
+  const recomputeNotePositions = useCallback(() => {
+    const rendition = renditionRef.current;
+    const readerArea = readerAreaRef.current;
+    const container = viewerRef.current;
+    if (!rendition || !readerArea || !container) {
+      setNotePositions([]);
+      return;
+    }
+    const baseTop = readerArea.getBoundingClientRect().top;
+    const iframe = container.querySelector('iframe');
+    const iframeRect = iframe?.getBoundingClientRect();
+    const iframeTop = iframeRect?.top ?? 0;
+    const iframeW = iframeRect?.width ?? 0;
+    const iframeH = iframeRect?.height ?? 0;
+    const result: PositionedNote[] = [];
+    for (const a of annotationsRef.current) {
+      if (a.anchor.kind !== 'epub') continue;
+      if (a.note.trim() === '' && a.id !== autoFocusIdRef.current) continue;
+      let range: Range | null = null;
+      try {
+        range = rendition.getRange(a.anchor.cfi);
+      } catch {
+        range = null;
+      }
+      if (!range) continue;
+      const r = range.getBoundingClientRect();
+      if (!r) continue;
+      // Visible on the current page only (paginated columns push others off-screen).
+      if (r.right < 0 || r.left > iframeW || r.bottom < 0 || r.top > iframeH) continue;
+      result.push({ id: a.id, anchorTop: iframeTop + r.top - baseTop, note: a.note, color: a.color });
+    }
+    setNotePositions(result);
+  }, []);
 
   const getCurrentChapter = useCallback(async (epub: EpubBook, href: string) => {
     const toc = epub.navigation?.toc || [];
@@ -111,6 +157,9 @@ export function EpubReader({ book }: Props) {
         getCurrentChapter(epubInstance, loc.start.href).then((ch) => {
           if (ch) setChapter(ch);
         });
+
+        // Page turned — margin-note anchors moved; recompute after layout settles.
+        setRelocateTick((t) => t + 1);
       });
 
       const renditionInstance = rendition;
@@ -175,29 +224,52 @@ export function EpubReader({ book }: Props) {
     });
   }, [annotations]);
 
+  // Recompute note positions whenever annotations, focus, or the page changes.
+  useEffect(() => {
+    recomputeNotePositions();
+  }, [annotations, autoFocusId, relocateTick, recomputeNotePositions]);
+
+  useEffect(() => {
+    const onResize = () => recomputeNotePositions();
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, [recomputeNotePositions]);
+
+  const drawHighlight = (cfi: string, color: HighlightColor) => {
+    renditionRef.current?.annotations.highlight(cfi, {}, () => {}, 'hl', {
+      fill: `var(--highlight-${color})`,
+      'fill-opacity': '1',
+      'mix-blend-mode': 'multiply',
+    });
+  };
+
   const handleHighlight = (color: HighlightColor = 'yellow') => {
     if (!popover) return;
-    const anchor: EpubAnchor = {
-      kind: 'epub',
-      cfi: popover.cfiRange,
-      chapter: popover.chapter,
-    };
+    const anchor: EpubAnchor = { kind: 'epub', cfi: popover.cfiRange, chapter: popover.chapter };
     addAnnotation(popover.text, anchor, color);
     setPopover(null);
-    renditionRef.current?.annotations.highlight(
-      popover.cfiRange,
-      {},
-      () => {},
-      'hl',
-      { fill: `var(--highlight-${color})`, 'fill-opacity': '1', 'mix-blend-mode': 'multiply' },
-    );
+    drawHighlight(popover.cfiRange, color);
+  };
+
+  const handleNote = () => {
+    if (!popover) return;
+    const anchor: EpubAnchor = { kind: 'epub', cfi: popover.cfiRange, chapter: popover.chapter };
+    const ann = addAnnotation(popover.text, anchor, 'yellow');
+    setPopover(null);
+    drawHighlight(popover.cfiRange, 'yellow');
+    if (ann) setAutoFocusId(ann.id);
+  };
+
+  const handleSaveNote = (id: string, text: string) => {
+    updateAnnotation(id, { note: text });
+    if (autoFocusId === id) setAutoFocusId(null);
   };
 
   return (
     <>
       <ReaderToolbar chapter={chapter} percentage={percentage} />
       <div className={styles.wrapper}>
-        <div className={styles.readerArea}>
+        <div ref={readerAreaRef} className={styles.readerArea}>
           {loading && <div className={styles.loading}>Loading book...</div>}
           <div ref={viewerRef} className={styles.viewer} />
           <button
@@ -214,6 +286,14 @@ export function EpubReader({ book }: Props) {
           </button>
         </div>
 
+        <MarginNotes
+          notes={notePositions}
+          autoFocusId={autoFocusId}
+          onSave={handleSaveNote}
+          onDelete={deleteAnnotation}
+          onBlurEmpty={() => setAutoFocusId(null)}
+        />
+
         {showAnnotations && (
           <AnnotationPanel
             annotations={annotations}
@@ -229,6 +309,7 @@ export function EpubReader({ book }: Props) {
           x={popover.x}
           y={popover.y}
           onHighlight={handleHighlight}
+          onNote={handleNote}
           onDismiss={() => setPopover(null)}
         />
       )}

@@ -7,6 +7,8 @@ interface Props {
   onHighlight: (color: HighlightColor) => void;
   onDismiss: () => void;
   onDelete?: () => void;
+  onNote?: () => void;
+  noteLabel?: string;
 }
 
 const COLORS: { color: HighlightColor; cls: string }[] = [
@@ -17,7 +19,15 @@ const COLORS: { color: HighlightColor; cls: string }[] = [
   { color: 'purple', cls: styles.purple },
 ];
 
-export function HighlightPopover({ x, y, onHighlight, onDismiss, onDelete }: Props) {
+export function HighlightPopover({
+  x,
+  y,
+  onHighlight,
+  onDismiss,
+  onDelete,
+  onNote,
+  noteLabel = 'Note',
+}: Props) {
   return (
     <>
       <div className={styles.backdrop} onClick={onDismiss} />
@@ -30,6 +40,11 @@ export function HighlightPopover({ x, y, onHighlight, onDismiss, onDelete }: Pro
             title={color}
           />
         ))}
+        {onNote && (
+          <button className={styles.noteBtn} onClick={onNote} title={noteLabel}>
+            ✎ {noteLabel}
+          </button>
+        )}
         {onDelete && (
           <button className={styles.deleteBtn} onClick={onDelete} title="Delete highlight">
             ✕
