@@ -3,9 +3,9 @@ import type { Book } from '../types';
 import { v4 as uuid } from 'uuid';
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
-  'pdfjs-dist/build/pdf.worker.mjs',
+  'pdfjs-dist/build/pdf.worker.min.mjs',
   import.meta.url,
-).toString();
+).href;
 
 export async function parsePdf(file: File): Promise<{ book: Book; data: ArrayBuffer }> {
   const data = await file.arrayBuffer();
@@ -30,7 +30,8 @@ export async function parsePdf(file: File): Promise<{ book: Book; data: ArrayBuf
     const canvas = document.createElement('canvas');
     canvas.width = viewport.width;
     canvas.height = viewport.height;
-    await page.render({ canvas, viewport }).promise;
+    const canvasContext = canvas.getContext('2d')!;
+    await page.render({ canvasContext, viewport }).promise;
     coverUrl = canvas.toDataURL('image/jpeg', 0.8);
   } catch {
     // cover generation failed

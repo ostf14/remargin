@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import * as pdfjsLib from 'pdfjs-dist';
-import type { PDFDocumentProxy, RenderTask } from 'pdfjs-dist';
+import type { PDFDocumentProxy } from 'pdfjs-dist';
 import type { Book } from '../../types';
 import { useLibrary } from '../../hooks/useLibrary';
 import { useAnnotations } from '../../hooks/useAnnotations';
@@ -11,9 +11,9 @@ import { AnnotationPanel } from '../annotations/AnnotationPanel';
 import styles from './PdfReader.module.css';
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
-  'pdfjs-dist/build/pdf.worker.mjs',
+  'pdfjs-dist/build/pdf.worker.min.mjs',
   import.meta.url,
-).toString();
+).href;
 
 interface Props {
   book: Book;
@@ -22,7 +22,6 @@ interface Props {
 export function PdfReader({ book }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const pdfRef = useRef<PDFDocumentProxy | null>(null);
-  const renderTaskRef = useRef<RenderTask | null>(null);
   const { updateBook } = useLibrary();
   const { showAnnotations } = useReader();
   const { annotations, updateAnnotation, deleteAnnotation } = useAnnotations(book.id);
@@ -32,21 +31,13 @@ export function PdfReader({ book }: Props) {
 
   const renderPage = useCallback(async (pdf: PDFDocumentProxy, num: number) => {
     if (!canvasRef.current) return;
-    renderTaskRef.current?.cancel();
     const p = await pdf.getPage(num);
-    const scale = 1.5;
-    const viewport = p.getViewport({ scale });
+    const viewport = p.getViewport({ scale: 1.5 });
     const canvas = canvasRef.current;
     canvas.width = viewport.width;
     canvas.height = viewport.height;
-    const task = p.render({ canvas, viewport });
-    renderTaskRef.current = task;
-    try {
-      await task.promise;
-    } catch (e: unknown) {
-      if (e instanceof Error && e.message.includes('cancelled')) return;
-      throw e;
-    }
+    const canvasContext = canvas.getContext('2d')!;
+    await p.render({ canvasContext, viewport }).promise;
   }, []);
 
   useEffect(() => {
@@ -64,7 +55,6 @@ export function PdfReader({ book }: Props) {
 
     return () => {
       cancelled = true;
-      renderTaskRef.current?.cancel();
       pdfRef.current?.cleanup();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
