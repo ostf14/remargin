@@ -289,22 +289,18 @@ export function PdfReader({ book }: Props) {
   }, []);
 
   useEffect(() => {
-    console.log('[pdf] effect mount, book.id=', book.id, 'progress.location=', book.progress?.location);
     let cancelled = false;
     (async () => {
       try {
         const arrayBuf = await getBookFile(book.id);
-        console.log('[pdf] got arrayBuf from idb, bytes=', arrayBuf?.byteLength, 'type=', arrayBuf?.constructor?.name);
-        if (cancelled) { console.log('[pdf] cancelled after getBookFile'); return; }
-        if (!arrayBuf) { console.error('[pdf] arrayBuf is null/empty — file missing from IndexedDB'); return; }
+        if (cancelled || !arrayBuf) return;
         const pdf = await pdfjsLib.getDocument({ data: arrayBuf }).promise;
-        console.log('[pdf] doc loaded, numPages=', pdf.numPages);
         if (cancelled) return;
         pdfRef.current = pdf;
         setTotalPages(pdf.numPages);
         await renderPage(pdf, page);
       } catch (err) {
-        console.error('[pdf] PDF load failed:', err);
+        console.error('Failed to load PDF:', err);
       } finally {
         if (!cancelled) setLoading(false);
       }
