@@ -177,7 +177,17 @@ export function PdfReader({ book }: Props) {
   const [page, setPage] = useState(Number(book.progress?.location) || 1);
   const [totalPages, setTotalPages] = useState(book.totalPages || 0);
   const [loading, setLoading] = useState(true);
-  const [zoomLevel, setZoomLevel] = useState(1);
+  // renderScale = zoom the canvas is actually rasterized at; visualZoom = live
+  // target. Zooming only updates visualZoom (instant CSS transform); the canvas
+  // is re-rendered (debounced) once the user stops, then renderScale catches up.
+  const [renderScale, setRenderScale] = useState(1);
+  const [visualZoom, setVisualZoom] = useState(1);
+  // Mirror live values into refs so renderPage (stable identity) reads the latest
+  // without re-creating and without stale closures in timeouts/listeners.
+  const visualZoomRef = useRef(1);
+  visualZoomRef.current = visualZoom;
+  const pageRef = useRef(page);
+  pageRef.current = page;
 
   const renderPage = useCallback(async (pdf: PDFDocumentProxy, num: number) => {
     if (!canvasRef.current) return;
@@ -197,7 +207,8 @@ export function PdfReader({ book }: Props) {
       const avail = wrap.clientWidth - padX;
       if (avail > 0) baseScale = avail / unscaled.width;
     }
-    const scale = baseScale * zoomLevel;
+    const zoom = visualZoomRef.current;
+    const scale = baseScale * zoom;
     const viewport = p.getViewport({ scale });
     const dpr = window.devicePixelRatio || 1;
     const cssWidth = Math.floor(viewport.width);
@@ -243,7 +254,9 @@ export function PdfReader({ book }: Props) {
       selectionCleanupRef.current = bindTextLayerSelection(layerEl);
       selectionLayerRef.current?.replaceChildren();
     }
-  }, [zoomLevel]);
+    // Canvas now reflects this zoom — drop any transient CSS transform.
+    setRenderScale(zoom);
+  }, []);
 
   useEffect(() => {
     console.log('[pdf] effect mount, book.id=', book.id, 'progress.location=', book.progress?.location);
@@ -337,26 +350,37 @@ export function PdfReader({ book }: Props) {
 
   const ZOOM_MIN = 0.5;
   const ZOOM_MAX = 3;
-  const clampZoom = (z: number) => Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, +z.toFixed(2)));
-  const zoomIn = () => setZoomLevel((z) => clampZoom(z + 0.25));
-  const zoomOut = () => setZoomLevel((z) => clampZoom(z - 0.25));
-  const fitWidth = () => setZoomLevel(1);
+  const clampZoom = (z: number) => Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, z));
+  const zoomIn = () => setVisualZoom((z) => clampZoom(+(z + 0.25).toFixed(2)));
+  const zoomOut = () => setVisualZoom((z) => clampZoom(+(z - 0.25).toFixed(2)));
+  const fitWidth = () => setVisualZoom(1);
 
-  // Ctrl + wheel zoom (preventDefault so the browser doesn't zoom the whole page).
+  // Ctrl + wheel: continuous zoom driven by deltaY (Figma/Maps feel).
+  // preventDefault so the browser doesn't zoom the whole page.
   useEffect(() => {
     const wrap = canvasWrapRef.current;
     if (!wrap) return;
     const onWheel = (e: WheelEvent) => {
       if (!e.ctrlKey) return;
       e.preventDefault();
-      setZoomLevel((z) => clampZoom(z + (e.deltaY < 0 ? 0.25 : -0.25)));
+      setVisualZoom((z) => clampZoom(z - e.deltaY * 0.002));
     };
     wrap.addEventListener('wheel', onWheel, { passive: false });
     return () => wrap.removeEventListener('wheel', onWheel);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Re-rasterize the canvas at the new zoom 300ms after the user stops zooming.
+  useEffect(() => {
+    if (visualZoom === renderScale) return;
+    const id = setTimeout(() => {
+      if (pdfRef.current) renderPage(pdfRef.current, pageRef.current);
+    }, 300);
+    return () => clearTimeout(id);
+  }, [visualZoom, renderScale, renderPage]);
+
   const percentage = totalPages > 0 ? Math.round((page / totalPages) * 100) : 0;
+  const transformScale = visualZoom / renderScale;
 
   return (
     <>
@@ -365,7 +389,14 @@ export function PdfReader({ book }: Props) {
         <div className={styles.readerArea}>
           {loading && <div className={styles.loading}>Loading PDF...</div>}
           <div ref={canvasWrapRef} className={styles.canvasWrap}>
-            <div ref={pageContainerRef} className={styles.pageContainer}>
+            <div
+              ref={pageContainerRef}
+              className={styles.pageContainer}
+              style={{
+                transform: `scale(${transformScale})`,
+                transformOrigin: 'top center',
+              }}
+            >
               <canvas ref={canvasRef} />
               <div ref={selectionLayerRef} className={styles.selectionLayer} />
               <div
@@ -397,18 +428,18 @@ export function PdfReader({ book }: Props) {
               <button
                 className={styles.pageBtn}
                 onClick={zoomOut}
-                disabled={zoomLevel <= ZOOM_MIN}
+                disabled={visualZoom <= ZOOM_MIN}
                 aria-label="Zoom out"
               >
                 &minus;
               </button>
               <button className={styles.zoomLevel} onClick={fitWidth} title="Fit width">
-                {Math.round(zoomLevel * 100)}%
+                {Math.round(visualZoom * 100)}%
               </button>
               <button
                 className={styles.pageBtn}
                 onClick={zoomIn}
-                disabled={zoomLevel >= ZOOM_MAX}
+                disabled={visualZoom >= ZOOM_MAX}
                 aria-label="Zoom in"
               >
                 +
