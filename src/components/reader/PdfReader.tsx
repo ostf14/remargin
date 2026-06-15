@@ -289,20 +289,18 @@ export function PdfReader({ book }: Props) {
     const zoom = visualZoomRef.current;
     const scale = baseScale * zoom;
     const viewport = p.getViewport({ scale });
-    currentScaleRef.current = viewport.scale;
     const dpr = window.devicePixelRatio || 1;
     const cssWidth = Math.floor(viewport.width);
     const cssHeight = Math.floor(viewport.height);
 
-    const canvas = canvasRef.current;
-    canvas.width = Math.floor(viewport.width * dpr);
-    canvas.height = Math.floor(viewport.height * dpr);
-    canvas.style.width = `${cssWidth}px`;
-    canvas.style.height = `${cssHeight}px`;
-
-    const canvasContext = canvas.getContext('2d')!;
+    // Render into an offscreen canvas; the visible page keeps showing its previous
+    // (CSS-transformed) frame until the new raster is ready — no clear-flash.
+    const offscreen = document.createElement('canvas');
+    offscreen.width = Math.floor(viewport.width * dpr);
+    offscreen.height = Math.floor(viewport.height * dpr);
+    const offCtx = offscreen.getContext('2d')!;
     const transform = dpr !== 1 ? [dpr, 0, 0, dpr, 0, 0] : undefined;
-    const task = p.render({ canvasContext, viewport, transform });
+    const task = p.render({ canvasContext: offCtx, viewport, transform });
     renderTaskRef.current = task;
     try {
       await task.promise;
@@ -312,8 +310,25 @@ export function PdfReader({ book }: Props) {
       throw e;
     }
 
-    const layerEl = textLayerRef.current;
-    if (layerEl) {
+    // Swap in one frame: blit the fresh raster onto the visible canvas, drop the
+    // zoom transform, commit the scale. The user sees blurry → crisp, no jump.
+    requestAnimationFrame(() => {
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+      canvas.width = offscreen.width;
+      canvas.height = offscreen.height;
+      canvas.style.width = `${cssWidth}px`;
+      canvas.style.height = `${cssHeight}px`;
+      canvas.getContext('2d')!.drawImage(offscreen, 0, 0);
+      pageContainerRef.current?.style.setProperty('transform', 'scale(1)');
+      currentScaleRef.current = viewport.scale;
+      setRenderScale(zoom);
+      paintSavedHighlights(num);
+
+      // Rebuild the transparent text layer in the same frame; its brief mis-scale
+      // before this resolves is invisible (no glyphs are painted).
+      const layerEl = textLayerRef.current;
+      if (!layerEl) return;
       selectionCleanupRef.current?.();
       selectionCleanupRef.current = null;
       currentTextLayerRef.current?.cancel();
@@ -324,22 +339,18 @@ export function PdfReader({ book }: Props) {
         disableNormalization: true,
       });
       const TextLayer = (pdfjsLib as unknown as { TextLayer: TextLayerCtor }).TextLayer;
-      const tl = new TextLayer({
-        textContentSource,
-        container: layerEl,
-        viewport,
-      });
+      const tl = new TextLayer({ textContentSource, container: layerEl, viewport });
       currentTextLayerRef.current = tl;
-      await tl.render();
-      selectionCleanupRef.current = bindTextLayerSelection(layerEl);
-      selectionLayerRef.current?.replaceChildren();
-    }
-    // The canvas is now rasterised at this zoom. Snap the transform back to 1
-    // imperatively first, then update state — so React's re-render finds the DOM
-    // already correct (new-size canvas, scale 1) and produces no visible step.
-    pageContainerRef.current?.style.setProperty('transform', 'scale(1)');
-    setRenderScale(zoom);
-    paintSavedHighlights(num);
+      tl.render()
+        .then(() => {
+          if (currentTextLayerRef.current !== tl) return; // superseded by a newer render
+          selectionCleanupRef.current = bindTextLayerSelection(layerEl);
+          selectionLayerRef.current?.replaceChildren();
+        })
+        .catch(() => {
+          /* cancelled by a newer render */
+        });
+    });
   }, [paintSavedHighlights]);
 
   useEffect(() => {
