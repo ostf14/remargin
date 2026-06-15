@@ -3,13 +3,14 @@ import * as pdfjsLib from 'pdfjs-dist';
 import type { PDFDocumentProxy, RenderTask } from 'pdfjs-dist';
 import workerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 import 'pdfjs-dist/web/pdf_viewer.css';
-import type { Book } from '../../types';
+import type { Book, HighlightColor } from '../../types';
 import { useLibrary } from '../../hooks/useLibrary';
 import { useAnnotations } from '../../hooks/useAnnotations';
 import { useReader } from '../../hooks/useReader';
 import { getBookFile } from '../../services/storage';
 import { ReaderToolbar } from './ReaderToolbar';
 import { AnnotationPanel } from '../annotations/AnnotationPanel';
+import { HighlightPopover } from '../annotations/HighlightPopover';
 import styles from './PdfReader.module.css';
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = workerUrl;
@@ -92,21 +93,19 @@ function bindTextLayerSelection(div: HTMLElement): () => void {
   };
 }
 
+type LineRect = { left: number; top: number; right: number; bottom: number };
+
 // pdf.js text spans are transparent and only exist so the browser can build a
 // Selection/Range. Native ::selection paints each absolutely-positioned span
-// separately, leaving gaps between words — so we hide it and paint our own
-// highlight from range.getClientRects(), merging same-line rects into one band.
-function paintSelectionHighlight(
-  textLayer: HTMLElement,
-  pageContainer: HTMLElement,
-  selectionLayer: HTMLElement,
-) {
-  selectionLayer.replaceChildren();
+// separately, leaving gaps between words — so we collect range.getClientRects()
+// and merge same-line rects into one continuous band, in pageContainer-relative
+// coordinates. Reused for both the live selection layer and saving a highlight.
+function computeSelectionLineRects(textLayer: HTMLElement, pageContainer: HTMLElement): LineRect[] {
   const selection = document.getSelection();
-  if (!selection || selection.isCollapsed || selection.rangeCount === 0) return;
+  if (!selection || selection.isCollapsed || selection.rangeCount === 0) return [];
 
   const base = pageContainer.getBoundingClientRect();
-  const raw: { left: number; top: number; right: number; bottom: number }[] = [];
+  const raw: LineRect[] = [];
   for (let i = 0; i < selection.rangeCount; i++) {
     const range = selection.getRangeAt(i);
     if (!range.intersectsNode(textLayer)) continue;
@@ -127,11 +126,11 @@ function paintSelectionHighlight(
       });
     }
   }
-  if (!raw.length) return;
+  if (!raw.length) return [];
 
   // Merge vertically-overlapping rects into one continuous band per line.
   raw.sort((a, b) => a.top - b.top || a.left - b.left);
-  const lines: typeof raw = [];
+  const lines: LineRect[] = [];
   for (const r of raw) {
     const line = lines[lines.length - 1];
     if (line && r.top < line.bottom - 1 && r.bottom > line.top + 1) {
@@ -143,8 +142,16 @@ function paintSelectionHighlight(
       lines.push({ ...r });
     }
   }
+  return lines;
+}
 
-  for (const line of lines) {
+function paintSelectionHighlight(
+  textLayer: HTMLElement,
+  pageContainer: HTMLElement,
+  selectionLayer: HTMLElement,
+) {
+  selectionLayer.replaceChildren();
+  for (const line of computeSelectionLineRects(textLayer, pageContainer)) {
     const div = document.createElement('div');
     div.style.position = 'absolute';
     div.style.left = `${line.left}px`;
@@ -165,18 +172,28 @@ export function PdfReader({ book }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const canvasWrapRef = useRef<HTMLDivElement>(null);
   const pageContainerRef = useRef<HTMLDivElement>(null);
+  const highlightLayerRef = useRef<HTMLDivElement>(null);
   const textLayerRef = useRef<HTMLDivElement>(null);
   const selectionLayerRef = useRef<HTMLDivElement>(null);
   const pdfRef = useRef<PDFDocumentProxy | null>(null);
   const renderTaskRef = useRef<RenderTask | null>(null);
   const currentTextLayerRef = useRef<TextLayerInstance | null>(null);
   const selectionCleanupRef = useRef<(() => void) | null>(null);
+  // Scale (page-point → CSS px) the canvas is currently rasterised at; saved
+  // highlight rects are stored in page coords and multiplied by this to paint.
+  const currentScaleRef = useRef(1);
   const { updateBook } = useLibrary();
   const { showAnnotations } = useReader();
-  const { annotations, updateAnnotation, deleteAnnotation } = useAnnotations(book.id);
+  const { annotations, addAnnotation, updateAnnotation, deleteAnnotation } = useAnnotations(book.id);
+  const annotationsRef = useRef(annotations);
+  annotationsRef.current = annotations;
   const [page, setPage] = useState(Number(book.lastPosition) || 1);
   const [totalPages, setTotalPages] = useState(book.totalPages || 0);
   const [loading, setLoading] = useState(true);
+  const [selPopover, setSelPopover] = useState<{ x: number; y: number } | null>(null);
+  const [savedPopover, setSavedPopover] = useState<{ x: number; y: number; id: string } | null>(
+    null,
+  );
   // renderScale = zoom the canvas is actually rasterized at; visualZoom = live
   // target. Zooming only updates visualZoom (instant CSS transform); the canvas
   // is re-rendered (debounced) once the user stops, then renderScale catches up.
@@ -188,6 +205,30 @@ export function PdfReader({ book }: Props) {
   visualZoomRef.current = visualZoom;
   const pageRef = useRef(page);
   pageRef.current = page;
+
+  // Draw all saved highlights for a page into the highlight layer. Rects are in
+  // page coords, so they scale with the canvas (× currentScale) and the live
+  // CSS transform handles the zoom transient (highlight layer is a child of it).
+  const paintSavedHighlights = useCallback((pageNum: number) => {
+    const layer = highlightLayerRef.current;
+    if (!layer) return;
+    layer.replaceChildren();
+    const scale = currentScaleRef.current;
+    for (const a of annotationsRef.current) {
+      if (a.anchor.kind !== 'pdf' || a.anchor.page !== pageNum) continue;
+      for (const r of a.anchor.rects) {
+        const div = document.createElement('div');
+        div.style.position = 'absolute';
+        div.style.left = `${r.x * scale}px`;
+        div.style.top = `${r.y * scale}px`;
+        div.style.width = `${r.width * scale}px`;
+        div.style.height = `${r.height * scale}px`;
+        div.style.background = `var(--highlight-${a.color})`;
+        div.style.borderRadius = '2px';
+        layer.append(div);
+      }
+    }
+  }, []);
 
   const renderPage = useCallback(async (pdf: PDFDocumentProxy, num: number) => {
     if (!canvasRef.current) return;
@@ -210,6 +251,7 @@ export function PdfReader({ book }: Props) {
     const zoom = visualZoomRef.current;
     const scale = baseScale * zoom;
     const viewport = p.getViewport({ scale });
+    currentScaleRef.current = viewport.scale;
     const dpr = window.devicePixelRatio || 1;
     const cssWidth = Math.floor(viewport.width);
     const cssHeight = Math.floor(viewport.height);
@@ -259,7 +301,8 @@ export function PdfReader({ book }: Props) {
     // already correct (new-size canvas, scale 1) and produces no visible step.
     pageContainerRef.current?.style.setProperty('transform', 'scale(1)');
     setRenderScale(zoom);
-  }, []);
+    paintSavedHighlights(num);
+  }, [paintSavedHighlights]);
 
   useEffect(() => {
     let cancelled = false;
@@ -318,7 +361,8 @@ export function PdfReader({ book }: Props) {
     return () => document.removeEventListener('keydown', handleKey);
   }, [totalPages]);
 
-  // Paint our own selection highlight (native ::selection leaves word gaps).
+  // Paint our own selection highlight (native ::selection leaves word gaps),
+  // and raise the create-highlight popover once a selection settles.
   useEffect(() => {
     const layer = textLayerRef.current;
     const pageContainer = pageContainerRef.current;
@@ -326,17 +370,37 @@ export function PdfReader({ book }: Props) {
     if (!layer || !pageContainer || !selectionLayer) return;
 
     const paint = () => paintSelectionHighlight(layer, pageContainer, selectionLayer);
-    const clear = () => selectionLayer.replaceChildren();
+    const onMouseDown = () => {
+      selectionLayer.replaceChildren();
+      setSelPopover(null);
+      setSavedPopover(null);
+    };
+    const onMouseUp = () => {
+      paint();
+      const sel = document.getSelection();
+      if (sel && !sel.isCollapsed && sel.rangeCount > 0 && sel.toString().trim()) {
+        const range = sel.getRangeAt(0);
+        if (range.intersectsNode(layer)) {
+          const r = range.getBoundingClientRect();
+          setSelPopover({ x: r.left + r.width / 2, y: r.top });
+        }
+      }
+    };
 
-    layer.addEventListener('mousedown', clear);
-    layer.addEventListener('mouseup', paint);
+    layer.addEventListener('mousedown', onMouseDown);
+    layer.addEventListener('mouseup', onMouseUp);
     document.addEventListener('selectionchange', paint);
     return () => {
-      layer.removeEventListener('mousedown', clear);
-      layer.removeEventListener('mouseup', paint);
+      layer.removeEventListener('mousedown', onMouseDown);
+      layer.removeEventListener('mouseup', onMouseUp);
       document.removeEventListener('selectionchange', paint);
     };
   }, []);
+
+  // Repaint saved highlights whenever the annotation set changes (add/recolor/delete).
+  useEffect(() => {
+    paintSavedHighlights(pageRef.current);
+  }, [annotations, paintSavedHighlights]);
 
   const handleCopy = useCallback((e: React.ClipboardEvent<HTMLDivElement>) => {
     const raw = window.getSelection()?.toString() ?? '';
@@ -347,6 +411,55 @@ export function PdfReader({ book }: Props) {
     e.clipboardData.setData('text/plain', cleaned);
     e.preventDefault();
   }, []);
+
+  // Persist the current selection as a highlight. Rects are stored in page
+  // coordinates (relative px ÷ current scale) so they survive zoom/re-render.
+  const handleCreateHighlight = (color: HighlightColor) => {
+    const layer = textLayerRef.current;
+    const pageContainer = pageContainerRef.current;
+    const text = document.getSelection()?.toString().trim() ?? '';
+    if (!layer || !pageContainer || !text) {
+      setSelPopover(null);
+      return;
+    }
+    const lines = computeSelectionLineRects(layer, pageContainer);
+    const scale = currentScaleRef.current || 1;
+    const rects = lines.map((l) => ({
+      x: l.left / scale,
+      y: l.top / scale,
+      width: (l.right - l.left) / scale,
+      height: (l.bottom - l.top) / scale,
+    }));
+    if (rects.length) {
+      addAnnotation(text, { kind: 'pdf', page: pageRef.current, rects }, color);
+    }
+    document.getSelection()?.removeAllRanges();
+    selectionLayerRef.current?.replaceChildren();
+    setSelPopover(null);
+  };
+
+  // Clicking (not dragging) over a saved highlight opens its options popover.
+  const handlePageClick = (e: React.MouseEvent) => {
+    const sel = document.getSelection();
+    if (sel && !sel.isCollapsed) return; // an active selection — not a click
+    const pageContainer = pageContainerRef.current;
+    if (!pageContainer) return;
+    const base = pageContainer.getBoundingClientRect();
+    const scale = currentScaleRef.current || 1;
+    const px = (e.clientX - base.left) / scale;
+    const py = (e.clientY - base.top) / scale;
+    for (const a of annotationsRef.current) {
+      if (a.anchor.kind !== 'pdf' || a.anchor.page !== pageRef.current) continue;
+      const hit = a.anchor.rects.some(
+        (r) => px >= r.x && px <= r.x + r.width && py >= r.y && py <= r.y + r.height,
+      );
+      if (hit) {
+        setSelPopover(null);
+        setSavedPopover({ x: e.clientX, y: e.clientY, id: a.id });
+        return;
+      }
+    }
+  };
 
   const ZOOM_MIN = 0.5;
   const ZOOM_MAX = 3;
@@ -396,8 +509,10 @@ export function PdfReader({ book }: Props) {
                 transform: `scale(${transformScale})`,
                 transformOrigin: 'top center',
               }}
+              onClick={handlePageClick}
             >
               <canvas ref={canvasRef} />
+              <div ref={highlightLayerRef} className={styles.highlightLayer} />
               <div ref={selectionLayerRef} className={styles.selectionLayer} />
               <div
                 ref={textLayerRef}
@@ -457,6 +572,31 @@ export function PdfReader({ book }: Props) {
           />
         )}
       </div>
+
+      {selPopover && (
+        <HighlightPopover
+          x={selPopover.x}
+          y={selPopover.y}
+          onHighlight={handleCreateHighlight}
+          onDismiss={() => setSelPopover(null)}
+        />
+      )}
+
+      {savedPopover && (
+        <HighlightPopover
+          x={savedPopover.x}
+          y={savedPopover.y}
+          onHighlight={(color) => {
+            updateAnnotation(savedPopover.id, { color });
+            setSavedPopover(null);
+          }}
+          onDelete={() => {
+            deleteAnnotation(savedPopover.id);
+            setSavedPopover(null);
+          }}
+          onDismiss={() => setSavedPopover(null)}
+        />
+      )}
     </>
   );
 }

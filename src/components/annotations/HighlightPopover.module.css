@@ -37,6 +37,22 @@
 .red { background: var(--highlight-red); }
 .purple { background: var(--highlight-purple); }
 
+.deleteBtn {
+  width: 28px;
+  height: 28px;
+  margin-left: 2px;
+  border-radius: var(--radius-sm);
+  border-left: 1px solid var(--border);
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  transition: color var(--transition-fast), background var(--transition-fast);
+}
+
+.deleteBtn:hover {
+  color: var(--text-primary);
+  background: var(--bg-hover);
+}
+
 .backdrop {
   position: fixed;
   inset: 0;

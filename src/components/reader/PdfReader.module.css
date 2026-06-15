@@ -36,15 +36,23 @@
   display: block;
 }
 
-.selectionLayer {
+/* Saved highlights (persistent), below the live selection. */
+.highlightLayer {
   position: absolute;
   inset: 0;
   pointer-events: none;
   z-index: 1;
 }
 
-:global(.textLayer) {
+.selectionLayer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
   z-index: 2;
+}
+
+:global(.textLayer) {
+  z-index: 3;
 }
 
 /* Native selection is hidden — we paint a gap-free highlight into .selectionLayer. */
