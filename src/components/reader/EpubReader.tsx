@@ -77,10 +77,12 @@ export function EpubReader({ book }: Props) {
           'font-family': 'var(--font-serif) !important',
           'line-height': '1.8 !important',
           'padding': '0 2rem !important',
+          '-webkit-user-select': 'text !important',
+          'user-select': 'text !important',
         },
         'a': { color: 'var(--accent) !important' },
         '::selection': {
-          background: 'var(--highlight-yellow) !important',
+          background: 'rgba(232, 200, 73, 0.35) !important',
         },
       });
 
@@ -112,15 +114,19 @@ export function EpubReader({ book }: Props) {
 
       const renditionInstance = rendition;
       rendition.on('selected', (cfiRange: unknown) => {
+        console.log('[epub] selected event, cfiRange=', cfiRange);
         const cfi = cfiRange as string;
         const range = renditionInstance.getRange(cfi);
+        console.log('[epub] range?', !!range);
         if (!range) return;
         const text = range.toString().trim();
+        console.log('[epub] text=', text.slice(0, 50));
         if (!text) return;
 
         const rect = range.getBoundingClientRect();
         const iframe = container.querySelector('iframe');
         const iframeRect = iframe?.getBoundingClientRect() || { left: 0, top: 0 };
+        console.log('[epub] popover at', { x: rect.left + iframeRect.left, y: rect.top + iframeRect.top });
 
         setPopover({
           x: rect.left + iframeRect.left + rect.width / 2,

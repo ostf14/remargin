@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import * as pdfjsLib from 'pdfjs-dist';
 import type { PDFDocumentProxy } from 'pdfjs-dist';
 import workerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
+import 'pdfjs-dist/web/pdf_viewer.css';
 import type { Book } from '../../types';
 import { useLibrary } from '../../hooks/useLibrary';
 import { useAnnotations } from '../../hooks/useAnnotations';
@@ -13,13 +14,25 @@ import styles from './PdfReader.module.css';
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = workerUrl;
 
+interface TextLayerInstance {
+  render(): Promise<unknown>;
+  cancel(): void;
+}
+type TextLayerCtor = new (params: {
+  textContentSource: unknown;
+  container: HTMLElement;
+  viewport: unknown;
+}) => TextLayerInstance;
+
 interface Props {
   book: Book;
 }
 
 export function PdfReader({ book }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const textLayerRef = useRef<HTMLDivElement>(null);
   const pdfRef = useRef<PDFDocumentProxy | null>(null);
+  const currentTextLayerRef = useRef<TextLayerInstance | null>(null);
   const { updateBook } = useLibrary();
   const { showAnnotations } = useReader();
   const { annotations, updateAnnotation, deleteAnnotation } = useAnnotations(book.id);
@@ -43,6 +56,28 @@ export function PdfReader({ book }: Props) {
     console.log('[pdf] ctx?', !!canvasContext, 'starting render');
     await p.render({ canvasContext, viewport }).promise;
     console.log('[pdf] render done for page', num);
+
+    const layerEl = textLayerRef.current;
+    if (layerEl) {
+      currentTextLayerRef.current?.cancel();
+      layerEl.replaceChildren();
+      layerEl.style.width = `${viewport.width}px`;
+      layerEl.style.height = `${viewport.height}px`;
+      layerEl.style.setProperty('--scale-factor', String(viewport.scale));
+      const textContentSource = p.streamTextContent({
+        includeMarkedContent: true,
+        disableNormalization: true,
+      });
+      const TextLayer = (pdfjsLib as unknown as { TextLayer: TextLayerCtor }).TextLayer;
+      const tl = new TextLayer({
+        textContentSource,
+        container: layerEl,
+        viewport,
+      });
+      currentTextLayerRef.current = tl;
+      await tl.render();
+      console.log('[pdf] textLayer rendered for page', num);
+    }
   }, []);
 
   useEffect(() => {
@@ -69,6 +104,7 @@ export function PdfReader({ book }: Props) {
 
     return () => {
       cancelled = true;
+      currentTextLayerRef.current?.cancel();
       pdfRef.current?.cleanup();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -110,7 +146,10 @@ export function PdfReader({ book }: Props) {
         <div className={styles.readerArea}>
           {loading && <div className={styles.loading}>Loading PDF...</div>}
           <div className={styles.canvasWrap}>
-            <canvas ref={canvasRef} />
+            <div className={styles.pageContainer}>
+              <canvas ref={canvasRef} />
+              <div ref={textLayerRef} className={`${styles.textLayer} textLayer`} />
+            </div>
           </div>
           <div className={styles.pageNav}>
             <button
