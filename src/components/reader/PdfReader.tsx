@@ -10,10 +10,7 @@ import { ReaderToolbar } from './ReaderToolbar';
 import { AnnotationPanel } from '../annotations/AnnotationPanel';
 import styles from './PdfReader.module.css';
 
-pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
-  'pdfjs-dist/build/pdf.worker.min.mjs',
-  import.meta.url,
-).href;
+pdfjsLib.GlobalWorkerOptions.workerSrc = '';
 
 interface Props {
   book: Book;

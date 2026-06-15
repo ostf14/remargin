@@ -2,10 +2,7 @@ import * as pdfjsLib from 'pdfjs-dist';
 import type { Book } from '../types';
 import { v4 as uuid } from 'uuid';
 
-pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
-  'pdfjs-dist/build/pdf.worker.min.mjs',
-  import.meta.url,
-).href;
+pdfjsLib.GlobalWorkerOptions.workerSrc = '';
 
 export async function parsePdf(file: File): Promise<{ book: Book; data: ArrayBuffer }> {
   const data = await file.arrayBuffer();
