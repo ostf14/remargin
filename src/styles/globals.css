@@ -72,6 +72,30 @@
   --toolbar-height: 56px;
 }
 
+/* Light theme — same warm accent palette, inverted surfaces (SPEC §6.1) */
+[data-theme='light'] {
+  --bg-primary: #f4f1ea;
+  --bg-secondary: #ebe7dd;
+  --bg-tertiary: #e1dccf;
+  --bg-elevated: #ffffff;
+  --bg-hover: #ded7c8;
+
+  --text-primary: #2a2723;
+  --text-secondary: #5c574e;
+  --text-tertiary: #8a8478;
+  --text-inverse: #f4f1ea;
+
+  --accent-muted: rgba(232, 168, 73, 0.18);
+
+  --border: #d6cfc0;
+  --border-subtle: #e3ddd0;
+
+  --shadow-sm: 0 1px 3px rgba(60, 50, 30, 0.08);
+  --shadow-md: 0 4px 12px rgba(60, 50, 30, 0.12);
+  --shadow-lg: 0 8px 24px rgba(60, 50, 30, 0.16);
+  --shadow-cover: 0 4px 16px rgba(60, 50, 30, 0.2);
+}
+
 *,
 *::before,
 *::after {

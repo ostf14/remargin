@@ -6,13 +6,22 @@ import styles from './BookGrid.module.css';
 
 export function BookGrid() {
   const { books, removeBook } = useLibrary();
-  const { openBook } = useReader();
+  const { openBook, theme, toggleTheme } = useReader();
 
   return (
     <div className={styles.container}>
       <header className={styles.header}>
-        <h1 className={styles.title}>remargin</h1>
-        <p className={styles.subtitle}>{books.length} books in your library</p>
+        <div className={styles.headerText}>
+          <h1 className={styles.title}>remargin</h1>
+          <p className={styles.subtitle}>{books.length} books in your library</p>
+        </div>
+        <button
+          className={styles.themeToggle}
+          onClick={toggleTheme}
+          title={theme === 'dark' ? 'Light theme' : 'Dark theme'}
+        >
+          {theme === 'dark' ? '☀' : '☾'}
+        </button>
       </header>
 
       <ImportDropzone />

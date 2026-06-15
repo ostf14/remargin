@@ -7,7 +7,8 @@ interface Props {
 }
 
 export function ReaderToolbar({ chapter, percentage }: Props) {
-  const { currentBook, closeBook, showAnnotations, setShowAnnotations } = useReader();
+  const { currentBook, closeBook, showAnnotations, setShowAnnotations, theme, toggleTheme } =
+    useReader();
   if (!currentBook) return null;
 
   return (
@@ -24,6 +25,13 @@ export function ReaderToolbar({ chapter, percentage }: Props) {
 
       <div className={styles.right}>
         <span className={styles.progress}>{Math.round(percentage)}%</span>
+        <button
+          className={styles.iconBtn}
+          onClick={toggleTheme}
+          title={theme === 'dark' ? 'Light theme' : 'Dark theme'}
+        >
+          {theme === 'dark' ? '☀' : '☾'}
+        </button>
         <button
           className={showAnnotations ? styles.iconBtnActive : styles.iconBtn}
           onClick={() => setShowAnnotations(!showAnnotations)}

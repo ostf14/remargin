@@ -1,7 +1,9 @@
-import { createContext, useState, type ReactNode } from 'react';
+import { createContext, useEffect, useState, type ReactNode } from 'react';
 import type { Book, ViewMode } from '../types';
 import { useLibrary } from '../hooks/useLibrary';
 import { loadAppState, saveAppState } from '../services/storage';
+
+type Theme = 'dark' | 'light';
 
 interface ReaderState {
   currentBook: Book | null;
@@ -10,6 +12,8 @@ interface ReaderState {
   closeBook: () => void;
   showAnnotations: boolean;
   setShowAnnotations: (v: boolean) => void;
+  theme: Theme;
+  toggleTheme: () => void;
 }
 
 export const ReaderContext = createContext<ReaderState>({
@@ -19,6 +23,8 @@ export const ReaderContext = createContext<ReaderState>({
   closeBook: () => {},
   showAnnotations: false,
   setShowAnnotations: () => {},
+  theme: 'dark',
+  toggleTheme: () => {},
 });
 
 // Resolve the persisted view: reopen the last book if it still exists.
@@ -36,9 +42,23 @@ export function ReaderProvider({ children }: { children: ReactNode }) {
   const [currentBook, setCurrentBook] = useState<Book | null>(() => restoreState(books).book);
   const [viewMode, setViewMode] = useState<ViewMode>(() => restoreState(books).view);
   const [showAnnotations, setShowAnnotations] = useState(false);
+  const [theme, setTheme] = useState<Theme>(() => loadAppState().theme);
+
+  // Reflect the theme onto <html> so CSS custom properties switch app-wide.
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+  }, [theme]);
 
   const persistView = (view: ViewMode, bookId: string | null) => {
     saveAppState({ ...loadAppState(), lastView: view, lastBookId: bookId });
+  };
+
+  const toggleTheme = () => {
+    setTheme((t) => {
+      const next: Theme = t === 'dark' ? 'light' : 'dark';
+      saveAppState({ ...loadAppState(), theme: next });
+      return next;
+    });
   };
 
   const openBook = (book: Book) => {
@@ -57,7 +77,16 @@ export function ReaderProvider({ children }: { children: ReactNode }) {
 
   return (
     <ReaderContext.Provider
-      value={{ currentBook, viewMode, openBook, closeBook, showAnnotations, setShowAnnotations }}
+      value={{
+        currentBook,
+        viewMode,
+        openBook,
+        closeBook,
+        showAnnotations,
+        setShowAnnotations,
+        theme,
+        toggleTheme,
+      }}
     >
       {children}
     </ReaderContext.Provider>
