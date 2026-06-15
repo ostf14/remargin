@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import ePub, { type Rendition, type Book as EpubBook } from 'epubjs';
-import type { Book, EpubAnchor } from '../../types';
+import type { Book, EpubAnchor, HighlightColor } from '../../types';
 import { useLibrary } from '../../hooks/useLibrary';
 import { useAnnotations } from '../../hooks/useAnnotations';
 import { useReader } from '../../hooks/useReader';
@@ -31,7 +31,7 @@ export function EpubReader({ book }: Props) {
   const { annotations, addAnnotation, updateAnnotation, deleteAnnotation } =
     useAnnotations(book.id);
   const [chapter, setChapter] = useState('');
-  const [percentage, setPercentage] = useState(book.progress?.percentage ?? 0);
+  const [percentage, setPercentage] = useState(book.progress ?? 0);
   const [loading, setLoading] = useState(true);
   const [popover, setPopover] = useState<PopoverState | null>(null);
 
@@ -86,7 +86,7 @@ export function EpubReader({ book }: Props) {
         },
       });
 
-      const startCfi = book.progress?.location;
+      const startCfi = book.lastPosition;
       if (startCfi) {
         rendition.display(startCfi);
       } else {
@@ -103,8 +103,9 @@ export function EpubReader({ book }: Props) {
 
         updateBook({
           ...book,
-          lastOpenedAt: new Date().toISOString(),
-          progress: { location: loc.start.cfi, percentage: pct },
+          lastOpened: new Date().toISOString(),
+          progress: pct,
+          lastPosition: loc.start.cfi,
         });
 
         getCurrentChapter(epubInstance, loc.start.href).then((ch) => {
@@ -155,12 +156,12 @@ export function EpubReader({ book }: Props) {
     if (!rendition) return;
 
     annotations.forEach((a) => {
-      if (a.anchor.type === 'epub') {
+      if (a.anchor.kind === 'epub') {
         try {
-          rendition.annotations.remove(a.anchor.cfiRange, 'highlight');
+          rendition.annotations.remove(a.anchor.cfi, 'highlight');
         } catch { /* ignore */ }
         rendition.annotations.highlight(
-          a.anchor.cfiRange,
+          a.anchor.cfi,
           {},
           () => {},
           'hl',
@@ -174,10 +175,14 @@ export function EpubReader({ book }: Props) {
     });
   }, [annotations]);
 
-  const handleHighlight = (color: 'yellow' | 'green' | 'blue' | 'pink' = 'yellow') => {
+  const handleHighlight = (color: HighlightColor = 'yellow') => {
     if (!popover) return;
-    const anchor: EpubAnchor = { type: 'epub', cfiRange: popover.cfiRange };
-    addAnnotation(popover.text, anchor, popover.chapter, color);
+    const anchor: EpubAnchor = {
+      kind: 'epub',
+      cfi: popover.cfiRange,
+      chapter: popover.chapter,
+    };
+    addAnnotation(popover.text, anchor, color);
     setPopover(null);
     renditionRef.current?.annotations.highlight(
       popover.cfiRange,

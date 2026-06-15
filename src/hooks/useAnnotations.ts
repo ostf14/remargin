@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { v4 as uuid } from 'uuid';
-import type { Annotation, AnchorData, AnnotationColor } from '../types';
+import type { Annotation, AnchorData, HighlightColor } from '../types';
 import {
   loadAnnotations,
   saveAnnotation,
@@ -22,22 +22,17 @@ export function useAnnotations(bookId: string | undefined) {
   }, [bookId]);
 
   const addAnnotation = useCallback(
-    (
-      text: string,
-      anchor: AnchorData,
-      chapter: string,
-      color: AnnotationColor = 'yellow',
-    ) => {
+    (highlightedText: string, anchor: AnchorData, color: HighlightColor = 'yellow') => {
       if (!bookId) return;
       const now = new Date().toISOString();
       const annotation: Annotation = {
         id: uuid(),
         bookId,
-        text,
+        type: 'highlight',
+        anchor,
+        highlightedText,
         note: '',
         color,
-        chapter,
-        anchor,
         createdAt: now,
         updatedAt: now,
       };
@@ -53,7 +48,15 @@ export function useAnnotations(bookId: string | undefined) {
       setAnnotations((prev) =>
         prev.map((a) => {
           if (a.id !== id) return a;
-          const updated = { ...a, ...updates, updatedAt: new Date().toISOString() };
+          const updated: Annotation = {
+            ...a,
+            ...updates,
+            updatedAt: new Date().toISOString(),
+          };
+          // A highlight becomes a note once it carries note text.
+          if (updates.note !== undefined) {
+            updated.type = updates.note.trim() ? 'note' : 'highlight';
+          }
           saveAnnotation(updated);
           return updated;
         }),

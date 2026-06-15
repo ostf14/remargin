@@ -1,18 +1,19 @@
-import type { AnnotationColor } from '../../types';
+import type { HighlightColor } from '../../types';
 import styles from './HighlightPopover.module.css';
 
 interface Props {
   x: number;
   y: number;
-  onHighlight: (color: AnnotationColor) => void;
+  onHighlight: (color: HighlightColor) => void;
   onDismiss: () => void;
 }
 
-const COLORS: { color: AnnotationColor; cls: string }[] = [
+const COLORS: { color: HighlightColor; cls: string }[] = [
   { color: 'yellow', cls: styles.yellow },
   { color: 'green', cls: styles.green },
   { color: 'blue', cls: styles.blue },
-  { color: 'pink', cls: styles.pink },
+  { color: 'red', cls: styles.red },
+  { color: 'purple', cls: styles.purple },
 ];
 
 export function HighlightPopover({ x, y, onHighlight, onDismiss }: Props) {

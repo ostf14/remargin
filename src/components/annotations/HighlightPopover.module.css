@@ -34,7 +34,8 @@
 .yellow { background: var(--highlight-yellow); }
 .green { background: var(--highlight-green); }
 .blue { background: var(--highlight-blue); }
-.pink { background: var(--highlight-pink); }
+.red { background: var(--highlight-red); }
+.purple { background: var(--highlight-purple); }
 
 .backdrop {
   position: fixed;

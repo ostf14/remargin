@@ -174,7 +174,7 @@ export function PdfReader({ book }: Props) {
   const { updateBook } = useLibrary();
   const { showAnnotations } = useReader();
   const { annotations, updateAnnotation, deleteAnnotation } = useAnnotations(book.id);
-  const [page, setPage] = useState(Number(book.progress?.location) || 1);
+  const [page, setPage] = useState(Number(book.lastPosition) || 1);
   const [totalPages, setTotalPages] = useState(book.totalPages || 0);
   const [loading, setLoading] = useState(true);
   // renderScale = zoom the canvas is actually rasterized at; visualZoom = live
@@ -298,8 +298,9 @@ export function PdfReader({ book }: Props) {
     const pct = totalPages > 0 ? Math.round((page / totalPages) * 100) : 0;
     updateBook({
       ...book,
-      lastOpenedAt: new Date().toISOString(),
-      progress: { location: String(page), percentage: pct },
+      lastOpened: new Date().toISOString(),
+      progress: pct,
+      lastPosition: String(page),
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page, totalPages]);

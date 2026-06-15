@@ -11,7 +11,8 @@ export function exportAnnotationsToMarkdown(
 
   const grouped = new Map<string, Annotation[]>();
   for (const a of sorted) {
-    const chapter = a.chapter || 'Ungrouped';
+    const chapter =
+      (a.anchor.kind === 'epub' ? a.anchor.chapter : `Page ${a.anchor.page}`) || 'Ungrouped';
     const list = grouped.get(chapter) || [];
     list.push(a);
     grouped.set(chapter, list);
@@ -33,7 +34,7 @@ export function exportAnnotationsToMarkdown(
   for (const [chapter, items] of grouped) {
     lines.push(`## ${chapter}`, '');
     for (const a of items) {
-      lines.push(`> ${a.text}`, '');
+      lines.push(`> ${a.highlightedText}`, '');
       if (a.note) {
         lines.push(a.note, '');
       }

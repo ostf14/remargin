@@ -21,7 +21,7 @@ export async function parsePdf(file: File): Promise<{ book: Book; data: ArrayBuf
     // metadata unavailable
   }
 
-  let coverUrl = '';
+  let coverUrl: string | null = null;
   try {
     const page = await pdf.getPage(1);
     const viewport = page.getViewport({ scale: 0.5 });
@@ -42,11 +42,13 @@ export async function parsePdf(file: File): Promise<{ book: Book; data: ArrayBuf
     id: uuid(),
     title,
     author,
-    format: 'pdf',
     coverUrl,
+    format: 'pdf',
+    tags: [],
+    progress: 0,
+    lastPosition: '1',
+    lastOpened: null,
     addedAt: new Date().toISOString(),
-    lastOpenedAt: '',
-    progress: { location: '1', percentage: 0 },
     totalPages,
   };
 

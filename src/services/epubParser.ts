@@ -11,7 +11,7 @@ export async function parseEpub(file: File): Promise<{ book: Book; data: ArrayBu
   const title = meta.title || file.name.replace(/\.epub$/i, '');
   const author = meta.creator || 'Unknown Author';
 
-  let coverUrl = '';
+  let coverUrl: string | null = null;
   try {
     const coverId = epub.packaging.metadata.cover;
     if (coverId) {
@@ -56,11 +56,13 @@ export async function parseEpub(file: File): Promise<{ book: Book; data: ArrayBu
     id: uuid(),
     title,
     author,
-    format: 'epub',
     coverUrl,
+    format: 'epub',
+    tags: [],
+    progress: 0,
+    lastPosition: null,
+    lastOpened: null,
     addedAt: new Date().toISOString(),
-    lastOpenedAt: '',
-    progress: { location: '', percentage: 0 },
   };
 
   return { book, data };

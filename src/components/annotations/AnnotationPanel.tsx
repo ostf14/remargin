@@ -14,8 +14,13 @@ const COLOR_MAP: Record<string, string> = {
   yellow: 'var(--highlight-yellow)',
   green: 'var(--highlight-green)',
   blue: 'var(--highlight-blue)',
-  pink: 'var(--highlight-pink)',
+  red: 'var(--highlight-red)',
+  purple: 'var(--highlight-purple)',
 };
+
+function anchorLabel(a: Annotation): string {
+  return a.anchor.kind === 'epub' ? a.anchor.chapter : `Page ${a.anchor.page}`;
+}
 
 export function AnnotationPanel({ annotations, book, onUpdate, onDelete }: Props) {
   const handleExport = () => {
@@ -52,7 +57,7 @@ export function AnnotationPanel({ annotations, book, onUpdate, onDelete }: Props
                     className={styles.colorDot}
                     style={{ background: COLOR_MAP[a.color] }}
                   />
-                  {a.chapter}
+                  {anchorLabel(a)}
                 </span>
                 <button
                   className={styles.deleteBtn}
@@ -61,7 +66,7 @@ export function AnnotationPanel({ annotations, book, onUpdate, onDelete }: Props
                   Remove
                 </button>
               </div>
-              <div className={styles.quote}>{a.text}</div>
+              <div className={styles.quote}>{a.highlightedText}</div>
               <NoteEditor
                 value={a.note}
                 onChange={(note) => onUpdate(a.id, { note })}

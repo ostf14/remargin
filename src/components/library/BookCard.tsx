@@ -8,7 +8,7 @@ interface Props {
 }
 
 export function BookCard({ book, onClick, onRemove }: Props) {
-  const progress = book.progress?.percentage ?? 0;
+  const progress = book.progress ?? 0;
 
   return (
     <div className={styles.card} onClick={onClick}>
