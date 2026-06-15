@@ -42,16 +42,21 @@ export function PdfReader({ book }: Props) {
 
   useEffect(() => {
     let cancelled = false;
-    getBookFile(book.id).then((arrayBuf) => {
-      if (cancelled || !arrayBuf) return;
-      pdfjsLib.getDocument({ data: arrayBuf }).promise.then((pdf) => {
+    (async () => {
+      try {
+        const arrayBuf = await getBookFile(book.id);
+        if (cancelled || !arrayBuf) return;
+        const pdf = await pdfjsLib.getDocument({ data: arrayBuf }).promise;
         if (cancelled) return;
         pdfRef.current = pdf;
         setTotalPages(pdf.numPages);
-        setLoading(false);
-        renderPage(pdf, page);
-      });
-    });
+        await renderPage(pdf, page);
+      } catch (err) {
+        console.error('PDF load failed:', err);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
 
     return () => {
       cancelled = true;
