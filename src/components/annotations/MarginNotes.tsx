@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, useState } from 'react';
+import { forwardRef, useLayoutEffect, useRef, useState } from 'react';
 import type { HighlightColor } from '../../types';
 import { MarginNoteCard } from './MarginNoteCard';
 import styles from './MarginNotes.module.css';
@@ -19,9 +19,12 @@ interface Props {
 }
 
 const GAP = 8;
-const CONNECTOR_X = 14; // where the connector meets the card
+const CONNECTOR_X = 18; // where the connector meets the card
 
-export function MarginNotes({ notes, autoFocusId, onSave, onDelete, onBlurEmpty }: Props) {
+export const MarginNotes = forwardRef<HTMLDivElement, Props>(function MarginNotes(
+  { notes, autoFocusId, onSave, onDelete, onBlurEmpty },
+  ref,
+) {
   const cardRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const [tops, setTops] = useState<Record<string, number>>({});
 
@@ -48,14 +51,15 @@ export function MarginNotes({ notes, autoFocusId, onSave, onDelete, onBlurEmpty 
   }, [sorted]);
 
   return (
-    <div className={styles.column}>
+    <div className={styles.column} ref={ref}>
       <svg className={styles.connectors} aria-hidden="true">
         {sorted.map((n) => {
           const cardTop = tops[n.id] ?? n.anchorTop;
           return (
             <polyline
               key={n.id}
-              points={`0,${n.anchorTop} ${CONNECTOR_X / 2},${n.anchorTop} ${CONNECTOR_X},${cardTop + 16}`}
+              points={`0,${n.anchorTop} ${CONNECTOR_X / 2},${n.anchorTop} ${CONNECTOR_X},${cardTop + 14}`}
+              style={{ stroke: `var(--highlight-${n.color})` }}
               className={styles.connectorLine}
             />
           );
@@ -80,4 +84,4 @@ export function MarginNotes({ notes, autoFocusId, onSave, onDelete, onBlurEmpty 
       ))}
     </div>
   );
-}
+});

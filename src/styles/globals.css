@@ -70,6 +70,14 @@
   /* Layout */
   --sidebar-width: 340px;
   --toolbar-height: 56px;
+
+  /* Reader — "desk" surface + cream "page" (document metaphor, SPEC §3.2/§6) */
+  --reader-desk: #2a2a2a;
+  --reader-page: #f5f0eb;
+  --reader-ink: #2b2723;
+  --reader-ink-soft: #6f6657;
+  --reader-divider: rgba(40, 30, 20, 0.1);
+  --reader-page-shadow: 0 2px 16px rgba(0, 0, 0, 0.35);
 }
 
 /* Light theme — same warm accent palette, inverted surfaces (SPEC §6.1) */
@@ -94,6 +102,10 @@
   --shadow-md: 0 4px 12px rgba(60, 50, 30, 0.12);
   --shadow-lg: 0 8px 24px rgba(60, 50, 30, 0.16);
   --shadow-cover: 0 4px 16px rgba(60, 50, 30, 0.2);
+
+  --reader-desk: #e0e0e0;
+  --reader-page: #fffdf9;
+  --reader-page-shadow: 0 2px 16px rgba(0, 0, 0, 0.15);
 }
 
 *,

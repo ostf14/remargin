@@ -9,19 +9,37 @@
 
 .readerArea {
   flex: 1;
-  position: relative;
-  overflow: hidden;
+  min-width: 0;
   display: flex;
   flex-direction: column;
-  align-items: center;
 }
 
+/* The "desk": neutral scrollable surface the page floats on. */
 .canvasWrap {
   flex: 1;
   overflow: auto;
-  width: 100%;
-  padding: var(--space-lg);
-  text-align: center;
+  background: var(--reader-desk);
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: var(--space-xl);
+}
+
+/* The "page": one cream sheet holding the rendered PDF and the notes margin. */
+.page {
+  display: flex;
+  align-items: stretch;
+  background: var(--reader-page);
+  box-shadow: var(--reader-page-shadow);
+  border-radius: 3px;
+}
+
+.textZone {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 48px 24px 48px 64px;
 }
 
 .pageContainer {
@@ -30,10 +48,9 @@
   line-height: 0;
 }
 
-.canvasWrap canvas {
-  box-shadow: var(--shadow-lg);
-  border-radius: 2px;
+.pageContainer canvas {
   display: block;
+  border-radius: 1px;
 }
 
 /* Saved highlights (persistent), below the live selection. */

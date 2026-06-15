@@ -171,7 +171,7 @@ interface Props {
 
 export function PdfReader({ book }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const readerAreaRef = useRef<HTMLDivElement>(null);
+  const marginColumnRef = useRef<HTMLDivElement>(null);
   const canvasWrapRef = useRef<HTMLDivElement>(null);
   const pageContainerRef = useRef<HTMLDivElement>(null);
   const highlightLayerRef = useRef<HTMLDivElement>(null);
@@ -240,13 +240,13 @@ export function PdfReader({ book }: Props) {
   // has text, or when it's the freshly created one being focused. Vertical anchor
   // = page-container top (accounts for scroll) + rect.y × scale, in reader coords.
   const recomputeNotePositions = useCallback(() => {
-    const readerArea = readerAreaRef.current;
+    const column = marginColumnRef.current;
     const pageContainer = pageContainerRef.current;
-    if (!readerArea || !pageContainer) {
+    if (!column || !pageContainer) {
       setNotePositions([]);
       return;
     }
-    const baseTop = readerArea.getBoundingClientRect().top;
+    const baseTop = column.getBoundingClientRect().top;
     const pcTop = pageContainer.getBoundingClientRect().top;
     const scale = currentScaleRef.current || 1;
     const result: PositionedNote[] = [];
@@ -272,16 +272,19 @@ export function PdfReader({ book }: Props) {
 
     const p = await pdf.getPage(num);
 
-    // Fit-width base scale: page width filling the scroll container (minus padding),
-    // multiplied by the user zoom level (1.0 = fit width).
+    // Fit-width base scale targets a comfortable text width (the page's text zone),
+    // leaving room for the notes margin so the whole sheet stays ~900px at 100%.
     const unscaled = p.getViewport({ scale: 1 });
     let baseScale = 1;
     const wrap = canvasWrapRef.current;
     if (wrap) {
       const cs = getComputedStyle(wrap);
       const padX = parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight);
-      const avail = wrap.clientWidth - padX;
-      if (avail > 0) baseScale = avail / unscaled.width;
+      const deskInner = wrap.clientWidth - padX;
+      const NOTES_W = 250;
+      const TEXT_PAD = 64 + 24; // text zone left + right padding
+      const targetText = Math.max(320, Math.min(560, deskInner - NOTES_W - TEXT_PAD - 24));
+      if (targetText > 0) baseScale = targetText / unscaled.width;
     }
     const zoom = visualZoomRef.current;
     const scale = baseScale * zoom;
@@ -589,25 +592,37 @@ export function PdfReader({ book }: Props) {
     <>
       <ReaderToolbar chapter={`Page ${page}`} percentage={percentage} />
       <div className={styles.wrapper}>
-        <div ref={readerAreaRef} className={styles.readerArea}>
+        <div className={styles.readerArea}>
           {loading && <div className={styles.loading}>Loading PDF...</div>}
           <div ref={canvasWrapRef} className={styles.canvasWrap}>
-            <div
-              ref={pageContainerRef}
-              className={styles.pageContainer}
-              style={{
-                transform: `scale(${transformScale})`,
-                transformOrigin: 'top center',
-              }}
-              onClick={handlePageClick}
-            >
-              <canvas ref={canvasRef} />
-              <div ref={highlightLayerRef} className={styles.highlightLayer} />
-              <div ref={selectionLayerRef} className={styles.selectionLayer} />
-              <div
-                ref={textLayerRef}
-                className="textLayer"
-                onCopy={handleCopy}
+            <div className={styles.page}>
+              <div className={styles.textZone}>
+                <div
+                  ref={pageContainerRef}
+                  className={styles.pageContainer}
+                  style={{
+                    transform: `scale(${transformScale})`,
+                    transformOrigin: 'top center',
+                  }}
+                  onClick={handlePageClick}
+                >
+                  <canvas ref={canvasRef} />
+                  <div ref={highlightLayerRef} className={styles.highlightLayer} />
+                  <div ref={selectionLayerRef} className={styles.selectionLayer} />
+                  <div
+                    ref={textLayerRef}
+                    className="textLayer"
+                    onCopy={handleCopy}
+                  />
+                </div>
+              </div>
+              <MarginNotes
+                ref={marginColumnRef}
+                notes={notePositions}
+                autoFocusId={autoFocusId}
+                onSave={handleSaveNote}
+                onDelete={deleteAnnotation}
+                onBlurEmpty={() => setAutoFocusId(null)}
               />
             </div>
           </div>
@@ -652,14 +667,6 @@ export function PdfReader({ book }: Props) {
             </div>
           </div>
         </div>
-
-        <MarginNotes
-          notes={notePositions}
-          autoFocusId={autoFocusId}
-          onSave={handleSaveNote}
-          onDelete={deleteAnnotation}
-          onBlurEmpty={() => setAutoFocusId(null)}
-        />
 
         {showAnnotations && (
           <AnnotationPanel

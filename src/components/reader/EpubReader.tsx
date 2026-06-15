@@ -25,7 +25,7 @@ interface PopoverState {
 
 export function EpubReader({ book }: Props) {
   const viewerRef = useRef<HTMLDivElement>(null);
-  const readerAreaRef = useRef<HTMLDivElement>(null);
+  const marginColumnRef = useRef<HTMLDivElement>(null);
   const epubRef = useRef<EpubBook | null>(null);
   const renditionRef = useRef<Rendition | null>(null);
   const { updateBook } = useLibrary();
@@ -49,13 +49,13 @@ export function EpubReader({ book }: Props) {
   // Ranges outside the visible page are skipped so only current-page notes show.
   const recomputeNotePositions = useCallback(() => {
     const rendition = renditionRef.current;
-    const readerArea = readerAreaRef.current;
+    const column = marginColumnRef.current;
     const container = viewerRef.current;
-    if (!rendition || !readerArea || !container) {
+    if (!rendition || !column || !container) {
       setNotePositions([]);
       return;
     }
-    const baseTop = readerArea.getBoundingClientRect().top;
+    const baseTop = column.getBoundingClientRect().top;
     const iframe = container.querySelector('iframe');
     const iframeRect = iframe?.getBoundingClientRect();
     const iframeTop = iframeRect?.top ?? 0;
@@ -116,19 +116,20 @@ export function EpubReader({ book }: Props) {
       });
       renditionRef.current = rendition;
 
+      // The page is always a cream sheet, so reading ink stays dark in both themes.
       rendition.themes.default({
         body: {
-          background: 'var(--bg-primary) !important',
-          color: 'var(--text-primary) !important',
+          background: 'transparent !important',
+          color: '#2b2723 !important',
           'font-family': 'var(--font-serif) !important',
-          'line-height': '1.8 !important',
-          'padding': '0 2rem !important',
+          'line-height': '1.7 !important',
+          'padding': '0 !important',
           '-webkit-user-select': 'text !important',
           'user-select': 'text !important',
         },
-        'a': { color: 'var(--accent) !important' },
+        'a': { color: '#9a6a2f !important' },
         '::selection': {
-          background: 'rgba(232, 200, 73, 0.35) !important',
+          background: 'rgba(232, 200, 73, 0.4) !important',
         },
       });
 
@@ -269,30 +270,35 @@ export function EpubReader({ book }: Props) {
     <>
       <ReaderToolbar chapter={chapter} percentage={percentage} />
       <div className={styles.wrapper}>
-        <div ref={readerAreaRef} className={styles.readerArea}>
-          {loading && <div className={styles.loading}>Loading book...</div>}
-          <div ref={viewerRef} className={styles.viewer} />
-          <button
-            className={`${styles.navBtn} ${styles.prev}`}
-            onClick={() => renditionRef.current?.prev()}
-          >
-            &lsaquo;
-          </button>
-          <button
-            className={`${styles.navBtn} ${styles.next}`}
-            onClick={() => renditionRef.current?.next()}
-          >
-            &rsaquo;
-          </button>
-        </div>
+        <div className={styles.desk}>
+          <div className={styles.page}>
+            <div className={styles.textZone}>
+              {loading && <div className={styles.loading}>Loading book...</div>}
+              <div ref={viewerRef} className={styles.viewer} />
+              <button
+                className={`${styles.navBtn} ${styles.prev}`}
+                onClick={() => renditionRef.current?.prev()}
+              >
+                &lsaquo;
+              </button>
+              <button
+                className={`${styles.navBtn} ${styles.next}`}
+                onClick={() => renditionRef.current?.next()}
+              >
+                &rsaquo;
+              </button>
+            </div>
 
-        <MarginNotes
-          notes={notePositions}
-          autoFocusId={autoFocusId}
-          onSave={handleSaveNote}
-          onDelete={deleteAnnotation}
-          onBlurEmpty={() => setAutoFocusId(null)}
-        />
+            <MarginNotes
+              ref={marginColumnRef}
+              notes={notePositions}
+              autoFocusId={autoFocusId}
+              onSave={handleSaveNote}
+              onDelete={deleteAnnotation}
+              onBlurEmpty={() => setAutoFocusId(null)}
+            />
+          </div>
+        </div>
 
         {showAnnotations && (
           <AnnotationPanel

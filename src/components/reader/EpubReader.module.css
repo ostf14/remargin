@@ -7,10 +7,33 @@
   display: flex;
 }
 
-.readerArea {
+/* The "desk": neutral surface the page sits on. */
+.desk {
   flex: 1;
+  min-width: 0;
+  overflow: auto;
+  background: var(--reader-desk);
+  display: flex;
+  justify-content: center;
+  align-items: stretch;
+  padding: var(--space-xl) var(--space-xl) var(--space-2xl);
+}
+
+/* The "page": a single cream sheet holding both text and the notes margin. */
+.page {
+  display: flex;
+  width: 100%;
+  max-width: 900px;
+  background: var(--reader-page);
+  box-shadow: var(--reader-page-shadow);
+  border-radius: 3px;
+}
+
+.textZone {
+  flex: 1;
+  min-width: 0;
   position: relative;
-  overflow: hidden;
+  padding: 48px 24px 48px 64px;
 }
 
 .viewer {
@@ -22,13 +45,13 @@
   position: absolute;
   top: 50%;
   transform: translateY(-50%);
-  width: 48px;
-  height: 80px;
+  width: 40px;
+  height: 72px;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(0, 0, 0, 0.3);
-  color: var(--text-secondary);
+  background: transparent;
+  color: var(--reader-ink-soft);
   font-size: var(--text-2xl);
   border-radius: var(--radius-md);
   opacity: 0;
@@ -36,21 +59,21 @@
   z-index: 10;
 }
 
-.readerArea:hover .navBtn {
-  opacity: 1;
+.textZone:hover .navBtn {
+  opacity: 0.7;
 }
 
 .navBtn:hover {
-  color: var(--text-primary);
-  background: rgba(0, 0, 0, 0.5);
+  opacity: 1;
+  color: var(--reader-ink);
 }
 
 .prev {
-  left: var(--space-md);
+  left: -8px;
 }
 
 .next {
-  right: var(--space-md);
+  right: -8px;
 }
 
 .loading {
@@ -59,6 +82,6 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--text-tertiary);
+  color: var(--reader-ink-soft);
   font-size: var(--text-sm);
 }

@@ -1,11 +1,11 @@
+/* Notes zone: part of the same "page", divided from the text by a faint line. */
 .column {
   position: relative;
-  width: 280px;
+  width: 250px;
   flex-shrink: 0;
-  height: 100%;
-  overflow: hidden;
-  border-left: 1px solid var(--border-subtle);
-  background: var(--bg-primary);
+  align-self: stretch;
+  border-left: 1px solid var(--reader-divider);
+  background: transparent;
 }
 
 .connectors {
