@@ -13,17 +13,25 @@ export function ImportDropzone() {
 
   const handleFiles = useCallback(
     async (files: FileList | File[]) => {
+      console.log('[import] handleFiles count=', files.length);
       setLoading(true);
       try {
         for (const file of Array.from(files)) {
           const ext = file.name.split('.').pop()?.toLowerCase();
-          if (ext !== 'epub' && ext !== 'pdf') continue;
-          const { book, data } = ext === 'epub' ? await parseEpub(file) : await parsePdf(file);
-          await saveBookFile(book.id, data);
-          addBook(book);
+          console.log('[import] file', file.name, 'ext=', ext, 'size=', file.size);
+          if (ext !== 'epub' && ext !== 'pdf') {
+            console.log('[import] skip — unsupported ext');
+            continue;
+          }
+          const parsed = ext === 'epub' ? await parseEpub(file) : await parsePdf(file);
+          console.log('[import] parsed', { id: parsed.book.id, title: parsed.book.title, dataBytes: parsed.data?.byteLength, dataType: parsed.data?.constructor?.name });
+          await saveBookFile(parsed.book.id, parsed.data);
+          console.log('[import] saveBookFile done for', parsed.book.id);
+          addBook(parsed.book);
+          console.log('[import] addBook called');
         }
       } catch (err) {
-        console.error('Import failed:', err);
+        console.error('[import] Import failed:', err);
       } finally {
         setLoading(false);
       }
