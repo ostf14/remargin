@@ -1,6 +1,7 @@
 import ePub from 'epubjs';
 import type { Book } from '../types';
 import { v4 as uuid } from 'uuid';
+import { parseFilename } from './parseFilename';
 
 export async function parseEpub(file: File): Promise<{ book: Book; data: ArrayBuffer }> {
   const data = await file.arrayBuffer();
@@ -8,8 +9,11 @@ export async function parseEpub(file: File): Promise<{ book: Book; data: ArrayBu
   await epub.ready;
 
   const meta = epub.packaging.metadata;
-  const title = meta.title || file.name.replace(/\.epub$/i, '');
-  const author = meta.creator || 'Unknown Author';
+  const fromName = parseFilename(file.name);
+  const metaTitle = (meta.title || '').trim();
+  const metaAuthor = (meta.creator || '').trim();
+  const title = metaTitle && metaTitle.toLowerCase() !== 'untitled' ? metaTitle : fromName.title;
+  const author = metaAuthor || fromName.author || 'Unknown Author';
 
   let coverUrl: string | null = null;
   try {

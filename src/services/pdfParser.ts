@@ -2,6 +2,7 @@ import * as pdfjsLib from 'pdfjs-dist';
 import workerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 import type { Book } from '../types';
 import { v4 as uuid } from 'uuid';
+import { parseFilename } from './parseFilename';
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = workerUrl;
 
@@ -9,14 +10,18 @@ export async function parsePdf(file: File): Promise<{ book: Book; data: ArrayBuf
   const data = await file.arrayBuffer();
   const pdf = await pdfjsLib.getDocument({ data: data.slice(0) }).promise;
 
-  let title = file.name.replace(/\.pdf$/i, '');
-  let author = 'Unknown Author';
+  // Filename is the fallback; embedded metadata wins when it's actually present.
+  const fromName = parseFilename(file.name);
+  let title = fromName.title;
+  let author = fromName.author || 'Unknown Author';
 
   try {
     const meta = await pdf.getMetadata();
     const info = meta.info as Record<string, string> | undefined;
-    if (info?.Title) title = info.Title;
-    if (info?.Author) author = info.Author;
+    const metaTitle = info?.Title?.trim();
+    const metaAuthor = info?.Author?.trim();
+    if (metaTitle && metaTitle.toLowerCase() !== 'untitled') title = metaTitle;
+    if (metaAuthor) author = metaAuthor;
   } catch {
     // metadata unavailable
   }
