@@ -1,16 +1,31 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import type { Book } from '../../types';
 import { useLibrary } from '../../hooks/useLibrary';
 import { useReader } from '../../hooks/useReader';
 import { BookCard } from './BookCard';
+import { ContinueReading } from './ContinueReading';
 import { ImportDropzone } from './ImportDropzone';
 import { ConfirmDialog } from './ConfirmDialog';
 import styles from './BookGrid.module.css';
+
+function timeOf(iso: string | null): number {
+  return iso ? new Date(iso).getTime() : 0;
+}
 
 export function BookGrid() {
   const { books, removeBook } = useLibrary();
   const { openBook, theme, toggleTheme } = useReader();
   const [pendingDelete, setPendingDelete] = useState<Book | null>(null);
+
+  // Most-recently-opened book powers the "Continue reading" hero (null if none opened yet).
+  const continueBook = useMemo(() => {
+    let latest: Book | null = null;
+    for (const b of books) {
+      if (!b.lastOpened) continue;
+      if (!latest || timeOf(b.lastOpened) > timeOf(latest.lastOpened)) latest = b;
+    }
+    return latest;
+  }, [books]);
 
   return (
     <div className={styles.container}>
@@ -36,16 +51,22 @@ export function BookGrid() {
           <div className={styles.emptyHint}>Import an EPUB or PDF to get started</div>
         </div>
       ) : (
-        <div className={styles.grid}>
-          {books.map((book) => (
-            <BookCard
-              key={book.id}
-              book={book}
-              onClick={() => openBook(book)}
-              onRemove={() => setPendingDelete(book)}
-            />
-          ))}
-        </div>
+        <>
+          {continueBook && (
+            <ContinueReading book={continueBook} onContinue={() => openBook(continueBook)} />
+          )}
+
+          <div className={styles.grid}>
+            {books.map((book) => (
+              <BookCard
+                key={book.id}
+                book={book}
+                onClick={() => openBook(book)}
+                onRemove={() => setPendingDelete(book)}
+              />
+            ))}
+          </div>
+        </>
       )}
 
       {pendingDelete && (

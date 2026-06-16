@@ -1,0 +1,125 @@
+.card {
+  display: flex;
+  align-items: center;
+  gap: var(--space-lg);
+  width: 100%;
+  height: 120px;
+  text-align: left;
+  padding: var(--space-md) var(--space-lg);
+  margin-top: var(--space-xl);
+  background: var(--reader-page);
+  color: var(--reader-ink);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--reader-page-shadow);
+  transition: transform var(--transition-base), box-shadow var(--transition-base);
+}
+
+.card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
+}
+
+.coverWrap {
+  flex-shrink: 0;
+  height: 80px;
+  display: flex;
+  align-items: center;
+}
+
+.cover {
+  height: 80px;
+  width: auto;
+  max-width: 60px;
+  object-fit: cover;
+  border-radius: var(--radius-sm);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+  display: block;
+}
+
+.coverPlaceholder {
+  height: 80px;
+  width: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  background: rgba(40, 30, 20, 0.08);
+  font-size: 1.8rem;
+}
+
+.info {
+  flex: 1;
+  min-width: 0;
+}
+
+.eyebrow {
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--reader-ink-soft);
+  margin-bottom: 2px;
+}
+
+.title {
+  font-size: var(--text-xl);
+  font-weight: 700;
+  color: var(--reader-ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.author {
+  font-size: var(--text-sm);
+  color: var(--reader-ink-soft);
+  margin-bottom: var(--space-sm);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.progressRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  max-width: 360px;
+}
+
+.progressBar {
+  flex: 1;
+  height: 6px;
+  border-radius: 3px;
+  background: rgba(40, 30, 20, 0.12);
+  overflow: hidden;
+}
+
+.progressFill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 3px;
+}
+
+.progressPct {
+  flex-shrink: 0;
+  font-size: var(--text-xs);
+  color: var(--reader-ink-soft);
+  font-variant-numeric: tabular-nums;
+}
+
+.cta {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  padding: var(--space-sm) var(--space-lg);
+  background: var(--accent);
+  color: var(--accent-text);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  white-space: nowrap;
+  border-radius: var(--radius-md);
+  transition: background var(--transition-fast);
+}
+
+.card:hover .cta {
+  background: var(--accent-hover);
+}

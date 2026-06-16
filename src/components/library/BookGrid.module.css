@@ -1,5 +1,6 @@
 .container {
-  min-height: 100vh;
+  height: 100vh;
+  overflow-y: auto;
   padding: var(--space-2xl) var(--space-3xl);
   max-width: 1400px;
   margin: 0 auto;
