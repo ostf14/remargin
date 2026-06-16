@@ -176,7 +176,6 @@ const PAGE_PAD_TOP = 24;
 export function PdfReader({ book }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const canvasWrapRef = useRef<HTMLDivElement>(null);
-  const pageElRef = useRef<HTMLDivElement>(null);
   const pageContainerRef = useRef<HTMLDivElement>(null);
   const highlightLayerRef = useRef<HTMLDivElement>(null);
   const textLayerRef = useRef<HTMLDivElement>(null);
@@ -185,9 +184,11 @@ export function PdfReader({ book }: Props) {
   const renderTaskRef = useRef<RenderTask | null>(null);
   const currentTextLayerRef = useRef<TextLayerInstance | null>(null);
   const selectionCleanupRef = useRef<(() => void) | null>(null);
-  // Scale (page-point → CSS px) the canvas is currently rasterised at; saved
-  // highlight rects are stored in page coords and multiplied by this to paint.
-  const currentScaleRef = useRef(1);
+  // Fit-width scale (page-point → CSS px at 100% zoom). Changes only with the
+  // container width / page size; the visual zoom is a CSS transform on top. Saved
+  // highlight rects and note anchors are stored in page coords × this base scale.
+  const baseScaleRef = useRef(1);
+  const lastRenderedPageRef = useRef(0);
   const { updateBook } = useLibrary();
   const { showAnnotations } = useReader();
   const { annotations, addAnnotation, updateAnnotation, deleteAnnotation } = useAnnotations(book.id);
@@ -204,26 +205,23 @@ export function PdfReader({ book }: Props) {
   const [autoFocusId, setAutoFocusId] = useState<string | null>(null);
   const autoFocusIdRef = useRef<string | null>(null);
   autoFocusIdRef.current = autoFocusId;
-  // renderScale = zoom the canvas is actually rasterized at; visualZoom = live
-  // target. Zooming only updates visualZoom (instant CSS transform); the canvas
-  // is re-rendered (debounced) once the user stops, then renderScale catches up.
-  const [renderScale, setRenderScale] = useState(1);
-  const [visualZoom, setVisualZoom] = useState(1);
-  // Mirror live values into refs so renderPage (stable identity) reads the latest
-  // without re-creating and without stale closures in timeouts/listeners.
-  const visualZoomRef = useRef(1);
-  visualZoomRef.current = visualZoom;
+  // Visual zoom = a CSS transform on the page sheet (canvas keeps its fit-width
+  // CSS size; only its bitmap is re-rasterised, debounced, for sharpness).
+  const [zoom, setZoom] = useState(1);
+  const zoomRef = useRef(1);
+  zoomRef.current = zoom;
+  const renderedZoomRef = useRef(1); // zoom the current bitmap was rasterised at
   const pageRef = useRef(page);
   pageRef.current = page;
 
-  // Draw all saved highlights for a page into the highlight layer. Rects are in
-  // page coords, so they scale with the canvas (× currentScale) and the live
-  // CSS transform handles the zoom transient (highlight layer is a child of it).
+  // Draw all saved highlights for a page into the highlight layer, in the canvas's
+  // fit-width CSS coords (× baseScale). The page's CSS zoom transform scales them
+  // together with the canvas, so highlights track it without recomputation.
   const paintSavedHighlights = useCallback((pageNum: number) => {
     const layer = highlightLayerRef.current;
     if (!layer) return;
     layer.replaceChildren();
-    const scale = currentScaleRef.current;
+    const scale = baseScaleRef.current;
     for (const a of annotationsRef.current) {
       if (a.anchor.kind !== 'pdf' || a.anchor.page !== pageNum) continue;
       for (const r of a.anchor.rects) {
@@ -244,15 +242,15 @@ export function PdfReader({ book }: Props) {
   // has text, or when it's the freshly created one being focused. Vertical anchor
   // = page-container top (accounts for scroll) + rect.y × scale, in reader coords.
   const recomputeNotePositions = useCallback(() => {
-    const scale = currentScaleRef.current || 1;
+    const scale = baseScaleRef.current || 1;
     const result: PositionedNote[] = [];
     for (const a of annotationsRef.current) {
       if (a.anchor.kind !== 'pdf' || a.anchor.page !== pageRef.current) continue;
       if (a.note.trim() === '' && a.id !== autoFocusIdRef.current) continue;
       const first = a.anchor.rects[0];
       if (!first) continue;
-      // Position straight from the stored page-coordinate anchor (× render scale).
-      // No getBoundingClientRect → immune to the live CSS transform during a zoom.
+      // Anchor × baseScale only — never × zoom. The page's CSS transform supplies
+      // the zoom, so positions are stable across zooming (no jump, no recompute).
       result.push({
         id: a.id,
         anchorTop: PAGE_PAD_TOP + first.y * scale,
@@ -284,21 +282,26 @@ export function PdfReader({ book }: Props) {
       const targetText = Math.max(320, Math.min(620, deskInner - NOTES_W - TEXT_PAD - 24));
       if (targetText > 0) baseScale = targetText / unscaled.width;
     }
-    const zoom = visualZoomRef.current;
-    const scale = baseScale * zoom;
-    const viewport = p.getViewport({ scale });
-    const dpr = window.devicePixelRatio || 1;
-    const cssWidth = Math.floor(viewport.width);
-    const cssHeight = Math.floor(viewport.height);
+    const baseChanged = baseScale !== baseScaleRef.current;
+    const pageChanged = num !== lastRenderedPageRef.current;
+    baseScaleRef.current = baseScale;
+    lastRenderedPageRef.current = num;
 
-    // Render into an offscreen canvas; the visible page keeps showing its previous
-    // (CSS-transformed) frame until the new raster is ready — no clear-flash.
+    const zoom = zoomRef.current;
+    const baseViewport = p.getViewport({ scale: baseScale });
+    const renderViewport = p.getViewport({ scale: baseScale * zoom });
+    const dpr = window.devicePixelRatio || 1;
+    const cssWidth = Math.floor(baseViewport.width);
+    const cssHeight = Math.floor(baseViewport.height);
+
+    // Rasterise at base × zoom (sharp), but display at the fit-width CSS size — the
+    // page's CSS transform supplies the visual zoom. Offscreen avoids a clear-flash.
     const offscreen = document.createElement('canvas');
-    offscreen.width = Math.floor(viewport.width * dpr);
-    offscreen.height = Math.floor(viewport.height * dpr);
+    offscreen.width = Math.floor(renderViewport.width * dpr);
+    offscreen.height = Math.floor(renderViewport.height * dpr);
     const offCtx = offscreen.getContext('2d')!;
     const transform = dpr !== 1 ? [dpr, 0, 0, dpr, 0, 0] : undefined;
-    const task = p.render({ canvasContext: offCtx, viewport, transform });
+    const task = p.render({ canvasContext: offCtx, viewport: renderViewport, transform });
     renderTaskRef.current = task;
     try {
       await task.promise;
@@ -308,8 +311,6 @@ export function PdfReader({ book }: Props) {
       throw e;
     }
 
-    // Swap in one frame: blit the fresh raster onto the visible canvas, drop the
-    // zoom transform, commit the scale. The user sees blurry → crisp, no jump.
     requestAnimationFrame(() => {
       const canvas = canvasRef.current;
       if (!canvas) return;
@@ -318,29 +319,26 @@ export function PdfReader({ book }: Props) {
       canvas.style.width = `${cssWidth}px`;
       canvas.style.height = `${cssHeight}px`;
       canvas.getContext('2d')!.drawImage(offscreen, 0, 0);
-      pageElRef.current?.style.setProperty('transform', 'scale(1)');
-      currentScaleRef.current = viewport.scale;
-      setRenderScale(zoom);
+      renderedZoomRef.current = zoom;
       paintSavedHighlights(num);
-      // Reposition notes in the same frame as the transform reset, so they don't
-      // lag a frame behind the canvas at the end of a zoom.
-      recomputeNotePositions();
+      // Notes move only when the page or the fit-width scale changes — never on zoom.
+      if (baseChanged || pageChanged) recomputeNotePositions();
 
-      // Rebuild the transparent text layer in the same frame; its brief mis-scale
-      // before this resolves is invisible (no glyphs are painted).
+      // Rebuild the transparent text layer at the fit-width scale (it rides the
+      // same CSS zoom transform as the canvas). Its brief mis-scale is invisible.
       const layerEl = textLayerRef.current;
       if (!layerEl) return;
       selectionCleanupRef.current?.();
       selectionCleanupRef.current = null;
       currentTextLayerRef.current?.cancel();
       layerEl.replaceChildren();
-      layerEl.style.setProperty('--scale-factor', String(viewport.scale));
+      layerEl.style.setProperty('--scale-factor', String(baseScale));
       const textContentSource = p.streamTextContent({
         includeMarkedContent: true,
         disableNormalization: true,
       });
       const TextLayer = (pdfjsLib as unknown as { TextLayer: TextLayerCtor }).TextLayer;
-      const tl = new TextLayer({ textContentSource, container: layerEl, viewport });
+      const tl = new TextLayer({ textContentSource, container: layerEl, viewport: baseViewport });
       currentTextLayerRef.current = tl;
       tl.render()
         .then(() => {
@@ -481,7 +479,7 @@ export function PdfReader({ book }: Props) {
       return;
     }
     const lines = computeSelectionLineRects(layer, pageContainer);
-    const scale = currentScaleRef.current || 1;
+    const scale = baseScaleRef.current * zoomRef.current || 1;
     const rects = lines.map((l) => ({
       x: l.left / scale,
       y: l.top / scale,
@@ -503,7 +501,7 @@ export function PdfReader({ book }: Props) {
     const pageContainer = pageContainerRef.current;
     if (!pageContainer) return;
     const base = pageContainer.getBoundingClientRect();
-    const scale = currentScaleRef.current || 1;
+    const scale = baseScaleRef.current * zoomRef.current || 1;
     const px = (e.clientX - base.left) / scale;
     const py = (e.clientY - base.top) / scale;
     for (const a of annotationsRef.current) {
@@ -529,7 +527,7 @@ export function PdfReader({ book }: Props) {
       return;
     }
     const lines = computeSelectionLineRects(layer, pageContainer);
-    const scale = currentScaleRef.current || 1;
+    const scale = baseScaleRef.current * zoomRef.current || 1;
     const rects = lines.map((l) => ({
       x: l.left / scale,
       y: l.top / scale,
@@ -555,36 +553,51 @@ export function PdfReader({ book }: Props) {
   const ZOOM_MIN = 0.5;
   const ZOOM_MAX = 3;
   const clampZoom = (z: number) => Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, z));
-  const zoomIn = () => setVisualZoom((z) => clampZoom(+(z + 0.25).toFixed(2)));
-  const zoomOut = () => setVisualZoom((z) => clampZoom(+(z - 0.25).toFixed(2)));
-  const fitWidth = () => setVisualZoom(1);
+  const zoomIn = () => setZoom((z) => clampZoom(+(z + 0.25).toFixed(2)));
+  const zoomOut = () => setZoom((z) => clampZoom(+(z - 0.25).toFixed(2)));
+  const fitWidth = () => setZoom(1);
 
-  // Ctrl + wheel: continuous zoom driven by deltaY (Figma/Maps feel).
-  // preventDefault so the browser doesn't zoom the whole page.
+  // Ctrl + wheel: continuous zoom (preventDefault blocks the browser's page zoom).
   useEffect(() => {
     const wrap = canvasWrapRef.current;
     if (!wrap) return;
     const onWheel = (e: WheelEvent) => {
       if (!e.ctrlKey) return;
       e.preventDefault();
-      setVisualZoom((z) => clampZoom(z - e.deltaY * 0.002));
+      setZoom((z) => clampZoom(z - e.deltaY * 0.002));
     };
     wrap.addEventListener('wheel', onWheel, { passive: false });
     return () => wrap.removeEventListener('wheel', onWheel);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Re-rasterize the canvas at the new zoom 300ms after the user stops zooming.
+  // Re-rasterise the bitmap sharper 250ms after zooming stops. The canvas CSS size
+  // and the page transform don't change — only a crisper image swaps in, no jump.
   useEffect(() => {
-    if (visualZoom === renderScale) return;
+    if (zoom === renderedZoomRef.current) return;
     const id = setTimeout(() => {
       if (pdfRef.current) renderPage(pdfRef.current, pageRef.current);
-    }, 300);
+    }, 250);
     return () => clearTimeout(id);
-  }, [visualZoom, renderScale, renderPage]);
+  }, [zoom, renderPage]);
+
+  // Re-fit (and re-anchor notes) when the window / desk width changes.
+  useEffect(() => {
+    let t = 0;
+    const onResize = () => {
+      clearTimeout(t);
+      t = window.setTimeout(() => {
+        if (pdfRef.current) renderPage(pdfRef.current, pageRef.current);
+      }, 150);
+    };
+    window.addEventListener('resize', onResize);
+    return () => {
+      clearTimeout(t);
+      window.removeEventListener('resize', onResize);
+    };
+  }, [renderPage]);
 
   const percentage = totalPages > 0 ? Math.round((page / totalPages) * 100) : 0;
-  const transformScale = visualZoom / renderScale;
 
   return (
     <>
@@ -594,10 +607,9 @@ export function PdfReader({ book }: Props) {
           {loading && <div className={styles.loading}>Loading PDF...</div>}
           <div ref={canvasWrapRef} className={styles.canvasWrap}>
             <div
-              ref={pageElRef}
               className={styles.page}
               style={{
-                transform: `scale(${transformScale})`,
+                transform: `scale(${zoom})`,
                 transformOrigin: 'top center',
               }}
             >
@@ -648,18 +660,18 @@ export function PdfReader({ book }: Props) {
               <button
                 className={styles.pageBtn}
                 onClick={zoomOut}
-                disabled={visualZoom <= ZOOM_MIN}
+                disabled={zoom <= ZOOM_MIN}
                 aria-label="Zoom out"
               >
                 &minus;
               </button>
               <button className={styles.zoomLevel} onClick={fitWidth} title="Fit width">
-                {Math.round(visualZoom * 100)}%
+                {Math.round(zoom * 100)}%
               </button>
               <button
                 className={styles.pageBtn}
                 onClick={zoomIn}
-                disabled={visualZoom >= ZOOM_MAX}
+                disabled={zoom >= ZOOM_MAX}
                 aria-label="Zoom in"
               >
                 +
