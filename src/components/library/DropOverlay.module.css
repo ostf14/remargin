@@ -1,0 +1,44 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--accent-muted);
+  backdrop-filter: blur(4px);
+  pointer-events: none; /* let the drop event reach the window handler */
+  animation: fadeIn var(--transition-fast);
+}
+
+.inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-md);
+  padding: var(--space-3xl) var(--space-2xl);
+  background: var(--bg-elevated);
+  border: 2px dashed var(--accent);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  color: var(--accent);
+}
+
+.icon {
+  font-size: 4rem;
+  line-height: 1;
+}
+
+.text {
+  font-size: var(--text-2xl);
+  font-weight: 600;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}

@@ -6,7 +6,6 @@
   height: 120px;
   text-align: left;
   padding: var(--space-md) var(--space-lg);
-  margin-top: var(--space-xl);
   background: var(--bg-secondary);
   color: var(--text-primary);
   border: 1px solid var(--border-subtle);
