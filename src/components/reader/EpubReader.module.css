@@ -22,17 +22,18 @@
   background: var(--reader-desk);
   display: flex;
   justify-content: center;
-  align-items: stretch;
+  align-items: flex-start;
   padding: var(--space-xl) var(--space-xl) var(--space-lg);
 }
 
-/* The "page": a cream sheet sized to the viewport (same width as PDF). epub.js
-   paginates content within it; empty space stays cream. It fills the height
-   instead of a fixed A4 ratio so the sheet never overruns the screen. */
+/* The "page": a fixed-proportion cream sheet (900 × 1073 at full width). Height
+   derives from width; epub.js paginates content within it, the rest stays cream. */
 .page {
   display: flex;
   width: 100%;
   max-width: var(--page-max-width);
+  aspect-ratio: 900 / 1073;
+  flex-shrink: 0;
   overflow: hidden;
   background: var(--reader-page);
   box-shadow: var(--reader-page-shadow);
