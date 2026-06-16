@@ -279,7 +279,11 @@ export function PdfReader({ book }: Props) {
       const deskInner = wrap.clientWidth - padX;
       const NOTES_W = 250;
       const TEXT_PAD = 32 + 16; // text zone left + right padding
-      const targetText = Math.max(320, Math.min(620, deskInner - NOTES_W - TEXT_PAD - 24));
+      const PAGE_MAX = 900; // keep in sync with --page-max-width
+      // Fit the canvas inside the (capped) page width so the sheet stays ~900px,
+      // matching the EPUB page exactly.
+      const pageWidth = Math.min(deskInner, PAGE_MAX);
+      const targetText = Math.max(320, pageWidth - NOTES_W - TEXT_PAD - 8);
       if (targetText > 0) baseScale = targetText / unscaled.width;
     }
     const baseChanged = baseScale !== baseScaleRef.current;

@@ -29,6 +29,8 @@
 .page {
   display: flex;
   align-items: stretch;
+  width: 100%;
+  max-width: var(--page-max-width);
   background: var(--reader-page);
   box-shadow: var(--reader-page-shadow);
   border-radius: 3px;

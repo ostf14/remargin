@@ -72,6 +72,7 @@
   --toolbar-height: 56px;
 
   /* Reader — "desk" surface + cream "page" (document metaphor, SPEC §3.2/§6) */
+  --page-max-width: 900px; /* shared by EPUB + PDF page sheets (keep PAGE_MAX in PdfReader in sync) */
   --reader-desk: #2a2a2a;
   --reader-page: #f5f0eb;
   --reader-ink: #2b2723;
