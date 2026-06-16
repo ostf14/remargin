@@ -173,6 +173,7 @@ export function PdfReader({ book }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const marginColumnRef = useRef<HTMLDivElement>(null);
   const canvasWrapRef = useRef<HTMLDivElement>(null);
+  const pageElRef = useRef<HTMLDivElement>(null);
   const pageContainerRef = useRef<HTMLDivElement>(null);
   const highlightLayerRef = useRef<HTMLDivElement>(null);
   const textLayerRef = useRef<HTMLDivElement>(null);
@@ -320,7 +321,7 @@ export function PdfReader({ book }: Props) {
       canvas.style.width = `${cssWidth}px`;
       canvas.style.height = `${cssHeight}px`;
       canvas.getContext('2d')!.drawImage(offscreen, 0, 0);
-      pageContainerRef.current?.style.setProperty('transform', 'scale(1)');
+      pageElRef.current?.style.setProperty('transform', 'scale(1)');
       currentScaleRef.current = viewport.scale;
       setRenderScale(zoom);
       paintSavedHighlights(num);
@@ -606,15 +607,18 @@ export function PdfReader({ book }: Props) {
         <div className={styles.readerArea}>
           {loading && <div className={styles.loading}>Loading PDF...</div>}
           <div ref={canvasWrapRef} className={styles.canvasWrap}>
-            <div className={styles.page}>
+            <div
+              ref={pageElRef}
+              className={styles.page}
+              style={{
+                transform: `scale(${transformScale})`,
+                transformOrigin: 'top center',
+              }}
+            >
               <div className={styles.textZone}>
                 <div
                   ref={pageContainerRef}
                   className={styles.pageContainer}
-                  style={{
-                    transform: `scale(${transformScale})`,
-                    transformOrigin: 'top center',
-                  }}
                   onClick={handlePageClick}
                 >
                   <canvas ref={canvasRef} />
