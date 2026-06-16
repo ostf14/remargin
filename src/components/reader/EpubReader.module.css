@@ -90,6 +90,7 @@
   cursor: not-allowed;
 }
 
+.zoomGroup,
 .fontGroup {
   display: flex;
   align-items: center;
@@ -97,6 +98,13 @@
   margin-left: var(--space-lg);
   padding-left: var(--space-lg);
   border-left: 1px solid var(--border-subtle);
+}
+
+.zoomLevel {
+  min-width: 46px;
+  text-align: center;
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
 }
 
 .pageInfo {

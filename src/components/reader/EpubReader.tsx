@@ -21,6 +21,13 @@ const FONT_MAX = 50; // 150%
 const FONT_STEP = 5;
 const clampFontOffset = (o: number) => Math.max(FONT_MIN, Math.min(FONT_MAX, o));
 
+// Visual zoom — a CSS transform on the whole page (SPEC §4.2), same as the PDF
+// reader. Distinct from font size: zoom scales visually, A±/A− reflows the text.
+const ZOOM_MIN = 0.5;
+const ZOOM_MAX = 3;
+const ZOOM_STEP = 0.25;
+const clampZoom = (z: number) => Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, z));
+
 interface PopoverState {
   x: number;
   y: number;
@@ -32,6 +39,7 @@ interface PopoverState {
 export function EpubReader({ book }: Props) {
   const viewerRef = useRef<HTMLDivElement>(null);
   const deskRef = useRef<HTMLDivElement>(null);
+  const pageElRef = useRef<HTMLDivElement>(null);
   const marginColumnRef = useRef<HTMLDivElement>(null);
   const epubRef = useRef<EpubBook | null>(null);
   const renditionRef = useRef<Rendition | null>(null);
@@ -53,12 +61,13 @@ export function EpubReader({ book }: Props) {
   const [fontOffset, setFontOffset] = useState(() => clampFontOffset(loadAppState().epubFontSizeOffset));
   const fontOffsetRef = useRef(fontOffset);
   fontOffsetRef.current = fontOffset;
+  const [zoom, setZoom] = useState(1);
 
-  // Ctrl + wheel resizes the reading font instead of zooming the whole browser.
-  const handleFontWheel = useCallback((e: WheelEvent) => {
+  // Ctrl + wheel = continuous visual zoom (blocks the browser's own page zoom).
+  const handleZoomWheel = useCallback((e: WheelEvent) => {
     if (!e.ctrlKey) return;
     e.preventDefault();
-    setFontOffset((o) => clampFontOffset(o + (e.deltaY < 0 ? FONT_STEP : -FONT_STEP)));
+    setZoom((z) => clampZoom(z - e.deltaY * 0.002));
   }, []);
 
   // Position margin notes opposite their highlight: resolve the cfi to a live
@@ -166,7 +175,7 @@ export function EpubReader({ book }: Props) {
       rendition.on('rendered', () => {
         const doc = container.querySelector('iframe')?.contentDocument;
         if (doc && !attachedDocs.has(doc)) {
-          doc.addEventListener('wheel', handleFontWheel, { passive: false });
+          doc.addEventListener('wheel', handleZoomWheel, { passive: false });
           attachedDocs.add(doc);
         }
       });
@@ -277,9 +286,9 @@ export function EpubReader({ book }: Props) {
   useEffect(() => {
     const desk = deskRef.current;
     if (!desk) return;
-    desk.addEventListener('wheel', handleFontWheel, { passive: false });
-    return () => desk.removeEventListener('wheel', handleFontWheel);
-  }, [handleFontWheel]);
+    desk.addEventListener('wheel', handleZoomWheel, { passive: false });
+    return () => desk.removeEventListener('wheel', handleZoomWheel);
+  }, [handleZoomWheel]);
 
   const drawHighlight = (cfi: string, color: HighlightColor) => {
     renditionRef.current?.annotations.highlight(cfi, {}, () => {}, 'hl', {
@@ -317,7 +326,11 @@ export function EpubReader({ book }: Props) {
       <div className={styles.wrapper}>
         <div className={styles.readerArea}>
           <div ref={deskRef} className={styles.desk}>
-            <div className={styles.page}>
+            <div
+              ref={pageElRef}
+              className={styles.page}
+              style={{ transform: `scale(${zoom})`, transformOrigin: 'top center' }}
+            >
               <div className={styles.textZone}>
                 {loading && <div className={styles.loading}>Loading book...</div>}
                 <div ref={viewerRef} className={styles.viewer} />
@@ -350,6 +363,25 @@ export function EpubReader({ book }: Props) {
             >
               Next &rarr;
             </button>
+            <div className={styles.zoomGroup}>
+              <button
+                className={styles.pageBtn}
+                onClick={() => setZoom((z) => clampZoom(+(z - ZOOM_STEP).toFixed(2)))}
+                disabled={zoom <= ZOOM_MIN}
+                aria-label="Zoom out"
+              >
+                &minus;
+              </button>
+              <span className={styles.zoomLevel}>{Math.round(zoom * 100)}%</span>
+              <button
+                className={styles.pageBtn}
+                onClick={() => setZoom((z) => clampZoom(+(z + ZOOM_STEP).toFixed(2)))}
+                disabled={zoom >= ZOOM_MAX}
+                aria-label="Zoom in"
+              >
+                +
+              </button>
+            </div>
             <div className={styles.fontGroup}>
               <button
                 className={styles.pageBtn}
