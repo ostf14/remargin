@@ -111,7 +111,7 @@
 }
 
 .deleteBtn:hover {
-  color: #e06060;
+  color: var(--danger);
 }
 
 .quote {

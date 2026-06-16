@@ -60,12 +60,12 @@
 }
 
 .confirm {
-  background: #c0504a;
+  background: var(--danger);
   color: #fff;
 }
 
 .confirm:hover {
-  background: #d15c55;
+  background: var(--danger-hover);
 }
 
 @keyframes fadeIn {
