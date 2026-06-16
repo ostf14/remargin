@@ -54,8 +54,14 @@ declare module 'epubjs' {
       default(styles: Record<string, Record<string, string>>): void;
       register(name: string, styles: Record<string, Record<string, string>>): void;
       select(name: string): void;
+      override(name: string, value: string, priority?: boolean): void;
       fontSize(size: string): void;
     };
+  }
+
+  export interface Locations {
+    generate(chars?: number): Promise<unknown>;
+    percentageFromCfi(cfi: string): number;
   }
 
   export interface SpineFindResult {
@@ -78,6 +84,7 @@ declare module 'epubjs' {
     packaging: Packaging;
     navigation: Navigation;
     spine: Spine;
+    locations: Locations;
     load(path: string): Promise<unknown>;
     archive: { getBlob(path: string, mimeType: string): Promise<Blob> };
     coverUrl(): Promise<string | null>;

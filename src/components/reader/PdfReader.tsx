@@ -14,6 +14,7 @@ import { HighlightPopover } from '../annotations/HighlightPopover';
 import { MarginNotes, type PositionedNote } from '../annotations/MarginNotes';
 import { Toast } from './Toast';
 import { SearchBar } from './SearchBar';
+import { ReadingTimeLeft } from './ReadingTimeLeft';
 import { formatCitation } from '../../services/citation';
 import { countPdfWords } from '../../services/wordCount';
 import styles from './PdfReader.module.css';
@@ -788,7 +789,12 @@ export function PdfReader({ book }: Props) {
 
   return (
     <>
-      <ReaderToolbar chapter={`Page ${page}`} percentage={percentage} wordCount={wordCount} />
+      <ReaderToolbar
+        chapter={`Page ${page}`}
+        percentage={percentage}
+        onOpenSearch={() => setSearchOpen(true)}
+      />
+      <ReadingTimeLeft wordCount={wordCount} percentage={percentage} />
       {searchOpen && (
         <SearchBar
           query={searchQuery}

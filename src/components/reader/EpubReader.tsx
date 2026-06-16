@@ -11,6 +11,7 @@ import { HighlightPopover } from '../annotations/HighlightPopover';
 import { MarginNotes, type PositionedNote } from '../annotations/MarginNotes';
 import { Toast } from './Toast';
 import { SearchBar } from './SearchBar';
+import { ReadingTimeLeft } from './ReadingTimeLeft';
 import { formatCitation } from '../../services/citation';
 import { countWordsFromData } from '../../services/wordCount';
 import styles from './EpubReader.module.css';
@@ -50,8 +51,12 @@ const KEY_COLORS: Record<string, HighlightColor> = {
 // so the .page (--reader-page, switched via [data-surface]) shows through; only the
 // ink + link colours differ per surface. Full rule set per theme so select() is
 // self-contained regardless of epub.js merge behaviour.
+function surfaceInk(surface: ReadingSurface): string {
+  return surface === 'sepia' ? '#5b4636' : surface === 'dark' ? '#d4d4d4' : '#313131';
+}
+
 function surfaceTheme(surface: ReadingSurface): Record<string, Record<string, string>> {
-  const ink = surface === 'sepia' ? '#5b4636' : surface === 'dark' ? '#d4d4d4' : '#313131';
+  const ink = surfaceInk(surface);
   const link = surface === 'dark' ? '#9b9bff' : '#8e5cd6';
   return {
     body: {
@@ -89,6 +94,7 @@ export function EpubReader({ book }: Props) {
   const { showAnnotations, readingSurface } = useReader();
   const readingSurfaceRef = useRef(readingSurface);
   readingSurfaceRef.current = readingSurface;
+  const lastCfiRef = useRef<string | null>(book.lastPosition);
   const { annotations, addAnnotation, updateAnnotation, deleteAnnotation } =
     useAnnotations(book.id);
   const annotationsRef = useRef(annotations);
@@ -223,12 +229,9 @@ export function EpubReader({ book }: Props) {
       });
       renditionRef.current = rendition;
 
-      // Reading surface (light/sepia/dark) — register all three, select the active one.
-      // CSS custom properties don't cross the iframe, so the colours are literals.
-      rendition.themes.register('light', surfaceTheme('light'));
-      rendition.themes.register('sepia', surfaceTheme('sepia'));
-      rendition.themes.register('dark', surfaceTheme('dark'));
-      rendition.themes.select(readingSurfaceRef.current);
+      // Reading surface (light/sepia/dark). themes.default reliably applies on render
+      // (CSS custom properties don't cross the iframe, so colours are literals).
+      rendition.themes.default(surfaceTheme(readingSurfaceRef.current));
       rendition.themes.fontSize(`${100 + fontOffsetRef.current}%`);
 
       const startCfi = book.lastPosition;
@@ -237,6 +240,24 @@ export function EpubReader({ book }: Props) {
       } else {
         rendition.display();
       }
+
+      // Generate locations so progress (and the time-left estimate) advances smoothly
+      // rather than in coarse spine jumps. Background; refresh the % once it's ready.
+      const epubForLocations = epub;
+      epubForLocations.locations
+        .generate(1200)
+        .then(() => {
+          if (cancelled) return;
+          const cfi = lastCfiRef.current;
+          if (cfi) {
+            try {
+              setPercentage(Math.round(epubForLocations.locations.percentageFromCfi(cfi) * 100));
+            } catch {
+              /* ignore */
+            }
+          }
+        })
+        .catch(() => {});
 
       rendition.on('displayed', () => setLoading(false));
 
@@ -254,6 +275,7 @@ export function EpubReader({ book }: Props) {
       const epubInstance = epub;
       rendition.on('relocated', (location: unknown) => {
         const loc = location as { start: { cfi: string; href: string; percentage: number } };
+        lastCfiRef.current = loc.start.cfi;
         const pct = Math.round((loc.start.percentage || 0) * 100);
         setPercentage(pct);
 
@@ -425,9 +447,14 @@ export function EpubReader({ book }: Props) {
   };
   shortcutKeyRef.current = handleShortcutKey;
 
-  // Re-apply the reading-surface theme to the epub content when it changes.
+  // Re-apply the reading-surface theme when it changes. themes.default updates the
+  // ruleset (links/selection take effect on the next render); override flips the
+  // visible text colour live, without a re-render.
   useEffect(() => {
-    renditionRef.current?.themes.select(readingSurface);
+    const r = renditionRef.current;
+    if (!r) return;
+    r.themes.default(surfaceTheme(readingSurface));
+    r.themes.override('color', surfaceInk(readingSurface));
   }, [readingSurface]);
 
   // --- In-book search (Ctrl+F) ---
@@ -530,7 +557,12 @@ export function EpubReader({ book }: Props) {
 
   return (
     <>
-      <ReaderToolbar chapter={chapter} percentage={percentage} wordCount={wordCount} />
+      <ReaderToolbar
+        chapter={chapter}
+        percentage={percentage}
+        onOpenSearch={() => setSearchOpen(true)}
+      />
+      <ReadingTimeLeft wordCount={wordCount} percentage={percentage} />
       {searchOpen && (
         <SearchBar
           query={searchQuery}

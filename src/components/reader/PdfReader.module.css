@@ -55,10 +55,11 @@
   border-radius: 1px;
 }
 
-/* Reading surface — applied to the whole rendered page so the canvas and saved
-   highlights transform together (highlights stay visible/hue-correct in dark). */
-:global([data-surface='sepia']) .pageContainer {
-  filter: sepia(0.3);
+/* Reading surface. Sepia: multiply the canvas onto the cream page sheet so the white
+   PDF background takes the tint (filter: sepia barely touches white). Dark: invert the
+   whole page (canvas + highlights together) so it goes dark and stays hue-correct. */
+:global([data-surface='sepia']) .pageContainer canvas {
+  mix-blend-mode: multiply;
 }
 
 :global([data-surface='dark']) .pageContainer {

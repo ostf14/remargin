@@ -1,0 +1,10 @@
+.timeLeft {
+  position: fixed;
+  left: var(--space-lg);
+  bottom: var(--space-md);
+  z-index: 110;
+  font-size: var(--text-xs);
+  color: var(--text-tertiary);
+  white-space: nowrap;
+  pointer-events: none;
+}

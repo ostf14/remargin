@@ -1,12 +1,11 @@
 import type { ReadingSurface } from '../../types';
 import { useReader } from '../../hooks/useReader';
-import { readingMinutes, formatDuration } from '../../services/wordCount';
 import styles from './ReaderToolbar.module.css';
 
 interface Props {
   chapter?: string;
   percentage: number;
-  wordCount?: number;
+  onOpenSearch?: () => void;
 }
 
 const SURFACES: { key: ReadingSurface; bg: string; label: string }[] = [
@@ -15,7 +14,7 @@ const SURFACES: { key: ReadingSurface; bg: string; label: string }[] = [
   { key: 'dark', bg: '#2b2b2b', label: 'Dark page' },
 ];
 
-export function ReaderToolbar({ chapter, percentage, wordCount }: Props) {
+export function ReaderToolbar({ chapter, percentage, onOpenSearch }: Props) {
   const {
     currentBook,
     closeBook,
@@ -27,10 +26,6 @@ export function ReaderToolbar({ chapter, percentage, wordCount }: Props) {
     setReadingSurface,
   } = useReader();
   if (!currentBook) return null;
-
-  const remainingMin = wordCount
-    ? readingMinutes(Math.max(0, wordCount * (1 - percentage / 100)))
-    : 0;
 
   return (
     <div className={styles.toolbar}>
@@ -45,10 +40,19 @@ export function ReaderToolbar({ chapter, percentage, wordCount }: Props) {
       </div>
 
       <div className={styles.right}>
-        {remainingMin > 0 && (
-          <span className={styles.timeLeft}>~{formatDuration(remainingMin)} left</span>
-        )}
         <span className={styles.progress}>{Math.round(percentage)}%</span>
+
+        {onOpenSearch && (
+          <button
+            className={styles.iconBtn}
+            onClick={onOpenSearch}
+            title="Find in book (Ctrl+F)"
+            aria-label="Find in book"
+          >
+            ⌕
+          </button>
+        )}
+
         <div className={styles.surfaces}>
           {SURFACES.map((s) => (
             <button
@@ -61,6 +65,7 @@ export function ReaderToolbar({ chapter, percentage, wordCount }: Props) {
             />
           ))}
         </div>
+
         <button
           className={styles.iconBtn}
           onClick={toggleTheme}
