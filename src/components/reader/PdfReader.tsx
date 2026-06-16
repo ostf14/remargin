@@ -18,6 +18,15 @@ import styles from './PdfReader.module.css';
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = workerUrl;
 
+// Number-key → highlight colour (keyboard highlight, no popover).
+const KEY_COLORS: Record<string, HighlightColor> = {
+  '1': 'yellow',
+  '2': 'green',
+  '3': 'blue',
+  '4': 'red',
+  '5': 'purple',
+};
+
 interface TextLayerInstance {
   render(): Promise<unknown>;
   cancel(): void;
@@ -594,6 +603,13 @@ export function PdfReader({ book }: Props) {
         .writeText(citation)
         .then(() => showToast('Copied citation'))
         .catch(() => {});
+      return;
+    }
+
+    // 1–5 → instant highlight in the matching colour, no popover.
+    if (!e.ctrlKey && !e.metaKey && !e.altKey && KEY_COLORS[e.key]) {
+      e.preventDefault();
+      handleCreateHighlight(KEY_COLORS[e.key]);
     }
   };
   shortcutKeyRef.current = handleShortcutKey;

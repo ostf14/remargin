@@ -30,6 +30,15 @@ const ZOOM_MAX = 3;
 const ZOOM_STEP = 0.25;
 const clampZoom = (z: number) => Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, z));
 
+// Number-key → highlight colour (keyboard highlight, no popover).
+const KEY_COLORS: Record<string, HighlightColor> = {
+  '1': 'yellow',
+  '2': 'green',
+  '3': 'blue',
+  '4': 'red',
+  '5': 'purple',
+};
+
 // Text-zone top padding (CSS) — vertical offset of the iframe from the page top.
 const EPUB_PAD_TOP = 40;
 
@@ -352,6 +361,15 @@ export function EpubReader({ book }: Props) {
         .writeText(citation)
         .then(() => showToast('Copied citation'))
         .catch(() => {});
+      return;
+    }
+
+    // 1–5 → instant highlight in the matching colour, then drop the iframe selection.
+    if (!e.ctrlKey && !e.metaKey && !e.altKey && KEY_COLORS[e.key]) {
+      e.preventDefault();
+      handleHighlight(KEY_COLORS[e.key]);
+      const iframe = viewerRef.current?.querySelector('iframe');
+      iframe?.contentWindow?.getSelection()?.removeAllRanges();
     }
   };
   shortcutKeyRef.current = handleShortcutKey;

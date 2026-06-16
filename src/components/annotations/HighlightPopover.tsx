@@ -11,12 +11,12 @@ interface Props {
   noteLabel?: string;
 }
 
-const COLORS: { color: HighlightColor; cls: string }[] = [
-  { color: 'yellow', cls: styles.yellow },
-  { color: 'green', cls: styles.green },
-  { color: 'blue', cls: styles.blue },
-  { color: 'red', cls: styles.red },
-  { color: 'purple', cls: styles.purple },
+const COLORS: { color: HighlightColor; cls: string; hint: string }[] = [
+  { color: 'yellow', cls: styles.yellow, hint: '1' },
+  { color: 'green', cls: styles.green, hint: '2' },
+  { color: 'blue', cls: styles.blue, hint: '3' },
+  { color: 'red', cls: styles.red, hint: '4' },
+  { color: 'purple', cls: styles.purple, hint: '5' },
 ];
 
 export function HighlightPopover({
@@ -32,13 +32,15 @@ export function HighlightPopover({
     <>
       <div className={styles.backdrop} onClick={onDismiss} />
       <div className={styles.popover} style={{ left: x, top: y }}>
-        {COLORS.map(({ color, cls }) => (
+        {COLORS.map(({ color, cls, hint }) => (
           <button
             key={color}
             className={`${styles.colorBtn} ${cls}`}
             onClick={() => onHighlight(color)}
             title={color}
-          />
+          >
+            <span className={styles.keyHint}>{hint}</span>
+          </button>
         ))}
         {onNote && (
           <button className={styles.noteBtn} onClick={onNote} title={noteLabel}>
