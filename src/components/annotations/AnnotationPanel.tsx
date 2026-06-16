@@ -1,5 +1,5 @@
 import type { Annotation, Book } from '../../types';
-import { exportAnnotationsToMarkdown, downloadMarkdown } from '../../services/exportMarkdown';
+import { exportSingleAnnotation, exportAllAnnotations } from '../../services/exportMarkdown';
 import { NoteEditor } from './NoteEditor';
 import styles from './AnnotationPanel.module.css';
 
@@ -23,12 +23,6 @@ function anchorLabel(a: Annotation): string {
 }
 
 export function AnnotationPanel({ annotations, book, onUpdate, onDelete }: Props) {
-  const handleExport = () => {
-    const md = exportAnnotationsToMarkdown(book, annotations);
-    const filename = `${book.title.replace(/[^a-zA-Z0-9]/g, '_')}_annotations.md`;
-    downloadMarkdown(md, filename);
-  };
-
   return (
     <div className={styles.panel}>
       <div className={styles.header}>
@@ -37,8 +31,13 @@ export function AnnotationPanel({ annotations, book, onUpdate, onDelete }: Props
           <div className={styles.count}>{annotations.length} highlights</div>
         </div>
         {annotations.length > 0 && (
-          <button className={styles.exportBtn} onClick={handleExport}>
-            Export MD
+          <button
+            className={styles.exportBtn}
+            onClick={() => {
+              void exportAllAnnotations(book, annotations);
+            }}
+          >
+            Export All
           </button>
         )}
       </div>
@@ -59,12 +58,21 @@ export function AnnotationPanel({ annotations, book, onUpdate, onDelete }: Props
                   />
                   {anchorLabel(a)}
                 </span>
-                <button
-                  className={styles.deleteBtn}
-                  onClick={() => onDelete(a.id)}
-                >
-                  Remove
-                </button>
+                <div className={styles.itemActions}>
+                  <button
+                    className={styles.itemExportBtn}
+                    onClick={() => exportSingleAnnotation(book, a)}
+                    title="Export this annotation as .md"
+                  >
+                    Export
+                  </button>
+                  <button
+                    className={styles.deleteBtn}
+                    onClick={() => onDelete(a.id)}
+                  >
+                    Remove
+                  </button>
+                </div>
               </div>
               <div className={styles.quote}>{a.highlightedText}</div>
               <NoteEditor
