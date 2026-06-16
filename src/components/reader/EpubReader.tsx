@@ -28,6 +28,9 @@ const ZOOM_MAX = 3;
 const ZOOM_STEP = 0.25;
 const clampZoom = (z: number) => Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, z));
 
+// Text-zone top padding (CSS) — vertical offset of the iframe from the page top.
+const EPUB_PAD_TOP = 40;
+
 interface PopoverState {
   x: number;
   y: number;
@@ -40,7 +43,6 @@ export function EpubReader({ book }: Props) {
   const viewerRef = useRef<HTMLDivElement>(null);
   const deskRef = useRef<HTMLDivElement>(null);
   const pageElRef = useRef<HTMLDivElement>(null);
-  const marginColumnRef = useRef<HTMLDivElement>(null);
   const epubRef = useRef<EpubBook | null>(null);
   const renditionRef = useRef<Rendition | null>(null);
   const { updateBook } = useLibrary();
@@ -75,18 +77,16 @@ export function EpubReader({ book }: Props) {
   // Ranges outside the visible page are skipped so only current-page notes show.
   const recomputeNotePositions = useCallback(() => {
     const rendition = renditionRef.current;
-    const column = marginColumnRef.current;
     const container = viewerRef.current;
-    if (!rendition || !column || !container) {
+    const iframe = container?.querySelector('iframe');
+    if (!rendition || !iframe) {
       setNotePositions([]);
       return;
     }
-    const baseTop = column.getBoundingClientRect().top;
-    const iframe = container.querySelector('iframe');
-    const iframeRect = iframe?.getBoundingClientRect();
-    const iframeTop = iframeRect?.top ?? 0;
-    const iframeW = iframeRect?.width ?? 0;
-    const iframeH = iframeRect?.height ?? 0;
+    // The iframe's client box is its untransformed internal viewport — the page's
+    // CSS zoom transform doesn't affect it, so positions computed here are stable.
+    const iw = iframe.clientWidth;
+    const ih = iframe.clientHeight;
     const result: PositionedNote[] = [];
     for (const a of annotationsRef.current) {
       if (a.anchor.kind !== 'epub') continue;
@@ -100,9 +100,10 @@ export function EpubReader({ book }: Props) {
       if (!range) continue;
       const r = range.getBoundingClientRect();
       if (!r) continue;
-      // Visible on the current page only (paginated columns push others off-screen).
-      if (r.right < 0 || r.left > iframeW || r.bottom < 0 || r.top > iframeH) continue;
-      result.push({ id: a.id, anchorTop: iframeTop + r.top - baseTop, note: a.note, color: a.color });
+      // r is in the iframe's own coordinate space; skip ranges off the current
+      // page (paginated columns push others outside the viewport).
+      if (r.right < 0 || r.left > iw || r.bottom < 0 || r.top > ih) continue;
+      result.push({ id: a.id, anchorTop: EPUB_PAD_TOP + r.top, note: a.note, color: a.color });
     }
     setNotePositions(result);
   }, []);
@@ -337,7 +338,6 @@ export function EpubReader({ book }: Props) {
               </div>
 
               <MarginNotes
-                ref={marginColumnRef}
                 notes={notePositions}
                 autoFocusId={autoFocusId}
                 onSave={handleSaveNote}

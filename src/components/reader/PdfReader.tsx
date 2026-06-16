@@ -169,9 +169,12 @@ interface Props {
   book: Book;
 }
 
+// Text-zone top padding (CSS) — the vertical offset of the canvas (and thus the
+// first page row) from the top of the page sheet. Margin cards share this origin.
+const PAGE_PAD_TOP = 24;
+
 export function PdfReader({ book }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const marginColumnRef = useRef<HTMLDivElement>(null);
   const canvasWrapRef = useRef<HTMLDivElement>(null);
   const pageElRef = useRef<HTMLDivElement>(null);
   const pageContainerRef = useRef<HTMLDivElement>(null);
@@ -210,8 +213,6 @@ export function PdfReader({ book }: Props) {
   // without re-creating and without stale closures in timeouts/listeners.
   const visualZoomRef = useRef(1);
   visualZoomRef.current = visualZoom;
-  const renderScaleRef = useRef(1);
-  renderScaleRef.current = renderScale;
   const pageRef = useRef(page);
   pageRef.current = page;
 
@@ -243,14 +244,6 @@ export function PdfReader({ book }: Props) {
   // has text, or when it's the freshly created one being focused. Vertical anchor
   // = page-container top (accounts for scroll) + rect.y × scale, in reader coords.
   const recomputeNotePositions = useCallback(() => {
-    const column = marginColumnRef.current;
-    const pageContainer = pageContainerRef.current;
-    if (!column || !pageContainer) {
-      setNotePositions([]);
-      return;
-    }
-    const baseTop = column.getBoundingClientRect().top;
-    const pcTop = pageContainer.getBoundingClientRect().top;
     const scale = currentScaleRef.current || 1;
     const result: PositionedNote[] = [];
     for (const a of annotationsRef.current) {
@@ -258,9 +251,11 @@ export function PdfReader({ book }: Props) {
       if (a.note.trim() === '' && a.id !== autoFocusIdRef.current) continue;
       const first = a.anchor.rects[0];
       if (!first) continue;
+      // Position straight from the stored page-coordinate anchor (× render scale).
+      // No getBoundingClientRect → immune to the live CSS transform during a zoom.
       result.push({
         id: a.id,
-        anchorTop: pcTop + first.y * scale - baseTop,
+        anchorTop: PAGE_PAD_TOP + first.y * scale,
         note: a.note,
         color: a.color,
       });
@@ -457,32 +452,13 @@ export function PdfReader({ book }: Props) {
     paintSavedHighlights(pageRef.current);
   }, [annotations, paintSavedHighlights]);
 
-  // Recompute when notes are added/removed/focused. Page turns and zoom re-renders
-  // recompute from the render rAF instead, so positions land in the same frame as
-  // the transform reset (no separate, delayed pass while a zoom is mid-transform).
+  // Notes are positioned from stored anchor coordinates, relative to the page
+  // sheet — they scroll and zoom with it (same parent transform), so the only
+  // recompute triggers are an annotation change here and a page/zoom re-render
+  // (done from the render rAF). No scroll/resize listeners needed.
   useEffect(() => {
     recomputeNotePositions();
   }, [annotations, autoFocusId, recomputeNotePositions]);
-
-  useEffect(() => {
-    const wrap = canvasWrapRef.current;
-    if (!wrap) return;
-    let raf = 0;
-    const onMove = () => {
-      // Skip while a zoom is mid-transform — the CSS transform already scales the
-      // notes with the page; recomputing now would read transformed rects.
-      if (visualZoomRef.current !== renderScaleRef.current) return;
-      cancelAnimationFrame(raf);
-      raf = requestAnimationFrame(recomputeNotePositions);
-    };
-    wrap.addEventListener('scroll', onMove, { passive: true });
-    window.addEventListener('resize', onMove);
-    return () => {
-      cancelAnimationFrame(raf);
-      wrap.removeEventListener('scroll', onMove);
-      window.removeEventListener('resize', onMove);
-    };
-  }, [recomputeNotePositions]);
 
   const handleCopy = useCallback((e: React.ClipboardEvent<HTMLDivElement>) => {
     const raw = window.getSelection()?.toString() ?? '';
@@ -642,7 +618,6 @@ export function PdfReader({ book }: Props) {
                 </div>
               </div>
               <MarginNotes
-                ref={marginColumnRef}
                 notes={notePositions}
                 autoFocusId={autoFocusId}
                 onSave={handleSaveNote}
