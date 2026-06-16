@@ -13,8 +13,26 @@ import { AnnotationPanel } from '../annotations/AnnotationPanel';
 import { HighlightPopover } from '../annotations/HighlightPopover';
 import { MarginNotes, type PositionedNote } from '../annotations/MarginNotes';
 import { Toast } from './Toast';
+import { SearchBar } from './SearchBar';
 import { formatCitation } from '../../services/citation';
 import styles from './PdfReader.module.css';
+
+// Span-level find highlight on the (transparent) text layer: any span containing
+// the query gets a tinted background over the canvas text. Rebuilt with the layer.
+function highlightSearchInTextLayer(layer: HTMLElement, query: string) {
+  layer.querySelectorAll('.highlight-search').forEach((el) => el.classList.remove('highlight-search'));
+  const q = query.trim().toLowerCase();
+  if (!q) return;
+  for (const span of Array.from(layer.children)) {
+    if (span instanceof HTMLElement && span.textContent?.toLowerCase().includes(q)) {
+      span.classList.add('highlight-search');
+    }
+  }
+}
+
+interface SearchMatch {
+  page: number;
+}
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = workerUrl;
 
@@ -236,6 +254,19 @@ export function PdfReader({ book }: Props) {
   // Keydown handler is registered once but must see fresh state — bridge via a ref.
   const shortcutKeyRef = useRef<(e: KeyboardEvent) => void>(() => {});
 
+  // In-book search (Ctrl+F).
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [searchMatches, setSearchMatches] = useState<SearchMatch[]>([]);
+  const [searchIndex, setSearchIndex] = useState(0);
+  const [searching, setSearching] = useState(false);
+  const searchSeqRef = useRef(0);
+  const searchCacheRef = useRef<{ query: string; matches: SearchMatch[] } | null>(null);
+  // Effective query for the text-layer highlight, read inside renderPage.
+  const searchActiveRef = useRef('');
+  searchActiveRef.current = searchOpen ? debouncedSearch : '';
+
   // Draw all saved highlights for a page into the highlight layer, in the canvas's
   // fit-width CSS coords (× baseScale). The page's CSS zoom transform scales them
   // together with the canvas, so highlights track it without recomputation.
@@ -371,6 +402,7 @@ export function PdfReader({ book }: Props) {
           if (currentTextLayerRef.current !== tl) return; // superseded by a newer render
           selectionCleanupRef.current = bindTextLayerSelection(layerEl);
           selectionLayerRef.current?.replaceChildren();
+          highlightSearchInTextLayer(layerEl, searchActiveRef.current);
         })
         .catch(() => {
           /* cancelled by a newer render */
@@ -591,6 +623,11 @@ export function PdfReader({ book }: Props) {
   // note field. Ctrl/Cmd+Shift+C copies a formatted citation (plain Ctrl+C is
   // handled separately by onCopy, keeping its newline cleanup).
   const handleShortcutKey = (e: KeyboardEvent) => {
+    if ((e.ctrlKey || e.metaKey) && (e.key === 'f' || e.key === 'F')) {
+      e.preventDefault();
+      setSearchOpen(true);
+      return;
+    }
     const t = e.target as HTMLElement | null;
     if (t && (t.tagName === 'TEXTAREA' || t.tagName === 'INPUT' || t.isContentEditable)) return;
     const raw = document.getSelection()?.toString() ?? '';
@@ -613,6 +650,80 @@ export function PdfReader({ book }: Props) {
     }
   };
   shortcutKeyRef.current = handleShortcutKey;
+
+  // --- In-book search (Ctrl+F) ---
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(searchQuery), 300);
+    return () => clearTimeout(t);
+  }, [searchQuery]);
+
+  // Scan every page's text content for the query; cancellable and cached per query.
+  const runSearch = useCallback(async (query: string) => {
+    const q = query.trim().toLowerCase();
+    if (!q) {
+      searchSeqRef.current++;
+      setSearchMatches([]);
+      setSearchIndex(0);
+      setSearching(false);
+      return;
+    }
+    if (searchCacheRef.current?.query === q) {
+      const cached = searchCacheRef.current.matches;
+      setSearchMatches(cached);
+      setSearchIndex(0);
+      if (cached.length) setPage(cached[0].page);
+      return;
+    }
+    const pdf = pdfRef.current;
+    if (!pdf) return;
+    const seq = ++searchSeqRef.current;
+    setSearching(true);
+    const matches: SearchMatch[] = [];
+    for (let p = 1; p <= pdf.numPages; p++) {
+      if (seq !== searchSeqRef.current) return; // a newer query superseded this run
+      const pg = await pdf.getPage(p);
+      const tc = await pg.getTextContent();
+      const text = tc.items
+        .map((it) => ('str' in it ? (it as { str: string }).str : ''))
+        .join(' ')
+        .toLowerCase();
+      let idx = text.indexOf(q);
+      while (idx !== -1) {
+        matches.push({ page: p });
+        idx = text.indexOf(q, idx + q.length);
+      }
+    }
+    if (seq !== searchSeqRef.current) return;
+    searchCacheRef.current = { query: q, matches };
+    setSearching(false);
+    setSearchMatches(matches);
+    setSearchIndex(0);
+    if (matches.length) setPage(matches[0].page);
+  }, []);
+
+  useEffect(() => {
+    if (searchOpen) runSearch(debouncedSearch);
+  }, [debouncedSearch, searchOpen, runSearch]);
+
+  // Re-tint matches on the current page when the query changes (page changes are
+  // re-tinted by renderPage once its text layer rebuilds).
+  useEffect(() => {
+    const el = textLayerRef.current;
+    if (el) highlightSearchInTextLayer(el, searchOpen ? debouncedSearch : '');
+  }, [debouncedSearch, searchOpen]);
+
+  const gotoMatch = (i: number) => {
+    if (!searchMatches.length) return;
+    const n = searchMatches.length;
+    const idx = ((i % n) + n) % n;
+    setSearchIndex(idx);
+    setPage(searchMatches[idx].page);
+  };
+
+  const closeSearch = () => {
+    setSearchOpen(false);
+    searchSeqRef.current++;
+  };
 
   const ZOOM_MIN = 0.5;
   const ZOOM_MAX = 3;
@@ -666,7 +777,22 @@ export function PdfReader({ book }: Props) {
   return (
     <>
       <ReaderToolbar chapter={`Page ${page}`} percentage={percentage} />
-      <div className={styles.wrapper}>
+      {searchOpen && (
+        <SearchBar
+          query={searchQuery}
+          onQueryChange={setSearchQuery}
+          onPrev={() => gotoMatch(searchIndex - 1)}
+          onNext={() => gotoMatch(searchIndex + 1)}
+          onClose={closeSearch}
+          current={searchMatches.length ? searchIndex + 1 : 0}
+          total={searchMatches.length}
+          searching={searching}
+        />
+      )}
+      <div
+        className={styles.wrapper}
+        style={searchOpen ? { top: 'calc(var(--toolbar-height) + 44px)' } : undefined}
+      >
         <div className={styles.readerArea}>
           {loading && <div className={styles.loading}>Loading PDF...</div>}
           <div ref={canvasWrapRef} className={styles.canvasWrap}>

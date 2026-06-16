@@ -10,8 +10,14 @@ import { AnnotationPanel } from '../annotations/AnnotationPanel';
 import { HighlightPopover } from '../annotations/HighlightPopover';
 import { MarginNotes, type PositionedNote } from '../annotations/MarginNotes';
 import { Toast } from './Toast';
+import { SearchBar } from './SearchBar';
 import { formatCitation } from '../../services/citation';
 import styles from './EpubReader.module.css';
+
+interface EpubSearchMatch {
+  cfi: string;
+  excerpt: string;
+}
 
 interface Props {
   book: Book;
@@ -87,6 +93,17 @@ export function EpubReader({ book }: Props) {
   // Keydown fires inside the epub iframe (forwarded via rendition.on('keydown')) and
   // on the outer document — both call the latest handler through this ref.
   const shortcutKeyRef = useRef<(e: KeyboardEvent) => void>(() => {});
+
+  // In-book search (Ctrl+F).
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [searchMatches, setSearchMatches] = useState<EpubSearchMatch[]>([]);
+  const [searchIndex, setSearchIndex] = useState(0);
+  const [searching, setSearching] = useState(false);
+  const searchSeqRef = useRef(0);
+  const searchCacheRef = useRef<{ query: string; matches: EpubSearchMatch[] } | null>(null);
+  const searchHighlightRef = useRef<string | null>(null);
 
   // Ctrl + wheel = continuous visual zoom (blocks the browser's own page zoom).
   const handleZoomWheel = useCallback((e: WheelEvent) => {
@@ -352,6 +369,11 @@ export function EpubReader({ book }: Props) {
   // field). Ctrl/Cmd+Shift+C copies a formatted citation; the selection lives in
   // the epub iframe, so its text comes from the open popover (set on 'selected').
   const handleShortcutKey = (e: KeyboardEvent) => {
+    if ((e.ctrlKey || e.metaKey) && (e.key === 'f' || e.key === 'F')) {
+      e.preventDefault();
+      setSearchOpen(true);
+      return;
+    }
     const t = e.target as HTMLElement | null;
     if (t && (t.tagName === 'TEXTAREA' || t.tagName === 'INPUT' || t.isContentEditable)) return;
     if (!popover) return;
@@ -376,10 +398,123 @@ export function EpubReader({ book }: Props) {
   };
   shortcutKeyRef.current = handleShortcutKey;
 
+  // --- In-book search (Ctrl+F) ---
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(searchQuery), 300);
+    return () => clearTimeout(t);
+  }, [searchQuery]);
+
+  // Full-text search across spine sections; cancellable and cached per query.
+  const runSearch = useCallback(async (query: string) => {
+    const q = query.trim();
+    if (!q) {
+      searchSeqRef.current++;
+      setSearchMatches([]);
+      setSearchIndex(0);
+      setSearching(false);
+      return;
+    }
+    if (searchCacheRef.current?.query === q.toLowerCase()) {
+      setSearchMatches(searchCacheRef.current.matches);
+      setSearchIndex(0);
+      return;
+    }
+    const epub = epubRef.current;
+    if (!epub) return;
+    const seq = ++searchSeqRef.current;
+    setSearching(true);
+    const matches: EpubSearchMatch[] = [];
+    for (const item of epub.spine.spineItems) {
+      if (seq !== searchSeqRef.current) return; // a newer query superseded this run
+      try {
+        await item.load(epub.load.bind(epub));
+        for (const f of item.find(q)) matches.push({ cfi: f.cfi, excerpt: f.excerpt });
+      } catch {
+        /* skip an unreadable section */
+      } finally {
+        item.unload();
+      }
+    }
+    if (seq !== searchSeqRef.current) return;
+    searchCacheRef.current = { query: q.toLowerCase(), matches };
+    setSearching(false);
+    setSearchMatches(matches);
+    setSearchIndex(0);
+  }, []);
+
+  useEffect(() => {
+    if (searchOpen) runSearch(debouncedSearch);
+  }, [debouncedSearch, searchOpen, runSearch]);
+
+  // Navigate to + highlight the active match whenever the index or result set changes.
+  const navigateToCfi = useCallback((cfi: string) => {
+    const rendition = renditionRef.current;
+    if (!rendition) return;
+    if (searchHighlightRef.current) {
+      try {
+        rendition.annotations.remove(searchHighlightRef.current, 'highlight');
+      } catch {
+        /* already gone */
+      }
+      searchHighlightRef.current = null;
+    }
+    rendition.display(cfi).then(() => {
+      try {
+        rendition.annotations.highlight(cfi, {}, () => {}, 'search-hit', {
+          fill: 'var(--accent)',
+          'fill-opacity': '0.35',
+        });
+        searchHighlightRef.current = cfi;
+      } catch {
+        /* ignore */
+      }
+    });
+  }, []);
+
+  useEffect(() => {
+    const match = searchMatches[searchIndex];
+    if (searchOpen && match) navigateToCfi(match.cfi);
+  }, [searchIndex, searchMatches, searchOpen, navigateToCfi]);
+
+  const gotoMatch = (i: number) => {
+    if (!searchMatches.length) return;
+    const n = searchMatches.length;
+    setSearchIndex(((i % n) + n) % n);
+  };
+
+  const closeSearch = () => {
+    setSearchOpen(false);
+    searchSeqRef.current++;
+    const rendition = renditionRef.current;
+    if (rendition && searchHighlightRef.current) {
+      try {
+        rendition.annotations.remove(searchHighlightRef.current, 'highlight');
+      } catch {
+        /* already gone */
+      }
+    }
+    searchHighlightRef.current = null;
+  };
+
   return (
     <>
       <ReaderToolbar chapter={chapter} percentage={percentage} />
-      <div className={styles.wrapper}>
+      {searchOpen && (
+        <SearchBar
+          query={searchQuery}
+          onQueryChange={setSearchQuery}
+          onPrev={() => gotoMatch(searchIndex - 1)}
+          onNext={() => gotoMatch(searchIndex + 1)}
+          onClose={closeSearch}
+          current={searchMatches.length ? searchIndex + 1 : 0}
+          total={searchMatches.length}
+          searching={searching}
+        />
+      )}
+      <div
+        className={styles.wrapper}
+        style={searchOpen ? { top: 'calc(var(--toolbar-height) + 44px)' } : undefined}
+      >
         <div className={styles.readerArea}>
           <div ref={deskRef} className={styles.desk}>
             <div

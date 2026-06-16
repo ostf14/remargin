@@ -179,3 +179,9 @@ input, textarea {
 ::-webkit-scrollbar-thumb:hover {
   background: var(--text-tertiary);
 }
+
+/* In-book find: tint matched spans on the (transparent) PDF text layer. */
+.textLayer .highlight-search {
+  background: var(--accent-muted);
+  border-radius: 2px;
+}

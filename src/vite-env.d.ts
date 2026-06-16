@@ -58,10 +58,27 @@ declare module 'epubjs' {
     };
   }
 
+  export interface SpineFindResult {
+    cfi: string;
+    excerpt: string;
+  }
+
+  export interface SpineItem {
+    load(request: (path: string) => Promise<unknown>): Promise<unknown>;
+    find(query: string): SpineFindResult[];
+    unload(): void;
+  }
+
+  export interface Spine {
+    spineItems: SpineItem[];
+  }
+
   export interface Book {
     ready: Promise<void>;
     packaging: Packaging;
     navigation: Navigation;
+    spine: Spine;
+    load(path: string): Promise<unknown>;
     archive: { getBlob(path: string, mimeType: string): Promise<Blob> };
     coverUrl(): Promise<string | null>;
     renderTo(
