@@ -503,15 +503,31 @@ export function EpubReader({ book }: Props) {
       setSearchIndex(0);
       return;
     }
-    const epub = epubRef.current;
-    if (!epub) return;
     const seq = ++searchSeqRef.current;
     setSearching(true);
+    // Search on a separate (unrendered) copy of the book — loading/unloading the
+    // rendition's own spine sections corrupts live rendering and breaks display().
+    const buf = await getBookFile(book.id);
+    if (!buf || seq !== searchSeqRef.current) {
+      if (seq === searchSeqRef.current) setSearching(false);
+      return;
+    }
+    let side: EpubBook;
+    try {
+      side = ePub(buf.slice(0));
+      await side.ready;
+    } catch {
+      if (seq === searchSeqRef.current) setSearching(false);
+      return;
+    }
     const matches: EpubSearchMatch[] = [];
-    for (const item of epub.spine.spineItems) {
-      if (seq !== searchSeqRef.current) return; // a newer query superseded this run
+    for (const item of side.spine.spineItems) {
+      if (seq !== searchSeqRef.current) {
+        side.destroy();
+        return;
+      }
       try {
-        await item.load(epub.load.bind(epub));
+        await item.load(side.load.bind(side));
         for (const f of item.find(q)) matches.push({ cfi: f.cfi, excerpt: f.excerpt });
       } catch {
         /* skip an unreadable section */
@@ -519,12 +535,13 @@ export function EpubReader({ book }: Props) {
         item.unload();
       }
     }
+    side.destroy();
     if (seq !== searchSeqRef.current) return;
     searchCacheRef.current = { query: q.toLowerCase(), matches };
     setSearching(false);
     setSearchMatches(matches);
     setSearchIndex(0);
-  }, []);
+  }, [book.id]);
 
   useEffect(() => {
     if (searchOpen) runSearch(debouncedSearch);
