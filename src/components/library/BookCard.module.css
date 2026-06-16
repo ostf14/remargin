@@ -1,15 +1,23 @@
 .card {
-  position: relative;
-  cursor: pointer;
-  border-radius: var(--radius-lg);
-  overflow: hidden;
-  background: var(--bg-secondary);
-  transition: transform var(--transition-base), box-shadow var(--transition-base);
-  aspect-ratio: 2 / 3;
+  transition: transform var(--transition-base);
 }
 
 .card:hover {
   transform: translateY(-4px);
+}
+
+.coverWrap {
+  position: relative;
+  aspect-ratio: 2 / 3;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  background: var(--bg-secondary);
+  cursor: pointer;
+  box-shadow: var(--shadow-sm);
+  transition: box-shadow var(--transition-base);
+}
+
+.card:hover .coverWrap {
   box-shadow: var(--shadow-cover);
 }
 
@@ -48,58 +56,12 @@
   overflow: hidden;
 }
 
-.overlay {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  padding: var(--space-md);
-  background: linear-gradient(transparent, rgba(0, 0, 0, 0.85));
-  opacity: 0;
-  transition: opacity var(--transition-base);
-}
-
-.card:hover .overlay {
-  opacity: 1;
-}
-
-.title {
-  font-size: var(--text-sm);
-  font-weight: 600;
-  color: #fff;
-  margin-bottom: 2px;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-
-.author {
-  font-size: var(--text-xs);
-  color: rgba(255, 255, 255, 0.7);
-}
-
-.progressBar {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  height: 3px;
-  background: rgba(255, 255, 255, 0.1);
-}
-
-.progressFill {
-  height: 100%;
-  background: var(--accent);
-  transition: width var(--transition-base);
-}
-
 .badge {
   position: absolute;
   top: var(--space-sm);
   right: var(--space-sm);
   background: rgba(0, 0, 0, 0.6);
-  color: var(--text-secondary);
+  color: #fff;
   font-size: var(--text-xs);
   padding: 2px 6px;
   border-radius: var(--radius-sm);
@@ -116,7 +78,7 @@
   height: 28px;
   border-radius: 50%;
   background: rgba(0, 0, 0, 0.6);
-  color: var(--text-secondary);
+  color: #fff;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -125,11 +87,96 @@
   transition: opacity var(--transition-fast), background var(--transition-fast);
 }
 
-.card:hover .removeBtn {
+.coverWrap:hover .removeBtn {
   opacity: 1;
 }
 
 .removeBtn:hover {
-  background: rgba(220, 60, 60, 0.8);
-  color: #fff;
+  background: var(--danger);
+}
+
+.progressBar {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.progressFill {
+  height: 100%;
+  background: var(--accent);
+  transition: width var(--transition-base);
+}
+
+.enriching {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.35);
+}
+
+.spinner {
+  width: 24px;
+  height: 24px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.meta {
+  padding: var(--space-sm) 2px 0;
+}
+
+.metaTitle {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--text-primary);
+  line-height: 1.35;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  cursor: text;
+  transition: color var(--transition-fast);
+}
+
+.metaTitle:hover {
+  color: var(--accent);
+}
+
+.metaAuthor {
+  margin-top: 2px;
+  font-size: var(--text-xs);
+  color: var(--text-tertiary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: text;
+  transition: color var(--transition-fast);
+}
+
+.metaAuthor:hover {
+  color: var(--text-secondary);
+}
+
+.metaInput {
+  width: 100%;
+  margin-bottom: 2px;
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+  background: var(--bg-tertiary);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-sm);
+  padding: 2px 4px;
 }

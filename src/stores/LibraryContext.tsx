@@ -13,6 +13,8 @@ interface LibraryState {
   removeBook: (id: string) => void;
   updateBook: (book: Book) => void;
   getBook: (id: string) => Book | undefined;
+  enrichingIds: Set<string>;
+  setEnriching: (id: string, on: boolean) => void;
 }
 
 export const LibraryContext = createContext<LibraryState>({
@@ -21,6 +23,8 @@ export const LibraryContext = createContext<LibraryState>({
   removeBook: () => {},
   updateBook: () => {},
   getBook: () => undefined,
+  enrichingIds: new Set<string>(),
+  setEnriching: () => {},
 });
 
 export function LibraryProvider({ children }: { children: ReactNode }) {
@@ -61,8 +65,22 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
     [books],
   );
 
+  // Ids of books whose metadata is being fetched async (drives a card spinner).
+  const [enrichingIds, setEnrichingIds] = useState<Set<string>>(() => new Set());
+  const setEnriching = useCallback((id: string, on: boolean) => {
+    setEnrichingIds((prev) => {
+      if (prev.has(id) === on) return prev;
+      const next = new Set(prev);
+      if (on) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  }, []);
+
   return (
-    <LibraryContext.Provider value={{ books, addBook, removeBook, updateBook, getBook }}>
+    <LibraryContext.Provider
+      value={{ books, addBook, removeBook, updateBook, getBook, enrichingIds, setEnriching }}
+    >
       {children}
     </LibraryContext.Provider>
   );

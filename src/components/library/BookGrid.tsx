@@ -36,7 +36,7 @@ function compareBooks(a: Book, b: Book, sort: SortKey): number {
 }
 
 export function BookGrid() {
-  const { books, removeBook } = useLibrary();
+  const { books, removeBook, updateBook, enrichingIds } = useLibrary();
   const { openBook, theme, toggleTheme } = useReader();
   const [pendingDelete, setPendingDelete] = useState<Book | null>(null);
 
@@ -123,8 +123,10 @@ export function BookGrid() {
                 <BookCard
                   key={book.id}
                   book={book}
+                  enriching={enrichingIds.has(book.id)}
                   onClick={() => openBook(book)}
                   onRemove={() => setPendingDelete(book)}
+                  onUpdate={updateBook}
                 />
               ))}
             </div>
