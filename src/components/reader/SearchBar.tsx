@@ -12,8 +12,9 @@ interface Props {
   searching?: boolean;
 }
 
-// Thin find-in-book strip under the toolbar. Reader-agnostic: it only renders the
-// controls and reports intent; each reader owns the actual search + navigation.
+// Floating find-in-book popup in the top-right corner. Reader-agnostic: it only
+// renders the controls and reports intent; each reader owns the search + navigation.
+// Dismisses itself when the user clicks any other surface.
 export function SearchBar({
   query,
   onQueryChange,
@@ -25,10 +26,22 @@ export function SearchBar({
   searching,
 }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
+  const wrapRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
     inputRef.current?.focus();
     inputRef.current?.select();
   }, []);
+
+  // Close on a click outside the popup. Mounted after the opening click, so that
+  // click doesn't immediately dismiss it.
+  useEffect(() => {
+    const onDown = (e: MouseEvent) => {
+      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) onClose();
+    };
+    document.addEventListener('mousedown', onDown);
+    return () => document.removeEventListener('mousedown', onDown);
+  }, [onClose]);
 
   const onKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
@@ -50,7 +63,7 @@ export function SearchBar({
         : '';
 
   return (
-    <div className={styles.bar}>
+    <div ref={wrapRef} className={styles.bar}>
       <input
         ref={inputRef}
         className={styles.input}
@@ -61,21 +74,11 @@ export function SearchBar({
         onKeyDown={onKeyDown}
       />
       <span className={styles.counter}>{counter}</span>
-      <button
-        className={styles.navBtn}
-        onClick={onPrev}
-        disabled={total === 0}
-        title="Previous (Shift+Enter)"
-      >
-        ↑ Prev
+      <button className={styles.navBtn} onClick={onPrev} disabled={total === 0} title="Previous (Shift+Enter)">
+        ↑
       </button>
-      <button
-        className={styles.navBtn}
-        onClick={onNext}
-        disabled={total === 0}
-        title="Next (Enter)"
-      >
-        ↓ Next
+      <button className={styles.navBtn} onClick={onNext} disabled={total === 0} title="Next (Enter)">
+        ↓
       </button>
       <button className={styles.closeBtn} onClick={onClose} title="Close (Esc)" aria-label="Close">
         ×

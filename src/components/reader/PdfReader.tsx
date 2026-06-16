@@ -14,21 +14,42 @@ import { HighlightPopover } from '../annotations/HighlightPopover';
 import { MarginNotes, type PositionedNote } from '../annotations/MarginNotes';
 import { Toast } from './Toast';
 import { SearchBar } from './SearchBar';
-import { ReadingTimeLeft } from './ReadingTimeLeft';
+import { ReaderStatus } from './ReaderStatus';
+import { ReaderControls } from './ReaderControls';
 import { formatCitation } from '../../services/citation';
 import { countPdfWords } from '../../services/wordCount';
 import styles from './PdfReader.module.css';
 
-// Span-level find highlight on the (transparent) text layer: any span containing
-// the query gets a tinted background over the canvas text. Rebuilt with the layer.
+// Word-level find highlight on the (transparent) text layer: each occurrence of the
+// query is wrapped in a <mark> so only the matched word is tinted, not the whole line.
+// Rebuilt with the layer; re-callable (flattens prior marks first).
 function highlightSearchInTextLayer(layer: HTMLElement, query: string) {
-  layer.querySelectorAll('.highlight-search').forEach((el) => el.classList.remove('highlight-search'));
+  for (const el of Array.from(layer.children)) {
+    if (el instanceof HTMLElement && el.tagName === 'SPAN' && el.querySelector('mark.highlight-search')) {
+      el.textContent = el.textContent; // collapse back to a single text node
+    }
+  }
   const q = query.trim().toLowerCase();
   if (!q) return;
-  for (const span of Array.from(layer.children)) {
-    if (span instanceof HTMLElement && span.textContent?.toLowerCase().includes(q)) {
-      span.classList.add('highlight-search');
+  for (const el of Array.from(layer.children)) {
+    if (!(el instanceof HTMLElement) || el.tagName !== 'SPAN') continue;
+    const text = el.textContent ?? '';
+    const lower = text.toLowerCase();
+    if (!lower.includes(q)) continue;
+    const frag = document.createDocumentFragment();
+    let i = 0;
+    let idx = lower.indexOf(q);
+    while (idx !== -1) {
+      if (idx > i) frag.appendChild(document.createTextNode(text.slice(i, idx)));
+      const mark = document.createElement('mark');
+      mark.className = 'highlight-search';
+      mark.textContent = text.slice(idx, idx + q.length);
+      frag.appendChild(mark);
+      i = idx + q.length;
+      idx = lower.indexOf(q, i);
     }
+    if (i < text.length) frag.appendChild(document.createTextNode(text.slice(i)));
+    el.replaceChildren(frag);
   }
 }
 
@@ -269,6 +290,8 @@ export function PdfReader({ book }: Props) {
   // Effective query for the text-layer highlight, read inside renderPage.
   const searchActiveRef = useRef('');
   searchActiveRef.current = searchOpen ? debouncedSearch : '';
+  // Occurrence index of the active match within its page (which <mark> to scroll to).
+  const searchOccRef = useRef(0);
 
   // Draw all saved highlights for a page into the highlight layer, in the canvas's
   // fit-width CSS coords (× baseScale). The page's CSS zoom transform scales them
@@ -682,6 +705,7 @@ export function PdfReader({ book }: Props) {
     }
     if (searchCacheRef.current?.query === q) {
       const cached = searchCacheRef.current.matches;
+      searchOccRef.current = 0;
       setSearchMatches(cached);
       setSearchIndex(0);
       if (cached.length) setPage(cached[0].page);
@@ -708,6 +732,7 @@ export function PdfReader({ book }: Props) {
     }
     if (seq !== searchSeqRef.current) return;
     searchCacheRef.current = { query: q, matches };
+    searchOccRef.current = 0;
     setSearching(false);
     setSearchMatches(matches);
     setSearchIndex(0);
@@ -725,12 +750,35 @@ export function PdfReader({ book }: Props) {
     if (el) highlightSearchInTextLayer(el, searchOpen ? debouncedSearch : '');
   }, [debouncedSearch, searchOpen]);
 
+  // Scroll the active match into view once its <mark> exists. The text layer renders
+  // async after a page change, so retry across a few frames until the mark appears.
+  useEffect(() => {
+    if (!searchOpen || !searchMatches.length) return;
+    let tries = 0;
+    let raf = 0;
+    const attempt = () => {
+      const marks = textLayerRef.current?.querySelectorAll('mark.highlight-search');
+      const mark = marks?.[searchOccRef.current];
+      if (mark) {
+        mark.scrollIntoView({ block: 'center', inline: 'nearest' });
+        return;
+      }
+      if (tries++ < 40) raf = requestAnimationFrame(attempt);
+    };
+    raf = requestAnimationFrame(attempt);
+    return () => cancelAnimationFrame(raf);
+  }, [searchIndex, page, searchMatches, searchOpen]);
+
   const gotoMatch = (i: number) => {
     if (!searchMatches.length) return;
     const n = searchMatches.length;
     const idx = ((i % n) + n) % n;
+    const targetPage = searchMatches[idx].page;
+    let occ = 0;
+    for (let j = 0; j < idx; j++) if (searchMatches[j].page === targetPage) occ++;
+    searchOccRef.current = occ;
     setSearchIndex(idx);
-    setPage(searchMatches[idx].page);
+    setPage(targetPage);
   };
 
   const closeSearch = () => {
@@ -789,12 +837,9 @@ export function PdfReader({ book }: Props) {
 
   return (
     <>
-      <ReaderToolbar
-        chapter={`Page ${page}`}
-        percentage={percentage}
-        onOpenSearch={() => setSearchOpen(true)}
-      />
-      <ReadingTimeLeft wordCount={wordCount} percentage={percentage} />
+      <ReaderToolbar chapter={`Page ${page}`} onOpenSearch={() => setSearchOpen(true)} />
+      <ReaderStatus wordCount={wordCount} percentage={percentage} />
+      <ReaderControls />
       {searchOpen && (
         <SearchBar
           query={searchQuery}
@@ -807,10 +852,7 @@ export function PdfReader({ book }: Props) {
           searching={searching}
         />
       )}
-      <div
-        className={styles.wrapper}
-        style={searchOpen ? { top: 'calc(var(--toolbar-height) + 44px)' } : undefined}
-      >
+      <div className={styles.wrapper}>
         <div className={styles.readerArea}>
           {loading && <div className={styles.loading}>Loading PDF...</div>}
           <div ref={canvasWrapRef} className={styles.canvasWrap}>

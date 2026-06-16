@@ -195,8 +195,13 @@ input, textarea {
   background: var(--text-tertiary);
 }
 
-/* In-book find: tint matched spans on the (transparent) PDF text layer. */
-.textLayer .highlight-search {
-  background: var(--accent-muted);
+/* In-book find: wrap each matched word on the (transparent) PDF text layer in a
+   <mark> so only the word is tinted, not the whole line. Text stays transparent
+   (the canvas shows through); just the background highlights. */
+.textLayer mark.highlight-search {
+  background: rgba(155, 107, 226, 0.45);
+  color: inherit;
   border-radius: 2px;
+  padding: 0;
+  margin: 0;
 }

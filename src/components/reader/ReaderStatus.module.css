@@ -1,10 +1,18 @@
-.timeLeft {
+.status {
   position: fixed;
   left: var(--space-lg);
   bottom: var(--space-md);
   z-index: 110;
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
   font-size: var(--text-xs);
   color: var(--text-tertiary);
   white-space: nowrap;
   pointer-events: none;
+  font-variant-numeric: tabular-nums;
+}
+
+.sep {
+  opacity: 0.6;
 }

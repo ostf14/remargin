@@ -11,7 +11,8 @@ import { HighlightPopover } from '../annotations/HighlightPopover';
 import { MarginNotes, type PositionedNote } from '../annotations/MarginNotes';
 import { Toast } from './Toast';
 import { SearchBar } from './SearchBar';
-import { ReadingTimeLeft } from './ReadingTimeLeft';
+import { ReaderStatus } from './ReaderStatus';
+import { ReaderControls } from './ReaderControls';
 import { formatCitation } from '../../services/citation';
 import { countWordsFromData } from '../../services/wordCount';
 import styles from './EpubReader.module.css';
@@ -557,12 +558,9 @@ export function EpubReader({ book }: Props) {
 
   return (
     <>
-      <ReaderToolbar
-        chapter={chapter}
-        percentage={percentage}
-        onOpenSearch={() => setSearchOpen(true)}
-      />
-      <ReadingTimeLeft wordCount={wordCount} percentage={percentage} />
+      <ReaderToolbar chapter={chapter} onOpenSearch={() => setSearchOpen(true)} />
+      <ReaderStatus wordCount={wordCount} percentage={percentage} />
+      <ReaderControls />
       {searchOpen && (
         <SearchBar
           query={searchQuery}
@@ -575,10 +573,7 @@ export function EpubReader({ book }: Props) {
           searching={searching}
         />
       )}
-      <div
-        className={styles.wrapper}
-        style={searchOpen ? { top: 'calc(var(--toolbar-height) + 44px)' } : undefined}
-      >
+      <div className={styles.wrapper}>
         <div className={styles.readerArea}>
           <div ref={deskRef} className={styles.desk}>
             <div
