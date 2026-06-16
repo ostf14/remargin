@@ -64,6 +64,7 @@
 
 /* Bottom navigation — identical to the PDF reader. */
 .pageNav {
+  position: relative;
   display: flex;
   align-items: center;
   gap: var(--space-md);
@@ -72,6 +73,14 @@
   border-top: 1px solid var(--border-subtle);
   width: 100%;
   justify-content: center;
+}
+
+/* Surface + theme controls, right-aligned in the footer without shifting the nav. */
+.footerControls {
+  position: absolute;
+  right: var(--space-lg);
+  top: 50%;
+  transform: translateY(-50%);
 }
 
 .pageBtn {

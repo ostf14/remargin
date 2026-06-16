@@ -14,7 +14,7 @@ import { SearchBar } from './SearchBar';
 import { ReaderStatus } from './ReaderStatus';
 import { ReaderControls } from './ReaderControls';
 import { formatCitation } from '../../services/citation';
-import { countWordsFromData } from '../../services/wordCount';
+import { countEpubWords } from '../../services/wordCount';
 import styles from './EpubReader.module.css';
 
 interface EpubSearchMatch {
@@ -96,6 +96,9 @@ export function EpubReader({ book }: Props) {
   const readingSurfaceRef = useRef(readingSurface);
   readingSurfaceRef.current = readingSurface;
   const lastCfiRef = useRef<string | null>(book.lastPosition);
+  // A side EPUB instance (never rendered) that owns the generated locations index —
+  // kept off the rendition's book so generating it can't disturb live rendering.
+  const sideRef = useRef<EpubBook | null>(null);
   const { annotations, addAnnotation, updateAnnotation, deleteAnnotation } =
     useAnnotations(book.id);
   const annotationsRef = useRef(annotations);
@@ -208,19 +211,50 @@ export function EpubReader({ book }: Props) {
       epub = ePub(arrayBuf);
       epubRef.current = epub;
 
-      // Reading-time estimate: count words from a separate copy so we never disturb
-      // the rendition's spine sections. Background, first open only.
-      if (book.wordCount === undefined) {
-        getBookFile(book.id)
-          .then((buf) => (buf ? countWordsFromData('epub', buf) : 0))
-          .then((words) => {
-            if (!cancelled && words > 0) {
+      // On a *separate* (unrendered) copy of the book: count words for the reading-time
+      // estimate and build the locations index for accurate progress. Doing either on the
+      // rendition's own book corrupts live rendering and percentages, so we keep it apart.
+      (async () => {
+        const buf = await getBookFile(book.id);
+        if (!buf || cancelled) return;
+        let side: EpubBook;
+        try {
+          side = ePub(buf.slice(0));
+          await side.ready;
+        } catch {
+          return;
+        }
+        if (cancelled) {
+          side.destroy();
+          return;
+        }
+        if (book.wordCount === undefined) {
+          try {
+            const words = await countEpubWords(side);
+            if (words > 0 && !cancelled) {
               setWordCount(words);
               patchBook(book.id, { wordCount: words });
             }
-          })
-          .catch(() => {});
-      }
+          } catch {
+            /* leave wordCount undefined */
+          }
+        }
+        try {
+          await side.locations.generate(1200);
+        } catch {
+          /* progress falls back to epub.js' coarse percentage */
+        }
+        if (cancelled) {
+          side.destroy();
+          return;
+        }
+        sideRef.current = side;
+        const cfi = lastCfiRef.current;
+        if (cfi) {
+          const p = side.locations.percentageFromCfi(cfi);
+          if (Number.isFinite(p)) setPercentage(Math.max(0, Math.min(100, Math.round(p * 100))));
+        }
+      })();
 
       rendition = epub.renderTo(container, {
         width: '100%',
@@ -242,24 +276,6 @@ export function EpubReader({ book }: Props) {
         rendition.display();
       }
 
-      // Generate locations so progress (and the time-left estimate) advances smoothly
-      // rather than in coarse spine jumps. Background; refresh the % once it's ready.
-      const epubForLocations = epub;
-      epubForLocations.locations
-        .generate(1200)
-        .then(() => {
-          if (cancelled) return;
-          const cfi = lastCfiRef.current;
-          if (cfi) {
-            try {
-              setPercentage(Math.round(epubForLocations.locations.percentageFromCfi(cfi) * 100));
-            } catch {
-              /* ignore */
-            }
-          }
-        })
-        .catch(() => {});
-
       rendition.on('displayed', () => setLoading(false));
 
       // Wheel events fire inside the content iframe — attach the Ctrl+wheel font
@@ -277,7 +293,13 @@ export function EpubReader({ book }: Props) {
       rendition.on('relocated', (location: unknown) => {
         const loc = location as { start: { cfi: string; href: string; percentage: number } };
         lastCfiRef.current = loc.start.cfi;
-        const pct = Math.round((loc.start.percentage || 0) * 100);
+        const side = sideRef.current;
+        let pct = Math.round((loc.start.percentage || 0) * 100);
+        if (side) {
+          const p = side.locations.percentageFromCfi(loc.start.cfi);
+          if (Number.isFinite(p)) pct = Math.round(p * 100);
+        }
+        pct = Math.max(0, Math.min(100, pct));
         setPercentage(pct);
 
         patchBook(book.id, {
@@ -328,6 +350,8 @@ export function EpubReader({ book }: Props) {
       cancelled = true;
       if (handleKey) document.removeEventListener('keydown', handleKey);
       if (toastTimerRef.current) window.clearTimeout(toastTimerRef.current);
+      sideRef.current?.destroy();
+      sideRef.current = null;
       rendition?.destroy();
       epub?.destroy();
     };
@@ -560,7 +584,6 @@ export function EpubReader({ book }: Props) {
     <>
       <ReaderToolbar chapter={chapter} onOpenSearch={() => setSearchOpen(true)} />
       <ReaderStatus wordCount={wordCount} percentage={percentage} />
-      <ReaderControls />
       {searchOpen && (
         <SearchBar
           query={searchQuery}
@@ -648,6 +671,9 @@ export function EpubReader({ book }: Props) {
               >
                 A+
               </button>
+            </div>
+            <div className={styles.footerControls}>
+              <ReaderControls />
             </div>
           </div>
         </div>

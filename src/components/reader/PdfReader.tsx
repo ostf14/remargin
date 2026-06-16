@@ -759,8 +759,14 @@ export function PdfReader({ book }: Props) {
     const attempt = () => {
       const marks = textLayerRef.current?.querySelectorAll('mark.highlight-search');
       const mark = marks?.[searchOccRef.current];
-      if (mark) {
-        mark.scrollIntoView({ block: 'center', inline: 'nearest' });
+      const wrap = canvasWrapRef.current;
+      if (mark && wrap) {
+        // Centre the word inside the scroll viewport (the area between the toolbar and
+        // the page-nav footer), not the whole window.
+        const m = mark.getBoundingClientRect();
+        const w = wrap.getBoundingClientRect();
+        wrap.scrollTop += m.top + m.height / 2 - (w.top + w.height / 2);
+        wrap.scrollLeft += m.left + m.width / 2 - (w.left + w.width / 2);
         return;
       }
       if (tries++ < 40) raf = requestAnimationFrame(attempt);
@@ -839,7 +845,6 @@ export function PdfReader({ book }: Props) {
     <>
       <ReaderToolbar chapter={`Page ${page}`} onOpenSearch={() => setSearchOpen(true)} />
       <ReaderStatus wordCount={wordCount} percentage={percentage} />
-      <ReaderControls />
       {searchOpen && (
         <SearchBar
           query={searchQuery}
@@ -926,6 +931,9 @@ export function PdfReader({ book }: Props) {
               >
                 +
               </button>
+            </div>
+            <div className={styles.footerControls}>
+              <ReaderControls />
             </div>
           </div>
         </div>
