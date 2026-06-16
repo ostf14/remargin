@@ -282,8 +282,8 @@ export function PdfReader({ book }: Props) {
       const padX = parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight);
       const deskInner = wrap.clientWidth - padX;
       const NOTES_W = 250;
-      const TEXT_PAD = 64 + 24; // text zone left + right padding
-      const targetText = Math.max(320, Math.min(560, deskInner - NOTES_W - TEXT_PAD - 24));
+      const TEXT_PAD = 32 + 16; // text zone left + right padding
+      const targetText = Math.max(320, Math.min(620, deskInner - NOTES_W - TEXT_PAD - 24));
       if (targetText > 0) baseScale = targetText / unscaled.width;
     }
     const zoom = visualZoomRef.current;
