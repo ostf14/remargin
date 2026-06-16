@@ -4,7 +4,7 @@ import type { Book, EpubAnchor, HighlightColor } from '../../types';
 import { useLibrary } from '../../hooks/useLibrary';
 import { useAnnotations } from '../../hooks/useAnnotations';
 import { useReader } from '../../hooks/useReader';
-import { getBookFile } from '../../services/storage';
+import { getBookFile, loadAppState, saveAppState } from '../../services/storage';
 import { ReaderToolbar } from './ReaderToolbar';
 import { AnnotationPanel } from '../annotations/AnnotationPanel';
 import { HighlightPopover } from '../annotations/HighlightPopover';
@@ -14,6 +14,12 @@ import styles from './EpubReader.module.css';
 interface Props {
   book: Book;
 }
+
+// Font size offset, in % points off the 100% base (SPEC §4.3 accessibility).
+const FONT_MIN = -20; // 80%
+const FONT_MAX = 50; // 150%
+const FONT_STEP = 5;
+const clampFontOffset = (o: number) => Math.max(FONT_MIN, Math.min(FONT_MAX, o));
 
 interface PopoverState {
   x: number;
@@ -25,6 +31,7 @@ interface PopoverState {
 
 export function EpubReader({ book }: Props) {
   const viewerRef = useRef<HTMLDivElement>(null);
+  const deskRef = useRef<HTMLDivElement>(null);
   const marginColumnRef = useRef<HTMLDivElement>(null);
   const epubRef = useRef<EpubBook | null>(null);
   const renditionRef = useRef<Rendition | null>(null);
@@ -43,6 +50,16 @@ export function EpubReader({ book }: Props) {
   const autoFocusIdRef = useRef<string | null>(null);
   autoFocusIdRef.current = autoFocusId;
   const [relocateTick, setRelocateTick] = useState(0);
+  const [fontOffset, setFontOffset] = useState(() => clampFontOffset(loadAppState().epubFontSizeOffset));
+  const fontOffsetRef = useRef(fontOffset);
+  fontOffsetRef.current = fontOffset;
+
+  // Ctrl + wheel resizes the reading font instead of zooming the whole browser.
+  const handleFontWheel = useCallback((e: WheelEvent) => {
+    if (!e.ctrlKey) return;
+    e.preventDefault();
+    setFontOffset((o) => clampFontOffset(o + (e.deltaY < 0 ? FONT_STEP : -FONT_STEP)));
+  }, []);
 
   // Position margin notes opposite their highlight: resolve the cfi to a live
   // Range, take its on-screen top (offset by the iframe), relative to readerArea.
@@ -132,6 +149,7 @@ export function EpubReader({ book }: Props) {
           background: 'rgba(232, 200, 73, 0.4) !important',
         },
       });
+      rendition.themes.fontSize(`${100 + fontOffsetRef.current}%`);
 
       const startCfi = book.lastPosition;
       if (startCfi) {
@@ -141,6 +159,17 @@ export function EpubReader({ book }: Props) {
       }
 
       rendition.on('displayed', () => setLoading(false));
+
+      // Wheel events fire inside the content iframe — attach the Ctrl+wheel font
+      // handler to each rendered document so the gesture is caught over the text.
+      const attachedDocs = new Set<Document>();
+      rendition.on('rendered', () => {
+        const doc = container.querySelector('iframe')?.contentDocument;
+        if (doc && !attachedDocs.has(doc)) {
+          doc.addEventListener('wheel', handleFontWheel, { passive: false });
+          attachedDocs.add(doc);
+        }
+      });
 
       const epubInstance = epub;
       rendition.on('relocated', (location: unknown) => {
@@ -236,6 +265,22 @@ export function EpubReader({ book }: Props) {
     return () => window.removeEventListener('resize', onResize);
   }, [recomputeNotePositions]);
 
+  // Apply + persist the reading font size; recompute note anchors after reflow.
+  useEffect(() => {
+    renditionRef.current?.themes.fontSize(`${100 + fontOffset}%`);
+    saveAppState({ ...loadAppState(), epubFontSizeOffset: fontOffset });
+    const id = setTimeout(() => recomputeNotePositions(), 60);
+    return () => clearTimeout(id);
+  }, [fontOffset, recomputeNotePositions]);
+
+  // Ctrl + wheel over the desk margins (outside the iframe).
+  useEffect(() => {
+    const desk = deskRef.current;
+    if (!desk) return;
+    desk.addEventListener('wheel', handleFontWheel, { passive: false });
+    return () => desk.removeEventListener('wheel', handleFontWheel);
+  }, [handleFontWheel]);
+
   const drawHighlight = (cfi: string, color: HighlightColor) => {
     renditionRef.current?.annotations.highlight(cfi, {}, () => {}, 'hl', {
       fill: `var(--highlight-${color})`,
@@ -271,7 +316,7 @@ export function EpubReader({ book }: Props) {
       <ReaderToolbar chapter={chapter} percentage={percentage} />
       <div className={styles.wrapper}>
         <div className={styles.readerArea}>
-          <div className={styles.desk}>
+          <div ref={deskRef} className={styles.desk}>
             <div className={styles.page}>
               <div className={styles.textZone}>
                 {loading && <div className={styles.loading}>Loading book...</div>}
@@ -305,6 +350,24 @@ export function EpubReader({ book }: Props) {
             >
               Next &rarr;
             </button>
+            <div className={styles.fontGroup}>
+              <button
+                className={styles.pageBtn}
+                onClick={() => setFontOffset((o) => clampFontOffset(o - FONT_STEP))}
+                disabled={fontOffset <= FONT_MIN}
+                title="Smaller text"
+              >
+                A&minus;
+              </button>
+              <button
+                className={styles.pageBtn}
+                onClick={() => setFontOffset((o) => clampFontOffset(o + FONT_STEP))}
+                disabled={fontOffset >= FONT_MAX}
+                title="Larger text"
+              >
+                A+
+              </button>
+            </div>
           </div>
         </div>
 

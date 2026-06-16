@@ -80,9 +80,23 @@
   transition: background var(--transition-fast), color var(--transition-fast);
 }
 
-.pageBtn:hover {
+.pageBtn:hover:not(:disabled) {
   background: var(--bg-hover);
   color: var(--text-primary);
+}
+
+.pageBtn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.fontGroup {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  margin-left: var(--space-lg);
+  padding-left: var(--space-lg);
+  border-left: 1px solid var(--border-subtle);
 }
 
 .pageInfo {

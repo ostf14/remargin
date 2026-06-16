@@ -54,6 +54,7 @@ declare module 'epubjs' {
       default(styles: Record<string, Record<string, string>>): void;
       register(name: string, styles: Record<string, Record<string, string>>): void;
       select(name: string): void;
+      fontSize(size: string): void;
     };
   }
 
