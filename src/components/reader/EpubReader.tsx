@@ -166,20 +166,22 @@ export function EpubReader({ book }: Props) {
       });
       renditionRef.current = rendition;
 
-      // The page is always a cream sheet, so reading ink stays dark in both themes.
+      // The page is a neutral light sheet in both themes; ink stays dark. These are
+      // literals because CSS custom properties don't cross the iframe boundary —
+      // keep them in sync with --reader-ink / --accent.
       rendition.themes.default({
         body: {
           background: 'transparent !important',
-          color: '#2b2723 !important',
+          color: '#2b2b2b !important',
           'font-family': 'var(--font-serif) !important',
           'line-height': '1.7 !important',
           'padding': '0 !important',
           '-webkit-user-select': 'text !important',
           'user-select': 'text !important',
         },
-        'a': { color: '#9a6a2f !important' },
+        'a': { color: '#8e5cd6 !important' },
         '::selection': {
-          background: 'rgba(232, 200, 73, 0.4) !important',
+          background: 'rgba(142, 92, 214, 0.3) !important',
         },
       });
       rendition.themes.fontSize(`${100 + fontOffsetRef.current}%`);

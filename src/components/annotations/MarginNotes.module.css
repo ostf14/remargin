@@ -34,7 +34,7 @@
 }
 
 .card:hover {
-  background: rgba(40, 30, 20, 0.05);
+  background: rgba(0, 0, 0, 0.05);
 }
 
 .noteText {
@@ -81,7 +81,7 @@
 
 .actionBtn:hover {
   color: var(--reader-ink);
-  background: rgba(40, 30, 20, 0.08);
+  background: rgba(0, 0, 0, 0.08);
 }
 
 /* Frame appears only while editing. */
@@ -93,7 +93,7 @@
   line-height: 1.5;
   color: var(--reader-ink);
   background: var(--reader-page);
-  border: 1px solid rgba(40, 30, 20, 0.22);
+  border: 1px solid rgba(0, 0, 0, 0.18);
   border-radius: var(--radius-sm);
   padding: 4px 6px;
 }

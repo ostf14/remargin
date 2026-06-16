@@ -7,10 +7,11 @@
   text-align: left;
   padding: var(--space-md) var(--space-lg);
   margin-top: var(--space-xl);
-  background: var(--reader-page);
-  color: var(--reader-ink);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  border: 1px solid var(--border-subtle);
   border-radius: var(--radius-lg);
-  box-shadow: var(--reader-page-shadow);
+  box-shadow: var(--shadow-md);
   transition: transform var(--transition-base), box-shadow var(--transition-base);
 }
 
@@ -43,7 +44,7 @@
   align-items: center;
   justify-content: center;
   border-radius: var(--radius-sm);
-  background: rgba(40, 30, 20, 0.08);
+  background: var(--bg-tertiary);
   font-size: 1.8rem;
 }
 
@@ -56,14 +57,14 @@
   font-size: var(--text-xs);
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  color: var(--reader-ink-soft);
+  color: var(--text-tertiary);
   margin-bottom: 2px;
 }
 
 .title {
   font-size: var(--text-xl);
   font-weight: 700;
-  color: var(--reader-ink);
+  color: var(--text-primary);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -71,7 +72,7 @@
 
 .author {
   font-size: var(--text-sm);
-  color: var(--reader-ink-soft);
+  color: var(--text-secondary);
   margin-bottom: var(--space-sm);
   white-space: nowrap;
   overflow: hidden;
@@ -89,7 +90,7 @@
   flex: 1;
   height: 6px;
   border-radius: 3px;
-  background: rgba(40, 30, 20, 0.12);
+  background: var(--bg-tertiary);
   overflow: hidden;
 }
 
@@ -102,7 +103,7 @@
 .progressPct {
   flex-shrink: 0;
   font-size: var(--text-xs);
-  color: var(--reader-ink-soft);
+  color: var(--text-tertiary);
   font-variant-numeric: tabular-nums;
 }
 

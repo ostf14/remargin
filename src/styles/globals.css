@@ -75,13 +75,13 @@
   --sidebar-width: 340px;
   --toolbar-height: 56px;
 
-  /* Reader — "desk" surface + cream "page" (document metaphor, SPEC §3.2/§6) */
+  /* Reader — "desk" surface + neutral light "page" (document metaphor, SPEC §3.2/§6) */
   --page-max-width: 900px; /* shared by EPUB + PDF page sheets (keep PAGE_MAX in PdfReader in sync) */
   --reader-desk: #313131;
-  --reader-page: #f5f0eb;
-  --reader-ink: #2b2723;
-  --reader-ink-soft: #6f6657;
-  --reader-divider: rgba(40, 30, 20, 0.1);
+  --reader-page: #f5f5f5;
+  --reader-ink: #2b2b2b;
+  --reader-ink-soft: #6b6b6b;
+  --reader-divider: rgba(0, 0, 0, 0.1);
   --reader-page-shadow: 0 2px 16px rgba(0, 0, 0, 0.35);
 }
 
@@ -111,7 +111,7 @@
   --shadow-cover: 0 4px 16px rgba(0, 0, 0, 0.16);
 
   --reader-desk: #f2f2f2;
-  --reader-page: #fffdf9;
+  --reader-page: #ffffff;
   --reader-page-shadow: 0 2px 16px rgba(0, 0, 0, 0.12);
 }
 
