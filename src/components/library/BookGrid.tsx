@@ -1,9 +1,10 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { Book } from '../../types';
 import { useLibrary } from '../../hooks/useLibrary';
 import { useReader } from '../../hooks/useReader';
 import { BookCard } from './BookCard';
 import { ContinueReading } from './ContinueReading';
+import { LibraryControls, type SortKey } from './LibraryControls';
 import { ImportDropzone } from './ImportDropzone';
 import { ConfirmDialog } from './ConfirmDialog';
 import styles from './BookGrid.module.css';
@@ -12,10 +13,42 @@ function timeOf(iso: string | null): number {
   return iso ? new Date(iso).getTime() : 0;
 }
 
+function matchesQuery(book: Book, needle: string): boolean {
+  if (!needle) return true;
+  return (
+    book.title.toLowerCase().includes(needle) || book.author.toLowerCase().includes(needle)
+  );
+}
+
+function compareBooks(a: Book, b: Book, sort: SortKey): number {
+  switch (sort) {
+    case 'recent':
+      return timeOf(b.lastOpened) - timeOf(a.lastOpened);
+    case 'added':
+      return timeOf(b.addedAt) - timeOf(a.addedAt);
+    case 'title':
+      return a.title.localeCompare(b.title);
+    case 'author':
+      return a.author.localeCompare(b.author);
+    case 'progress':
+      return (b.progress ?? 0) - (a.progress ?? 0);
+  }
+}
+
 export function BookGrid() {
   const { books, removeBook } = useLibrary();
   const { openBook, theme, toggleTheme } = useReader();
   const [pendingDelete, setPendingDelete] = useState<Book | null>(null);
+
+  const [query, setQuery] = useState('');
+  const [debouncedQuery, setDebouncedQuery] = useState('');
+  const [sort, setSort] = useState<SortKey>('recent');
+
+  // Debounce the search input so filtering doesn't churn on every keystroke.
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedQuery(query), 200);
+    return () => clearTimeout(t);
+  }, [query]);
 
   // Most-recently-opened book powers the "Continue reading" hero (null if none opened yet).
   const continueBook = useMemo(() => {
@@ -27,12 +60,24 @@ export function BookGrid() {
     return latest;
   }, [books]);
 
+  const needle = debouncedQuery.trim().toLowerCase();
+
+  // Filter first, then sort — never mutate the context's books array.
+  const visibleBooks = useMemo(
+    () => books.filter((b) => matchesQuery(b, needle)).sort((a, b) => compareBooks(a, b, sort)),
+    [books, needle, sort],
+  );
+
+  const searching = needle !== '';
+  const countLabel = searching
+    ? `${visibleBooks.length} of ${books.length} books`
+    : `${books.length} ${books.length === 1 ? 'book' : 'books'}`;
+
   return (
     <div className={styles.container}>
       <header className={styles.header}>
         <div className={styles.headerText}>
           <h1 className={styles.title}>remargin</h1>
-          <p className={styles.subtitle}>{books.length} books in your library</p>
         </div>
         <button
           className={styles.themeToggle}
@@ -56,16 +101,34 @@ export function BookGrid() {
             <ContinueReading book={continueBook} onContinue={() => openBook(continueBook)} />
           )}
 
-          <div className={styles.grid}>
-            {books.map((book) => (
-              <BookCard
-                key={book.id}
-                book={book}
-                onClick={() => openBook(book)}
-                onRemove={() => setPendingDelete(book)}
-              />
-            ))}
-          </div>
+          <LibraryControls
+            query={query}
+            onQueryChange={setQuery}
+            sort={sort}
+            onSortChange={setSort}
+            countLabel={countLabel}
+          />
+
+          {visibleBooks.length === 0 ? (
+            <div className={styles.noResults}>
+              <div className={styles.emptyTitle}>No books found</div>
+              <div className={styles.emptyHint}>Nothing matches “{debouncedQuery.trim()}”.</div>
+              <button className={styles.clearBtn} onClick={() => setQuery('')}>
+                Clear search
+              </button>
+            </div>
+          ) : (
+            <div className={styles.grid}>
+              {visibleBooks.map((book) => (
+                <BookCard
+                  key={book.id}
+                  book={book}
+                  onClick={() => openBook(book)}
+                  onRemove={() => setPendingDelete(book)}
+                />
+              ))}
+            </div>
+          )}
         </>
       )}
 

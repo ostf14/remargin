@@ -40,9 +40,25 @@
   margin-bottom: var(--space-xs);
 }
 
-.subtitle {
+.noResults {
+  text-align: center;
+  padding: var(--space-3xl) 0;
+  margin-top: var(--space-xl);
+}
+
+.clearBtn {
+  margin-top: var(--space-md);
+  padding: var(--space-sm) var(--space-lg);
   font-size: var(--text-sm);
-  color: var(--text-tertiary);
+  color: var(--accent);
+  background: var(--accent-muted);
+  border-radius: var(--radius-md);
+  transition: background var(--transition-fast), color var(--transition-fast);
+}
+
+.clearBtn:hover {
+  background: var(--accent);
+  color: var(--accent-text);
 }
 
 .grid {
