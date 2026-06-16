@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import ePub, { type Rendition, type Book as EpubBook } from 'epubjs';
-import type { Book, EpubAnchor, HighlightColor } from '../../types';
+import type { Book, EpubAnchor, HighlightColor, ReadingSurface } from '../../types';
 import { useLibrary } from '../../hooks/useLibrary';
 import { useAnnotations } from '../../hooks/useAnnotations';
 import { useReader } from '../../hooks/useReader';
@@ -46,6 +46,28 @@ const KEY_COLORS: Record<string, HighlightColor> = {
   '5': 'purple',
 };
 
+// Reading-surface theme injected into the epub iframe. Background stays transparent
+// so the .page (--reader-page, switched via [data-surface]) shows through; only the
+// ink + link colours differ per surface. Full rule set per theme so select() is
+// self-contained regardless of epub.js merge behaviour.
+function surfaceTheme(surface: ReadingSurface): Record<string, Record<string, string>> {
+  const ink = surface === 'sepia' ? '#5b4636' : surface === 'dark' ? '#d4d4d4' : '#313131';
+  const link = surface === 'dark' ? '#9b9bff' : '#8e5cd6';
+  return {
+    body: {
+      background: 'transparent !important',
+      color: `${ink} !important`,
+      'font-family': 'var(--font-serif) !important',
+      'line-height': '1.7 !important',
+      padding: '0 !important',
+      '-webkit-user-select': 'text !important',
+      'user-select': 'text !important',
+    },
+    a: { color: `${link} !important` },
+    '::selection': { background: 'rgba(142, 92, 214, 0.3) !important' },
+  };
+}
+
 // Text-zone top padding (CSS) — vertical offset of the iframe from the page top.
 const EPUB_PAD_TOP = 40;
 
@@ -64,7 +86,9 @@ export function EpubReader({ book }: Props) {
   const epubRef = useRef<EpubBook | null>(null);
   const renditionRef = useRef<Rendition | null>(null);
   const { patchBook } = useLibrary();
-  const { showAnnotations } = useReader();
+  const { showAnnotations, readingSurface } = useReader();
+  const readingSurfaceRef = useRef(readingSurface);
+  readingSurfaceRef.current = readingSurface;
   const { annotations, addAnnotation, updateAnnotation, deleteAnnotation } =
     useAnnotations(book.id);
   const annotationsRef = useRef(annotations);
@@ -199,24 +223,12 @@ export function EpubReader({ book }: Props) {
       });
       renditionRef.current = rendition;
 
-      // The page is a neutral light sheet in both themes; ink stays dark. These are
-      // literals because CSS custom properties don't cross the iframe boundary —
-      // keep them in sync with --reader-ink / --accent.
-      rendition.themes.default({
-        body: {
-          background: 'transparent !important',
-          color: '#2b2b2b !important',
-          'font-family': 'var(--font-serif) !important',
-          'line-height': '1.7 !important',
-          'padding': '0 !important',
-          '-webkit-user-select': 'text !important',
-          'user-select': 'text !important',
-        },
-        'a': { color: '#8e5cd6 !important' },
-        '::selection': {
-          background: 'rgba(142, 92, 214, 0.3) !important',
-        },
-      });
+      // Reading surface (light/sepia/dark) — register all three, select the active one.
+      // CSS custom properties don't cross the iframe, so the colours are literals.
+      rendition.themes.register('light', surfaceTheme('light'));
+      rendition.themes.register('sepia', surfaceTheme('sepia'));
+      rendition.themes.register('dark', surfaceTheme('dark'));
+      rendition.themes.select(readingSurfaceRef.current);
       rendition.themes.fontSize(`${100 + fontOffsetRef.current}%`);
 
       const startCfi = book.lastPosition;
@@ -412,6 +424,11 @@ export function EpubReader({ book }: Props) {
     }
   };
   shortcutKeyRef.current = handleShortcutKey;
+
+  // Re-apply the reading-surface theme to the epub content when it changes.
+  useEffect(() => {
+    renditionRef.current?.themes.select(readingSurface);
+  }, [readingSurface]);
 
   // --- In-book search (Ctrl+F) ---
   useEffect(() => {

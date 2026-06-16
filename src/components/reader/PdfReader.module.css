@@ -55,6 +55,16 @@
   border-radius: 1px;
 }
 
+/* Reading surface — applied to the whole rendered page so the canvas and saved
+   highlights transform together (highlights stay visible/hue-correct in dark). */
+:global([data-surface='sepia']) .pageContainer {
+  filter: sepia(0.3);
+}
+
+:global([data-surface='dark']) .pageContainer {
+  filter: invert(0.92) hue-rotate(180deg);
+}
+
 /* Saved highlights (persistent), below the live selection. */
 .highlightLayer {
   position: absolute;

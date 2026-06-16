@@ -4,6 +4,8 @@ export type HighlightColor = 'yellow' | 'green' | 'blue' | 'red' | 'purple';
 
 export type ViewMode = 'library' | 'reader';
 
+export type ReadingSurface = 'light' | 'sepia' | 'dark';
+
 export interface EpubAnchor {
   kind: 'epub';
   cfi: string;
@@ -50,4 +52,5 @@ export interface AppState {
   lastBookId: string | null;
   theme: 'dark' | 'light';
   epubFontSizeOffset: number; // default 0, range -4 to +8
+  readingSurface: ReadingSurface; // page tint while reading, separate from app theme
 }

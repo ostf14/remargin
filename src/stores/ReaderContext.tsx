@@ -1,5 +1,5 @@
 import { createContext, useEffect, useState, type ReactNode } from 'react';
-import type { Book, ViewMode } from '../types';
+import type { Book, ReadingSurface, ViewMode } from '../types';
 import { useLibrary } from '../hooks/useLibrary';
 import { loadAppState, saveAppState } from '../services/storage';
 
@@ -14,6 +14,8 @@ interface ReaderState {
   setShowAnnotations: (v: boolean) => void;
   theme: Theme;
   toggleTheme: () => void;
+  readingSurface: ReadingSurface;
+  setReadingSurface: (s: ReadingSurface) => void;
 }
 
 export const ReaderContext = createContext<ReaderState>({
@@ -25,6 +27,8 @@ export const ReaderContext = createContext<ReaderState>({
   setShowAnnotations: () => {},
   theme: 'dark',
   toggleTheme: () => {},
+  readingSurface: 'light',
+  setReadingSurface: () => {},
 });
 
 // Resolve the persisted view: reopen the last book if it still exists.
@@ -43,11 +47,20 @@ export function ReaderProvider({ children }: { children: ReactNode }) {
   const [viewMode, setViewMode] = useState<ViewMode>(() => restoreState(books).view);
   const [showAnnotations, setShowAnnotations] = useState(false);
   const [theme, setTheme] = useState<Theme>(() => loadAppState().theme);
+  const [readingSurface, setReadingSurfaceState] = useState<ReadingSurface>(
+    () => loadAppState().readingSurface,
+  );
 
   // Reflect the theme onto <html> so CSS custom properties switch app-wide.
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
   }, [theme]);
+
+  // Reflect the reading surface onto <html> so the reader's --reader-page / --reader-ink
+  // switch independently of the app chrome theme.
+  useEffect(() => {
+    document.documentElement.setAttribute('data-surface', readingSurface);
+  }, [readingSurface]);
 
   const persistView = (view: ViewMode, bookId: string | null) => {
     saveAppState({ ...loadAppState(), lastView: view, lastBookId: bookId });
@@ -59,6 +72,11 @@ export function ReaderProvider({ children }: { children: ReactNode }) {
       saveAppState({ ...loadAppState(), theme: next });
       return next;
     });
+  };
+
+  const setReadingSurface = (s: ReadingSurface) => {
+    setReadingSurfaceState(s);
+    saveAppState({ ...loadAppState(), readingSurface: s });
   };
 
   const openBook = (book: Book) => {
@@ -86,6 +104,8 @@ export function ReaderProvider({ children }: { children: ReactNode }) {
         setShowAnnotations,
         theme,
         toggleTheme,
+        readingSurface,
+        setReadingSurface,
       }}
     >
       {children}

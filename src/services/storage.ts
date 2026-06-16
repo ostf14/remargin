@@ -64,6 +64,7 @@ const DEFAULT_APP_STATE: AppState = {
   lastBookId: null,
   theme: 'dark',
   epubFontSizeOffset: 0,
+  readingSurface: 'light',
 };
 
 export function loadAppState(): AppState {

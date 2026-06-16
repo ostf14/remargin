@@ -115,6 +115,21 @@
   --reader-page-shadow: 0 2px 16px rgba(0, 0, 0, 0.12);
 }
 
+/* Reading surface — page tint while reading, independent of the chrome theme.
+   Declared after the theme blocks so surface wins for --reader-page / --reader-ink.
+   Light surface keeps the theme's neutral page (no override). */
+[data-surface='sepia'] {
+  --reader-page: #f0e6d3;
+  --reader-ink: #5b4636;
+  --reader-ink-soft: #8a7355;
+}
+
+[data-surface='dark'] {
+  --reader-page: #2b2b2b;
+  --reader-ink: #d4d4d4;
+  --reader-ink-soft: #9a9a9a;
+}
+
 *,
 *::before,
 *::after {
