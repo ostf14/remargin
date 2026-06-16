@@ -270,33 +270,41 @@ export function EpubReader({ book }: Props) {
     <>
       <ReaderToolbar chapter={chapter} percentage={percentage} />
       <div className={styles.wrapper}>
-        <div className={styles.desk}>
-          <div className={styles.page}>
-            <div className={styles.textZone}>
-              {loading && <div className={styles.loading}>Loading book...</div>}
-              <div ref={viewerRef} className={styles.viewer} />
-              <button
-                className={`${styles.navBtn} ${styles.prev}`}
-                onClick={() => renditionRef.current?.prev()}
-              >
-                &lsaquo;
-              </button>
-              <button
-                className={`${styles.navBtn} ${styles.next}`}
-                onClick={() => renditionRef.current?.next()}
-              >
-                &rsaquo;
-              </button>
-            </div>
+        <div className={styles.readerArea}>
+          <div className={styles.desk}>
+            <div className={styles.page}>
+              <div className={styles.textZone}>
+                {loading && <div className={styles.loading}>Loading book...</div>}
+                <div ref={viewerRef} className={styles.viewer} />
+              </div>
 
-            <MarginNotes
-              ref={marginColumnRef}
-              notes={notePositions}
-              autoFocusId={autoFocusId}
-              onSave={handleSaveNote}
-              onDelete={deleteAnnotation}
-              onBlurEmpty={() => setAutoFocusId(null)}
-            />
+              <MarginNotes
+                ref={marginColumnRef}
+                notes={notePositions}
+                autoFocusId={autoFocusId}
+                onSave={handleSaveNote}
+                onDelete={deleteAnnotation}
+                onBlurEmpty={() => setAutoFocusId(null)}
+              />
+            </div>
+          </div>
+
+          <div className={styles.pageNav}>
+            <button
+              className={styles.pageBtn}
+              onClick={() => renditionRef.current?.prev()}
+            >
+              &larr; Prev
+            </button>
+            <span className={styles.pageInfo}>
+              {chapter || 'Chapter'} — {Math.round(percentage)}%
+            </span>
+            <button
+              className={styles.pageBtn}
+              onClick={() => renditionRef.current?.next()}
+            >
+              Next &rarr;
+            </button>
           </div>
         </div>
 
