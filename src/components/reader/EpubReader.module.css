@@ -22,16 +22,19 @@
   background: var(--reader-desk);
   display: flex;
   justify-content: center;
-  align-items: stretch;
+  align-items: flex-start;
   padding: var(--space-xl) var(--space-xl) var(--space-lg);
 }
 
-/* The "page": one cream sheet, full height, holding text + the notes margin. */
+/* The "page": a fixed A4-proportioned cream sheet (≈1:1.414). Height derives from
+   width; epub.js paginates content within it, the rest stays empty cream paper. */
 .page {
   display: flex;
   width: 100%;
   max-width: 900px;
-  min-height: 100%;
+  aspect-ratio: 1 / 1.414;
+  flex-shrink: 0;
+  overflow: hidden;
   background: var(--reader-page);
   box-shadow: var(--reader-page-shadow);
   border-radius: 3px;
