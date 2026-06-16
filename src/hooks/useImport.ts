@@ -3,6 +3,7 @@ import type { Book } from '../types';
 import { parseEpub } from '../services/epubParser';
 import { parsePdf } from '../services/pdfParser';
 import { fetchBookMetadata } from '../services/googleBooks';
+import { countWordsFromData } from '../services/wordCount';
 import { saveBookFile } from '../services/storage';
 import { useLibrary } from './useLibrary';
 
@@ -18,7 +19,7 @@ const authorIsBad = (b: Book) => {
 // Shared import pipeline: parse → persist → add to library → enrich metadata async.
 // Used by the header "+" / empty-state buttons and the global drag-and-drop.
 export function useImport() {
-  const { addBook, updateBook, setEnriching } = useLibrary();
+  const { addBook, patchBook, setEnriching } = useLibrary();
   const [importing, setImporting] = useState(false);
 
   // Fill missing author/cover from Google Books — never blocks, never throws.
@@ -31,12 +32,25 @@ export function useImport() {
         const updates: Partial<Book> = {};
         if (authorIsBad(book) && meta.author) updates.author = meta.author;
         if (!book.coverUrl && meta.coverUrl) updates.coverUrl = meta.coverUrl;
-        if (Object.keys(updates).length) updateBook({ ...book, ...updates });
+        if (Object.keys(updates).length) patchBook(book.id, updates);
       } finally {
         setEnriching(book.id, false);
       }
     },
-    [updateBook, setEnriching],
+    [patchBook, setEnriching],
+  );
+
+  // Count words for the reading-time estimate — async, never blocks the import.
+  const countWords = useCallback(
+    async (book: Book, data: ArrayBuffer) => {
+      try {
+        const words = await countWordsFromData(book.format, data);
+        if (words > 0) patchBook(book.id, { wordCount: words });
+      } catch {
+        /* leave wordCount undefined — computed on first open instead */
+      }
+    },
+    [patchBook],
   );
 
   const importFiles = useCallback(
@@ -49,9 +63,11 @@ export function useImport() {
           const parsed = ext === 'epub' ? await parseEpub(file) : await parsePdf(file);
           await saveBookFile(parsed.book.id, parsed.data);
           addBook(parsed.book);
+          // Book is in the library now; enrich metadata + count words in the background.
           if (titleIsBad(parsed.book) || authorIsBad(parsed.book) || !parsed.book.coverUrl) {
             void enrich(parsed.book);
           }
+          void countWords(parsed.book, parsed.data);
         }
       } catch (err) {
         console.error('Import failed:', err);
@@ -59,7 +75,7 @@ export function useImport() {
         setImporting(false);
       }
     },
-    [addBook, enrich],
+    [addBook, enrich, countWords],
   );
 
   return { importFiles, importing };

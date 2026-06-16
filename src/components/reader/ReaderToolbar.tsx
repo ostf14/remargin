@@ -1,15 +1,21 @@
 import { useReader } from '../../hooks/useReader';
+import { readingMinutes, formatDuration } from '../../services/wordCount';
 import styles from './ReaderToolbar.module.css';
 
 interface Props {
   chapter?: string;
   percentage: number;
+  wordCount?: number;
 }
 
-export function ReaderToolbar({ chapter, percentage }: Props) {
+export function ReaderToolbar({ chapter, percentage, wordCount }: Props) {
   const { currentBook, closeBook, showAnnotations, setShowAnnotations, theme, toggleTheme } =
     useReader();
   if (!currentBook) return null;
+
+  const remainingMin = wordCount
+    ? readingMinutes(Math.max(0, wordCount * (1 - percentage / 100)))
+    : 0;
 
   return (
     <div className={styles.toolbar}>
@@ -24,6 +30,9 @@ export function ReaderToolbar({ chapter, percentage }: Props) {
       </div>
 
       <div className={styles.right}>
+        {remainingMin > 0 && (
+          <span className={styles.timeLeft}>~{formatDuration(remainingMin)} left</span>
+        )}
         <span className={styles.progress}>{Math.round(percentage)}%</span>
         <button
           className={styles.iconBtn}

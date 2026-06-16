@@ -42,6 +42,7 @@ export interface Book {
   lastOpened: string | null; // ISO date
   addedAt: string; // ISO date
   totalPages?: number; // pdf page count, used for progress math
+  wordCount?: number; // total words, for reading-time estimate (computed async)
 }
 
 export interface AppState {

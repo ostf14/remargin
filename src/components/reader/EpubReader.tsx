@@ -12,6 +12,7 @@ import { MarginNotes, type PositionedNote } from '../annotations/MarginNotes';
 import { Toast } from './Toast';
 import { SearchBar } from './SearchBar';
 import { formatCitation } from '../../services/citation';
+import { countWordsFromData } from '../../services/wordCount';
 import styles from './EpubReader.module.css';
 
 interface EpubSearchMatch {
@@ -62,7 +63,7 @@ export function EpubReader({ book }: Props) {
   const pageElRef = useRef<HTMLDivElement>(null);
   const epubRef = useRef<EpubBook | null>(null);
   const renditionRef = useRef<Rendition | null>(null);
-  const { updateBook } = useLibrary();
+  const { patchBook } = useLibrary();
   const { showAnnotations } = useReader();
   const { annotations, addAnnotation, updateAnnotation, deleteAnnotation } =
     useAnnotations(book.id);
@@ -71,6 +72,7 @@ export function EpubReader({ book }: Props) {
   const [chapter, setChapter] = useState('');
   const [percentage, setPercentage] = useState(book.progress ?? 0);
   const [loading, setLoading] = useState(true);
+  const [wordCount, setWordCount] = useState(book.wordCount);
   const [popover, setPopover] = useState<PopoverState | null>(null);
   const [notePositions, setNotePositions] = useState<PositionedNote[]>([]);
   const [autoFocusId, setAutoFocusId] = useState<string | null>(null);
@@ -175,6 +177,20 @@ export function EpubReader({ book }: Props) {
       epub = ePub(arrayBuf);
       epubRef.current = epub;
 
+      // Reading-time estimate: count words from a separate copy so we never disturb
+      // the rendition's spine sections. Background, first open only.
+      if (book.wordCount === undefined) {
+        getBookFile(book.id)
+          .then((buf) => (buf ? countWordsFromData('epub', buf) : 0))
+          .then((words) => {
+            if (!cancelled && words > 0) {
+              setWordCount(words);
+              patchBook(book.id, { wordCount: words });
+            }
+          })
+          .catch(() => {});
+      }
+
       rendition = epub.renderTo(container, {
         width: '100%',
         height: '100%',
@@ -229,8 +245,7 @@ export function EpubReader({ book }: Props) {
         const pct = Math.round((loc.start.percentage || 0) * 100);
         setPercentage(pct);
 
-        updateBook({
-          ...book,
+        patchBook(book.id, {
           lastOpened: new Date().toISOString(),
           progress: pct,
           lastPosition: loc.start.cfi,
@@ -498,7 +513,7 @@ export function EpubReader({ book }: Props) {
 
   return (
     <>
-      <ReaderToolbar chapter={chapter} percentage={percentage} />
+      <ReaderToolbar chapter={chapter} percentage={percentage} wordCount={wordCount} />
       {searchOpen && (
         <SearchBar
           query={searchQuery}

@@ -70,6 +70,19 @@
   letter-spacing: 0.05em;
 }
 
+.timeBadge {
+  position: absolute;
+  bottom: var(--space-sm);
+  left: var(--space-sm);
+  background: rgba(0, 0, 0, 0.6);
+  color: #fff;
+  font-size: var(--text-xs);
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
 .removeBtn {
   position: absolute;
   top: var(--space-sm);

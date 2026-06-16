@@ -15,6 +15,7 @@ import { MarginNotes, type PositionedNote } from '../annotations/MarginNotes';
 import { Toast } from './Toast';
 import { SearchBar } from './SearchBar';
 import { formatCitation } from '../../services/citation';
+import { countPdfWords } from '../../services/wordCount';
 import styles from './PdfReader.module.css';
 
 // Span-level find highlight on the (transparent) text layer: any span containing
@@ -218,7 +219,7 @@ export function PdfReader({ book }: Props) {
   // highlight rects and note anchors are stored in page coords × this base scale.
   const baseScaleRef = useRef(1);
   const lastRenderedPageRef = useRef(0);
-  const { updateBook } = useLibrary();
+  const { patchBook } = useLibrary();
   const { showAnnotations } = useReader();
   const { annotations, addAnnotation, updateAnnotation, deleteAnnotation } = useAnnotations(book.id);
   const annotationsRef = useRef(annotations);
@@ -226,6 +227,7 @@ export function PdfReader({ book }: Props) {
   const [page, setPage] = useState(Number(book.lastPosition) || 1);
   const [totalPages, setTotalPages] = useState(book.totalPages || 0);
   const [loading, setLoading] = useState(true);
+  const [wordCount, setWordCount] = useState(book.wordCount);
   const [selPopover, setSelPopover] = useState<{ x: number; y: number } | null>(null);
   const [savedPopover, setSavedPopover] = useState<{ x: number; y: number; id: string } | null>(
     null,
@@ -420,6 +422,17 @@ export function PdfReader({ book }: Props) {
         if (cancelled) return;
         pdfRef.current = pdf;
         setTotalPages(pdf.numPages);
+        // Count words for the reading-time estimate if we don't have it yet (background).
+        if (book.wordCount === undefined) {
+          countPdfWords(pdf)
+            .then((words) => {
+              if (!cancelled && words > 0) {
+                setWordCount(words);
+                patchBook(book.id, { wordCount: words });
+              }
+            })
+            .catch(() => {});
+        }
         await renderPage(pdf, page);
       } catch (err) {
         console.error('Failed to load PDF:', err);
@@ -445,8 +458,7 @@ export function PdfReader({ book }: Props) {
 
   useEffect(() => {
     const pct = totalPages > 0 ? Math.round((page / totalPages) * 100) : 0;
-    updateBook({
-      ...book,
+    patchBook(book.id, {
       lastOpened: new Date().toISOString(),
       progress: pct,
       lastPosition: String(page),
@@ -776,7 +788,7 @@ export function PdfReader({ book }: Props) {
 
   return (
     <>
-      <ReaderToolbar chapter={`Page ${page}`} percentage={percentage} />
+      <ReaderToolbar chapter={`Page ${page}`} percentage={percentage} wordCount={wordCount} />
       {searchOpen && (
         <SearchBar
           query={searchQuery}

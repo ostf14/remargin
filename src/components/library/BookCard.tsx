@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { Book } from '../../types';
+import { readingMinutes, formatDuration } from '../../services/wordCount';
 import styles from './BookCard.module.css';
 
 interface Props {
@@ -75,6 +76,10 @@ export function BookCard({ book, enriching, onClick, onRemove, onUpdate }: Props
             <div className={styles.progressFill} style={{ width: `${progress}%` }} />
           </div>
         )}
+
+        {book.wordCount ? (
+          <span className={styles.timeBadge}>~{formatDuration(readingMinutes(book.wordCount))}</span>
+        ) : null}
 
         {enriching && (
           <div className={styles.enriching}>

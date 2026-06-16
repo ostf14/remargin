@@ -12,6 +12,7 @@ interface LibraryState {
   addBook: (book: Book) => void;
   removeBook: (id: string) => void;
   updateBook: (book: Book) => void;
+  patchBook: (id: string, patch: Partial<Book>) => void;
   getBook: (id: string) => Book | undefined;
   enrichingIds: Set<string>;
   setEnriching: (id: string, on: boolean) => void;
@@ -22,6 +23,7 @@ export const LibraryContext = createContext<LibraryState>({
   addBook: () => {},
   removeBook: () => {},
   updateBook: () => {},
+  patchBook: () => {},
   getBook: () => undefined,
   enrichingIds: new Set<string>(),
   setEnriching: () => {},
@@ -60,6 +62,23 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
+  // Merge a partial onto the *current* book — safe for concurrent async writers
+  // (progress, metadata enrichment, word count) that would otherwise clobber each
+  // other when each spreads a stale snapshot.
+  const patchBook = useCallback((id: string, patch: Partial<Book>) => {
+    setBooks((prev) => {
+      let changed = false;
+      const next = prev.map((b) => {
+        if (b.id !== id) return b;
+        changed = true;
+        return { ...b, ...patch };
+      });
+      if (!changed) return prev;
+      saveBooks(next);
+      return next;
+    });
+  }, []);
+
   const getBook = useCallback(
     (id: string) => books.find((b) => b.id === id),
     [books],
@@ -79,7 +98,16 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
 
   return (
     <LibraryContext.Provider
-      value={{ books, addBook, removeBook, updateBook, getBook, enrichingIds, setEnriching }}
+      value={{
+        books,
+        addBook,
+        removeBook,
+        updateBook,
+        patchBook,
+        getBook,
+        enrichingIds,
+        setEnriching,
+      }}
     >
       {children}
     </LibraryContext.Provider>
