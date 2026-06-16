@@ -210,6 +210,8 @@ export function PdfReader({ book }: Props) {
   // without re-creating and without stale closures in timeouts/listeners.
   const visualZoomRef = useRef(1);
   visualZoomRef.current = visualZoom;
+  const renderScaleRef = useRef(1);
+  renderScaleRef.current = renderScale;
   const pageRef = useRef(page);
   pageRef.current = page;
 
@@ -325,6 +327,9 @@ export function PdfReader({ book }: Props) {
       currentScaleRef.current = viewport.scale;
       setRenderScale(zoom);
       paintSavedHighlights(num);
+      // Reposition notes in the same frame as the transform reset, so they don't
+      // lag a frame behind the canvas at the end of a zoom.
+      recomputeNotePositions();
 
       // Rebuild the transparent text layer in the same frame; its brief mis-scale
       // before this resolves is invisible (no glyphs are painted).
@@ -352,7 +357,7 @@ export function PdfReader({ book }: Props) {
           /* cancelled by a newer render */
         });
     });
-  }, [paintSavedHighlights]);
+  }, [paintSavedHighlights, recomputeNotePositions]);
 
   useEffect(() => {
     let cancelled = false;
@@ -452,25 +457,30 @@ export function PdfReader({ book }: Props) {
     paintSavedHighlights(pageRef.current);
   }, [annotations, paintSavedHighlights]);
 
-  // Recompute margin-note positions on anything that moves the highlights.
+  // Recompute when notes are added/removed/focused. Page turns and zoom re-renders
+  // recompute from the render rAF instead, so positions land in the same frame as
+  // the transform reset (no separate, delayed pass while a zoom is mid-transform).
   useEffect(() => {
     recomputeNotePositions();
-  }, [annotations, page, renderScale, autoFocusId, recomputeNotePositions]);
+  }, [annotations, autoFocusId, recomputeNotePositions]);
 
   useEffect(() => {
     const wrap = canvasWrapRef.current;
     if (!wrap) return;
     let raf = 0;
-    const onScroll = () => {
+    const onMove = () => {
+      // Skip while a zoom is mid-transform — the CSS transform already scales the
+      // notes with the page; recomputing now would read transformed rects.
+      if (visualZoomRef.current !== renderScaleRef.current) return;
       cancelAnimationFrame(raf);
       raf = requestAnimationFrame(recomputeNotePositions);
     };
-    wrap.addEventListener('scroll', onScroll, { passive: true });
-    window.addEventListener('resize', onScroll);
+    wrap.addEventListener('scroll', onMove, { passive: true });
+    window.addEventListener('resize', onMove);
     return () => {
       cancelAnimationFrame(raf);
-      wrap.removeEventListener('scroll', onScroll);
-      window.removeEventListener('resize', onScroll);
+      wrap.removeEventListener('scroll', onMove);
+      window.removeEventListener('resize', onMove);
     };
   }, [recomputeNotePositions]);
 
