@@ -9,6 +9,8 @@ import { ReaderToolbar } from './ReaderToolbar';
 import { AnnotationPanel } from '../annotations/AnnotationPanel';
 import { HighlightPopover } from '../annotations/HighlightPopover';
 import { MarginNotes, type PositionedNote } from '../annotations/MarginNotes';
+import { Toast } from './Toast';
+import { formatCitation } from '../../services/citation';
 import styles from './EpubReader.module.css';
 
 interface Props {
@@ -64,6 +66,18 @@ export function EpubReader({ book }: Props) {
   const fontOffsetRef = useRef(fontOffset);
   fontOffsetRef.current = fontOffset;
   const [zoom, setZoom] = useState(1);
+
+  // Transient "Copied citation" toast.
+  const [toast, setToast] = useState<string | null>(null);
+  const toastTimerRef = useRef<number | null>(null);
+  const showToast = useCallback((msg: string) => {
+    setToast(msg);
+    if (toastTimerRef.current) window.clearTimeout(toastTimerRef.current);
+    toastTimerRef.current = window.setTimeout(() => setToast(null), 1500);
+  }, []);
+  // Keydown fires inside the epub iframe (forwarded via rendition.on('keydown')) and
+  // on the outer document — both call the latest handler through this ref.
+  const shortcutKeyRef = useRef<(e: KeyboardEvent) => void>(() => {});
 
   // Ctrl + wheel = continuous visual zoom (blocks the browser's own page zoom).
   const handleZoomWheel = useCallback((e: WheelEvent) => {
@@ -226,6 +240,7 @@ export function EpubReader({ book }: Props) {
       handleKey = (e: KeyboardEvent) => {
         if (e.key === 'ArrowRight' || e.key === 'ArrowDown') renditionInstance.next();
         if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') renditionInstance.prev();
+        shortcutKeyRef.current(e);
       };
       document.addEventListener('keydown', handleKey);
       rendition.on('keydown', handleKey as (...args: unknown[]) => void);
@@ -234,6 +249,7 @@ export function EpubReader({ book }: Props) {
     return () => {
       cancelled = true;
       if (handleKey) document.removeEventListener('keydown', handleKey);
+      if (toastTimerRef.current) window.clearTimeout(toastTimerRef.current);
       rendition?.destroy();
       epub?.destroy();
     };
@@ -320,6 +336,25 @@ export function EpubReader({ book }: Props) {
     updateAnnotation(id, { note: text });
     if (autoFocusId === id) setAutoFocusId(null);
   };
+
+  // Keyboard shortcuts over the current selection (ignored while typing in a note
+  // field). Ctrl/Cmd+Shift+C copies a formatted citation; the selection lives in
+  // the epub iframe, so its text comes from the open popover (set on 'selected').
+  const handleShortcutKey = (e: KeyboardEvent) => {
+    const t = e.target as HTMLElement | null;
+    if (t && (t.tagName === 'TEXTAREA' || t.tagName === 'INPUT' || t.isContentEditable)) return;
+    if (!popover) return;
+
+    if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === 'c' || e.key === 'C')) {
+      e.preventDefault();
+      const citation = formatCitation(popover.text, book, chapter || 'Chapter');
+      navigator.clipboard
+        .writeText(citation)
+        .then(() => showToast('Copied citation'))
+        .catch(() => {});
+    }
+  };
+  shortcutKeyRef.current = handleShortcutKey;
 
   return (
     <>
@@ -422,6 +457,8 @@ export function EpubReader({ book }: Props) {
           onDismiss={() => setPopover(null)}
         />
       )}
+
+      <Toast message={toast} />
     </>
   );
 }

@@ -12,6 +12,8 @@ import { ReaderToolbar } from './ReaderToolbar';
 import { AnnotationPanel } from '../annotations/AnnotationPanel';
 import { HighlightPopover } from '../annotations/HighlightPopover';
 import { MarginNotes, type PositionedNote } from '../annotations/MarginNotes';
+import { Toast } from './Toast';
+import { formatCitation } from '../../services/citation';
 import styles from './PdfReader.module.css';
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = workerUrl;
@@ -214,6 +216,17 @@ export function PdfReader({ book }: Props) {
   const pageRef = useRef(page);
   pageRef.current = page;
 
+  // Transient "Copied citation" toast.
+  const [toast, setToast] = useState<string | null>(null);
+  const toastTimerRef = useRef<number | null>(null);
+  const showToast = useCallback((msg: string) => {
+    setToast(msg);
+    if (toastTimerRef.current) window.clearTimeout(toastTimerRef.current);
+    toastTimerRef.current = window.setTimeout(() => setToast(null), 1500);
+  }, []);
+  // Keydown handler is registered once but must see fresh state — bridge via a ref.
+  const shortcutKeyRef = useRef<(e: KeyboardEvent) => void>(() => {});
+
   // Draw all saved highlights for a page into the highlight layer, in the canvas's
   // fit-width CSS coords (× baseScale). The page's CSS zoom transform scales them
   // together with the canvas, so highlights track it without recomputation.
@@ -413,6 +426,17 @@ export function PdfReader({ book }: Props) {
     return () => document.removeEventListener('keydown', handleKey);
   }, [totalPages]);
 
+  // Selection shortcuts (citation copy, number-key highlights) — registered once,
+  // delegating to the latest closure via ref. Clears the toast timer on unmount.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => shortcutKeyRef.current(e);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('keydown', onKey);
+      if (toastTimerRef.current) window.clearTimeout(toastTimerRef.current);
+    };
+  }, []);
+
   // Paint our own selection highlight (native ::selection leaves word gaps),
   // and raise the create-highlight popover once a selection settles.
   useEffect(() => {
@@ -553,6 +577,26 @@ export function PdfReader({ book }: Props) {
     updateAnnotation(id, { note: text });
     if (autoFocusId === id) setAutoFocusId(null);
   };
+
+  // Keyboard shortcuts over the current text selection. Ignored while typing in a
+  // note field. Ctrl/Cmd+Shift+C copies a formatted citation (plain Ctrl+C is
+  // handled separately by onCopy, keeping its newline cleanup).
+  const handleShortcutKey = (e: KeyboardEvent) => {
+    const t = e.target as HTMLElement | null;
+    if (t && (t.tagName === 'TEXTAREA' || t.tagName === 'INPUT' || t.isContentEditable)) return;
+    const raw = document.getSelection()?.toString() ?? '';
+    if (!raw.trim()) return;
+
+    if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === 'c' || e.key === 'C')) {
+      e.preventDefault();
+      const citation = formatCitation(raw, book, `с. ${pageRef.current}`);
+      navigator.clipboard
+        .writeText(citation)
+        .then(() => showToast('Copied citation'))
+        .catch(() => {});
+    }
+  };
+  shortcutKeyRef.current = handleShortcutKey;
 
   const ZOOM_MIN = 0.5;
   const ZOOM_MAX = 3;
@@ -728,6 +772,8 @@ export function PdfReader({ book }: Props) {
           onDismiss={() => setSavedPopover(null)}
         />
       )}
+
+      <Toast message={toast} />
     </>
   );
 }
