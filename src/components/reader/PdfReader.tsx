@@ -55,6 +55,7 @@ function highlightSearchInTextLayer(layer: HTMLElement, query: string) {
 
 interface SearchMatch {
   page: number;
+  y: number; // vertical position of the match as a fraction of page height (0 = top)
 }
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = workerUrl;
@@ -233,6 +234,7 @@ export function PdfReader({ book }: Props) {
   const textLayerRef = useRef<HTMLDivElement>(null);
   const selectionLayerRef = useRef<HTMLDivElement>(null);
   const pdfRef = useRef<PDFDocumentProxy | null>(null);
+  const renderedPageRef = useRef(0); // page the canvas has actually finished drawing
   const renderTaskRef = useRef<RenderTask | null>(null);
   const currentTextLayerRef = useRef<TextLayerInstance | null>(null);
   const selectionCleanupRef = useRef<(() => void) | null>(null);
@@ -290,8 +292,6 @@ export function PdfReader({ book }: Props) {
   // Effective query for the text-layer highlight, read inside renderPage.
   const searchActiveRef = useRef('');
   searchActiveRef.current = searchOpen ? debouncedSearch : '';
-  // Occurrence index of the active match within its page (which <mark> to scroll to).
-  const searchOccRef = useRef(0);
 
   // Draw all saved highlights for a page into the highlight layer, in the canvas's
   // fit-width CSS coords (× baseScale). The page's CSS zoom transform scales them
@@ -403,6 +403,7 @@ export function PdfReader({ book }: Props) {
       canvas.style.height = `${cssHeight}px`;
       canvas.getContext('2d')!.drawImage(offscreen, 0, 0);
       renderedZoomRef.current = zoom;
+      renderedPageRef.current = num;
       paintSavedHighlights(num);
       // Notes move only when the page or the fit-width scale changes — never on zoom.
       if (baseChanged || pageChanged) recomputeNotePositions();
@@ -705,7 +706,6 @@ export function PdfReader({ book }: Props) {
     }
     if (searchCacheRef.current?.query === q) {
       const cached = searchCacheRef.current.matches;
-      searchOccRef.current = 0;
       setSearchMatches(cached);
       setSearchIndex(0);
       if (cached.length) setPage(cached[0].page);
@@ -719,20 +719,25 @@ export function PdfReader({ book }: Props) {
     for (let p = 1; p <= pdf.numPages; p++) {
       if (seq !== searchSeqRef.current) return; // a newer query superseded this run
       const pg = await pdf.getPage(p);
+      const pageH = pg.getViewport({ scale: 1 }).height;
       const tc = await pg.getTextContent();
-      const text = tc.items
-        .map((it) => ('str' in it ? (it as { str: string }).str : ''))
-        .join(' ')
-        .toLowerCase();
-      let idx = text.indexOf(q);
-      while (idx !== -1) {
-        matches.push({ page: p });
-        idx = text.indexOf(q, idx + q.length);
+      for (const it of tc.items) {
+        if (!('str' in it)) continue;
+        const item = it as { str: string; transform: number[] };
+        const lower = item.str.toLowerCase();
+        if (!lower.includes(q)) continue;
+        // transform[5] is the text baseline's y in PDF points (origin bottom-left).
+        const f = item.transform?.[5] ?? 0;
+        const y = pageH > 0 ? Math.max(0, Math.min(1, (pageH - f) / pageH)) : 0.5;
+        let idx = lower.indexOf(q);
+        while (idx !== -1) {
+          matches.push({ page: p, y });
+          idx = lower.indexOf(q, idx + q.length);
+        }
       }
     }
     if (seq !== searchSeqRef.current) return;
     searchCacheRef.current = { query: q, matches };
-    searchOccRef.current = 0;
     setSearching(false);
     setSearchMatches(matches);
     setSearchIndex(0);
@@ -750,26 +755,28 @@ export function PdfReader({ book }: Props) {
     if (el) highlightSearchInTextLayer(el, searchOpen ? debouncedSearch : '');
   }, [debouncedSearch, searchOpen]);
 
-  // Scroll the active match into view once its <mark> exists. The text layer renders
-  // async after a page change, so retry across a few frames until the mark appears.
+  // Centre the active match in the reading viewport. Geometry-based (the stored y +
+  // the canvas rect), so it doesn't depend on async <mark> rendering. The target page
+  // renders async after navigation, so retry until it's the current, sized page.
   useEffect(() => {
-    if (!searchOpen || !searchMatches.length) return;
+    if (!searchOpen) return;
+    const match = searchMatches[searchIndex];
+    if (!match) return;
     let tries = 0;
     let raf = 0;
     const attempt = () => {
-      const marks = textLayerRef.current?.querySelectorAll('mark.highlight-search');
-      const mark = marks?.[searchOccRef.current];
+      const canvas = canvasRef.current;
       const wrap = canvasWrapRef.current;
-      if (mark && wrap) {
-        // Centre the word inside the scroll viewport (the area between the toolbar and
-        // the page-nav footer), not the whole window.
-        const m = mark.getBoundingClientRect();
-        const w = wrap.getBoundingClientRect();
-        wrap.scrollTop += m.top + m.height / 2 - (w.top + w.height / 2);
-        wrap.scrollLeft += m.left + m.width / 2 - (w.left + w.width / 2);
-        return;
+      if (canvas && wrap && renderedPageRef.current === match.page) {
+        const c = canvas.getBoundingClientRect();
+        if (c.height > 1) {
+          const w = wrap.getBoundingClientRect();
+          const targetY = c.top + match.y * c.height; // the match's on-screen Y
+          wrap.scrollTop += targetY - (w.top + w.height / 2); // centre it in the viewport
+          return;
+        }
       }
-      if (tries++ < 40) raf = requestAnimationFrame(attempt);
+      if (tries++ < 60) raf = requestAnimationFrame(attempt);
     };
     raf = requestAnimationFrame(attempt);
     return () => cancelAnimationFrame(raf);
@@ -779,12 +786,8 @@ export function PdfReader({ book }: Props) {
     if (!searchMatches.length) return;
     const n = searchMatches.length;
     const idx = ((i % n) + n) % n;
-    const targetPage = searchMatches[idx].page;
-    let occ = 0;
-    for (let j = 0; j < idx; j++) if (searchMatches[j].page === targetPage) occ++;
-    searchOccRef.current = occ;
     setSearchIndex(idx);
-    setPage(targetPage);
+    setPage(searchMatches[idx].page);
   };
 
   const closeSearch = () => {
