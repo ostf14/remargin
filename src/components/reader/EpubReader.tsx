@@ -56,14 +56,6 @@ function surfaceInk(surface: ReadingSurface): string {
   return surface === 'sepia' ? '#5b4636' : surface === 'dark' ? '#d4d4d4' : '#313131';
 }
 
-// The manager's scroll container isn't on epub.js's public type surface. Search
-// switches the rendition to scrolled-doc mode (a single vertical column, no pages) and
-// scrolls this element directly to centre the matched word — the same geometric
-// approach the PDF reader uses. We reach in through this minimal shape.
-interface RenditionInternal {
-  manager?: { container?: HTMLElement | null };
-}
-
 function surfaceTheme(surface: ReadingSurface): Record<string, Record<string, string>> {
   const ink = surfaceInk(surface);
   const link = surface === 'dark' ? '#9b9bff' : '#8e5cd6';
@@ -572,47 +564,24 @@ export function EpubReader({ book }: Props) {
     }
   }, [searchOpen]);
 
-  // Centre the matched word vertically in the scroll viewport. Search runs in
-  // scrolled-doc mode, where the section is a single vertical column inside
-  // manager.container — so we position geometrically like the PDF reader: resolve the
-  // cfi to its live Range, measure it against the iframe + scroll container, and scroll
-  // so the match lands at the viewport's middle. Retries while the section is still
-  // reflowing after the flow switch / display. console.logs are intentional (left in
-  // for the user to read in the browser console while we confirm centering).
-  const centerMatch = useCallback((cfi: string) => {
+  // Centre the active match in the visible reading viewport — the same outcome the PDF
+  // reader gives by scrolling its container to the match. In scrolled-doc mode the text
+  // lives in an iframe inside epub.js's own scroll container, which itself sits inside
+  // the zoomable .desk; at zoom>1 the match can be off-screen in BOTH at once, so no
+  // single-container scroll suffices. epub.js draws the highlight as an SVG overlay in
+  // the *parent* document, nested under both scroll containers — so scrollIntoView on it
+  // scrolls every scroll ancestor together and lands the word at the viewport's middle
+  // (vertical only, like the PDF; horizontal stays put unless the word is off-side).
+  // The overlay is added async after display(), so retry until it appears.
+  const centerMatch = useCallback(() => {
     const tryCenter = (attempt: number) => {
-      const rendition = renditionRef.current;
-      if (!rendition) return;
-      const container = (rendition as unknown as RenditionInternal).manager?.container;
-      const iframe = viewerRef.current?.querySelector('iframe');
-      let range: Range | null = null;
-      try {
-        range = rendition.getRange(cfi);
-      } catch {
-        range = null;
-      }
-      const rect = range?.getBoundingClientRect();
-      console.log(
-        '[epub-search] center attempt',
-        attempt,
-        'rect?',
-        rect ? `${Math.round(rect.top)}×${Math.round(rect.height)}` : null,
-        'container?',
-        !!container,
-      );
-      if (!container || !iframe || !rect || rect.height === 0) {
+      const hits = viewerRef.current?.querySelectorAll('[ref="search-hit"]');
+      const el = hits && hits.length ? hits[hits.length - 1] : null;
+      if (!el) {
         if (attempt < 6) window.setTimeout(() => tryCenter(attempt + 1), 100);
         return;
       }
-      // Range rect is in the iframe's own viewport; the iframe isn't internally
-      // scrolled in scrolled-doc, so its top edge maps to iframeRect.top in the page.
-      const iframeRect = iframe.getBoundingClientRect();
-      const containerRect = container.getBoundingClientRect();
-      const matchCenter = iframeRect.top + rect.top + rect.height / 2;
-      const desired = containerRect.top + container.clientHeight / 2;
-      const target = Math.max(0, container.scrollTop + (matchCenter - desired));
-      console.log('[epub-search] center scrollTop', container.scrollTop, '→', Math.round(target));
-      container.scrollTo({ top: target, behavior: 'smooth' });
+      el.scrollIntoView({ block: 'center', inline: 'nearest' });
     };
     tryCenter(0);
   }, []);
@@ -630,7 +599,6 @@ export function EpubReader({ book }: Props) {
         }
         searchHighlightRef.current = null;
       }
-      console.log('[epub-search] display cfi:', cfi);
       rendition.display(cfi).then(() => {
         try {
           rendition.annotations.highlight(cfi, {}, () => {}, 'search-hit', {
@@ -638,10 +606,10 @@ export function EpubReader({ book }: Props) {
             'fill-opacity': '0.35',
           });
           searchHighlightRef.current = cfi;
-        } catch (e) {
-          console.log('[epub-search] highlight error:', e);
+        } catch {
+          /* highlight failed (e.g. cfi no longer resolvable) — navigation still happened */
         }
-        centerMatch(cfi);
+        centerMatch();
       });
     },
     [centerMatch],
