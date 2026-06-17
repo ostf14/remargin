@@ -691,22 +691,26 @@ export function EpubReader({ book }: Props) {
           </div>
 
           <div className={styles.pageNav}>
-            <button
-              className={styles.pageBtn}
-              onClick={() => renditionRef.current?.prev()}
-            >
-              &larr; Prev
-            </button>
-            <span className={styles.pageInfo}>
-              {chapter || 'Chapter'} — {Math.round(percentage)}%
-            </span>
-            <button
-              className={styles.pageBtn}
-              onClick={() => renditionRef.current?.next()}
-            >
-              Next &rarr;
-            </button>
-            <div className={styles.zoomGroup}>
+            <div className={styles.navGroup}>
+              <button
+                className={styles.pageBtn}
+                onClick={() => renditionRef.current?.prev()}
+              >
+                &larr; Prev
+              </button>
+              <span className={styles.pageInfo}>
+                {chapter || 'Chapter'} — {Math.round(percentage)}%
+              </span>
+              <button
+                className={styles.pageBtn}
+                onClick={() => renditionRef.current?.next()}
+              >
+                Next &rarr;
+              </button>
+            </div>
+            <div className={styles.divider} />
+            <div className={styles.midControls}>
+              <div className={styles.zoomGroup}>
               <button
                 className={styles.pageBtn}
                 onClick={() => setZoom((z) => clampZoom(+(z - ZOOM_STEP).toFixed(2)))}
@@ -742,7 +746,9 @@ export function EpubReader({ book }: Props) {
               >
                 A+
               </button>
+              </div>
             </div>
+            <div className={styles.divider} />
             <div className={styles.footerControls}>
               <ReaderControls />
             </div>

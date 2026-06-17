@@ -37,7 +37,7 @@ export function ContinueReading({ book, onContinue }: Props) {
         </div>
       </div>
 
-      <span className={styles.cta}>Continue Reading →</span>
+      <span className={styles.cta}>Continue →</span>
     </button>
   );
 }

@@ -1,11 +1,15 @@
-/* Notes zone: part of the same "page", divided from the text by a faint line. */
+/* Notes zone: part of the same "page". The dividing line appears only when the page
+   actually has a note (see .hasNotes) — otherwise the margin blends into the page. */
 .column {
   position: relative;
   width: 250px;
   flex-shrink: 0;
   align-self: stretch;
-  border-left: 1px solid var(--reader-divider);
   background: transparent;
+}
+
+.hasNotes {
+  border-left: 1px solid var(--reader-divider);
 }
 
 .connectors {

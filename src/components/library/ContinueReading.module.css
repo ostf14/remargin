@@ -9,7 +9,6 @@
   background: var(--bg-secondary);
   color: var(--text-primary);
   border: 1px solid var(--border-subtle);
-  border-left: 3px solid var(--accent);
   border-radius: var(--radius-xl);
   box-shadow: var(--shadow-md);
   transition: transform var(--duration-normal) var(--ease-out),
@@ -55,9 +54,8 @@
 }
 
 .eyebrow {
-  font-size: var(--text-xs);
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
+  font-size: 11px;
+  letter-spacing: 0.5px;
   color: var(--text-tertiary);
   margin-bottom: var(--space-1);
 }
@@ -110,20 +108,22 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* Quiet ghost affordance — the whole card is clickable, so this carries no weight. */
 .cta {
   flex-shrink: 0;
   display: inline-flex;
   align-items: center;
-  padding: var(--space-3) var(--space-6);
-  background: var(--accent);
-  color: var(--accent-text);
+  padding: var(--space-2) var(--space-5);
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
   font-size: var(--text-sm);
-  font-weight: var(--weight-bold);
+  font-weight: var(--weight-medium);
   white-space: nowrap;
-  border-radius: var(--radius-full);
-  transition: background var(--duration-fast) var(--ease-out);
+  border-radius: var(--radius-md);
 }
 
 .card:hover .cta {
-  background: var(--accent-hover);
+  border-color: var(--accent);
+  color: var(--accent);
 }

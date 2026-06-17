@@ -51,7 +51,10 @@ export const MarginNotes = forwardRef<HTMLDivElement, Props>(function MarginNote
   }, [sorted]);
 
   return (
-    <div className={styles.column} ref={ref}>
+    <div
+      className={`${styles.column}${sorted.length ? ` ${styles.hasNotes}` : ''}`}
+      ref={ref}
+    >
       <svg className={styles.connectors} aria-hidden="true">
         {sorted.map((n) => {
           const cardTop = tops[n.id] ?? n.anchorTop;

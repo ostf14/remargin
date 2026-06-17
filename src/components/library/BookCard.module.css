@@ -1,9 +1,5 @@
 .card {
-  transition: transform var(--duration-normal) var(--ease-out);
-}
-
-.card:hover {
-  transform: translateY(-2px);
+  position: relative;
 }
 
 .coverWrap {
@@ -14,10 +10,13 @@
   background: var(--bg-secondary);
   cursor: pointer;
   box-shadow: var(--shadow-md);
-  transition: box-shadow var(--duration-normal) var(--ease-out);
+  transform-origin: center;
+  transition: transform var(--duration-normal) var(--ease-out),
+    box-shadow var(--duration-normal) var(--ease-out);
 }
 
 .card:hover .coverWrap {
+  transform: scale(1.03);
   box-shadow: var(--shadow-lg);
 }
 
@@ -26,7 +25,6 @@
   height: 100%;
   object-fit: cover;
   display: block;
-  border-radius: var(--radius-md);
 }
 
 .placeholder {
@@ -48,10 +46,10 @@
 }
 
 .placeholderTitle {
-  font-family: var(--font-display);
-  font-size: var(--text-base);
-  font-weight: var(--weight-normal);
-  color: var(--text-primary);
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  color: var(--text-secondary);
   line-height: var(--leading-tight);
   display: -webkit-box;
   -webkit-line-clamp: 3;
@@ -59,35 +57,41 @@
   overflow: hidden;
 }
 
+/* Subtle frosted chip — present but quiet, so the cover stays the hero. */
 .badge {
   position: absolute;
   top: var(--space-2);
   right: var(--space-2);
-  background: rgba(0, 0, 0, 0.4);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  color: #fff;
-  font-size: var(--text-xs);
-  padding: 2px 7px;
-  border-radius: var(--radius-full);
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
   text-transform: uppercase;
-  font-weight: var(--weight-bold);
-  letter-spacing: 0.05em;
+  letter-spacing: 0.04em;
+  font-weight: var(--weight-medium);
 }
 
+/* Reading time is secondary metadata — only surfaces on hover. */
 .timeBadge {
   position: absolute;
   bottom: var(--space-2);
   left: var(--space-2);
-  background: rgba(0, 0, 0, 0.4);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  color: #fff;
-  font-size: var(--text-xs);
-  padding: 2px 7px;
-  border-radius: var(--radius-full);
-  font-weight: var(--weight-medium);
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
   font-variant-numeric: tabular-nums;
+  opacity: 0;
+}
+
+.coverWrap:hover .timeBadge {
+  opacity: 1;
 }
 
 .removeBtn {
@@ -161,9 +165,9 @@
 }
 
 .metaTitle {
-  font-family: var(--font-display);
-  font-size: var(--text-base);
-  font-weight: var(--weight-normal);
+  font-family: var(--font-body);
+  font-size: 14px;
+  font-weight: var(--weight-medium);
   color: var(--text-primary);
   line-height: var(--leading-tight);
   display: -webkit-box;
@@ -179,8 +183,8 @@
 
 .metaAuthor {
   margin-top: var(--space-1);
-  font-size: var(--text-sm);
-  color: var(--text-secondary);
+  font-size: 12px;
+  color: var(--text-tertiary);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -188,7 +192,7 @@
 }
 
 .metaAuthor:hover {
-  color: var(--text-primary);
+  color: var(--text-secondary);
 }
 
 .metaInput {

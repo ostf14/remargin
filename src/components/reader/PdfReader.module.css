@@ -96,23 +96,34 @@
 }
 
 .pageNav {
-  position: relative;
   display: flex;
   align-items: center;
-  gap: var(--space-md);
-  padding: var(--space-sm) var(--space-lg);
+  justify-content: center;
+  gap: var(--space-4);
+  padding: var(--space-2) var(--space-6);
   background: var(--bg-secondary);
   border-top: 1px solid var(--border-subtle);
   width: 100%;
-  justify-content: center;
 }
 
-/* Surface + theme controls, right-aligned in the footer without shifting the nav. */
+/* Footer reads as three divider-separated groups: navigation · zoom · surface/theme. */
+.navGroup {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.divider {
+  align-self: center;
+  flex-shrink: 0;
+  width: 1px;
+  height: 20px;
+  background: var(--border);
+}
+
 .footerControls {
-  position: absolute;
-  right: var(--space-lg);
-  top: 50%;
-  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
 }
 
 .pageBtn {
@@ -143,10 +154,7 @@
 .zoomGroup {
   display: flex;
   align-items: center;
-  gap: var(--space-xs);
-  margin-left: var(--space-lg);
-  padding-left: var(--space-lg);
-  border-left: 1px solid var(--border-subtle);
+  gap: var(--space-2);
 }
 
 .zoomLevel {

@@ -897,23 +897,26 @@ export function PdfReader({ book }: Props) {
             </div>
           </div>
           <div className={styles.pageNav}>
-            <button
-              className={styles.pageBtn}
-              onClick={() => setPage((p) => Math.max(p - 1, 1))}
-              disabled={page <= 1}
-            >
-              &larr; Prev
-            </button>
-            <span className={styles.pageInfo}>
-              {page} / {totalPages}
-            </span>
-            <button
-              className={styles.pageBtn}
-              onClick={() => setPage((p) => Math.min(p + 1, totalPages))}
-              disabled={page >= totalPages}
-            >
-              Next &rarr;
-            </button>
+            <div className={styles.navGroup}>
+              <button
+                className={styles.pageBtn}
+                onClick={() => setPage((p) => Math.max(p - 1, 1))}
+                disabled={page <= 1}
+              >
+                &larr; Prev
+              </button>
+              <span className={styles.pageInfo}>
+                {page} / {totalPages}
+              </span>
+              <button
+                className={styles.pageBtn}
+                onClick={() => setPage((p) => Math.min(p + 1, totalPages))}
+                disabled={page >= totalPages}
+              >
+                Next &rarr;
+              </button>
+            </div>
+            <div className={styles.divider} />
             <div className={styles.zoomGroup}>
               <button
                 className={styles.pageBtn}
@@ -935,6 +938,7 @@ export function PdfReader({ book }: Props) {
                 +
               </button>
             </div>
+            <div className={styles.divider} />
             <div className={styles.footerControls}>
               <ReaderControls />
             </div>
