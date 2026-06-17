@@ -27,15 +27,16 @@
 }
 
 /* While search is open the book is in scrolled-doc mode, which shows a vertical
-   scrollbar on epub.js's own scroll container (and, when zoomed, the .desk gains
-   scrollbars too). Hide all of it so the reading surface looks like a clean page —
-   scrolling still works via wheel/keys and each match auto-centres. */
+   scrollbar on epub.js's own scroll container (and, when zoomed, .desk and other
+   inner elements gain scrollbars too). Hide every scrollbar under the desk so the
+   reading surface looks like a clean page — scrolling still works via wheel/keys
+   and each match auto-centres. */
 .searching,
-.searching :global(.epub-container) {
+.searching * {
   scrollbar-width: none; /* Firefox */
 }
 .searching::-webkit-scrollbar,
-.searching :global(.epub-container)::-webkit-scrollbar {
+.searching *::-webkit-scrollbar {
   width: 0;
   height: 0;
 }
