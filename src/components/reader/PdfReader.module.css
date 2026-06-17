@@ -19,7 +19,7 @@
   display: flex;
   justify-content: center;
   align-items: flex-start;
-  padding: 48px var(--space-8) var(--space-8); /* top clears the 40px chrome bar */
+  padding: 56px var(--space-8) var(--space-8); /* top clears the 48px bar + progress strip */
 }
 
 /* The "page": one cream sheet holding the rendered PDF and the notes margin. The zoom

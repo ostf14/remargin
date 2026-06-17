@@ -20,7 +20,7 @@
   display: flex;
   justify-content: center;
   align-items: flex-start;
-  padding: 48px var(--space-8) var(--space-6); /* top clears the 40px chrome bar */
+  padding: 56px var(--space-8) var(--space-6); /* top clears the 48px bar + progress strip */
 }
 
 /* In-book search switches the rendition to scrolled-doc mode, where epub.js scrolls its

@@ -2,16 +2,16 @@
    actually has a note (see .hasNotes) — otherwise the margin blends into the page. */
 .column {
   position: relative;
-  width: 0;
+  width: 250px;
   flex-shrink: 0;
   align-self: stretch;
   background: transparent;
 }
 
-/* Reserve the margin only when the page has a note — otherwise the text uses the full
-   width of the page and the divider line disappears. */
+/* The column always reserves its 250px so the reader content width stays stable
+   (epub.js lays out to the container width). The divider line only appears once the
+   page has at least one note. */
 .hasNotes {
-  width: 250px;
   border-left: 1px solid var(--reader-divider);
 }
 

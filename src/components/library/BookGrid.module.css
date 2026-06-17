@@ -10,7 +10,7 @@
   position: sticky;
   top: 0;
   z-index: 10;
-  height: 44px;
+  height: 48px;
   display: flex;
   align-items: center;
   gap: 14px;
@@ -22,16 +22,17 @@
 .logo {
   flex-shrink: 0;
   font-family: var(--font-display);
-  font-size: 18px;
+  font-size: 20px;
   font-weight: var(--weight-normal);
   color: var(--text-primary);
   line-height: 1;
 }
 
-/* Search is an underline, not a boxed input. */
+/* Compact underline search, right-aligned just before the action buttons. */
 .searchWrap {
-  flex: 1;
-  min-width: 0;
+  width: 160px;
+  max-width: 160px;
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   gap: 6px;
@@ -136,23 +137,27 @@
 /* Grid with a larger first (hero) card. */
 .grid {
   display: grid;
-  grid-template-columns: 1.5fr 1fr 1fr 1fr;
-  gap: 20px;
+  grid-template-columns: 1.3fr 1fr 1fr 1fr 1fr;
+  gap: 16px;
   padding: 16px 20px;
   align-items: start;
+}
+
+@media (max-width: 1200px) {
+  .grid {
+    grid-template-columns: 1.3fr 1fr 1fr 1fr;
+  }
 }
 
 @media (max-width: 900px) {
   .grid {
     grid-template-columns: 1.3fr 1fr 1fr;
-    gap: 16px;
   }
 }
 
 @media (max-width: 600px) {
   .grid {
     grid-template-columns: 1fr 1fr;
-    gap: 12px;
   }
 
   .grid > *:first-child {
@@ -162,7 +167,7 @@
 
 /* Empty library. */
 .empty {
-  min-height: calc(100vh - 44px);
+  min-height: calc(100vh - 48px);
   display: flex;
   flex-direction: column;
   align-items: center;

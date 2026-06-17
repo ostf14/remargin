@@ -17,11 +17,11 @@
   top: 0;
   left: 0;
   right: 0;
-  height: 40px;
+  height: 48px;
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 0 12px;
+  padding: 0 14px;
   background: var(--bg-primary);
   border-bottom: 0.5px solid var(--border);
   z-index: 20;
@@ -56,7 +56,7 @@
 }
 
 .title {
-  font-size: 11px;
+  font-size: 13px;
   font-weight: var(--weight-medium);
   color: var(--text-secondary);
   white-space: nowrap;
@@ -65,7 +65,7 @@
 }
 
 .subtitle {
-  font-size: 9px;
+  font-size: 10px;
   font-weight: var(--weight-normal);
   color: var(--text-quaternary);
   white-space: nowrap;
@@ -77,12 +77,12 @@
   flex-shrink: 0;
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
 }
 
 .iconBtn {
-  width: 24px;
-  height: 24px;
+  width: 28px;
+  height: 28px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -103,12 +103,12 @@
 /* ─────────────────────────── Settings dropdown ─────────────────────────── */
 .settings {
   position: absolute;
-  top: 40px;
+  top: 50px;
   right: 0;
   background: var(--bg-secondary);
   border: 0.5px solid var(--border);
   border-radius: 0 0 0 8px;
-  padding: 10px 12px;
+  padding: 12px 14px;
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -134,22 +134,22 @@
 
 .label {
   flex-shrink: 0;
-  min-width: 40px;
-  font-size: 9px;
+  min-width: 42px;
+  font-size: 11px;
   font-weight: var(--weight-normal);
   color: var(--text-quaternary);
 }
 
 .sBtn {
-  width: 22px;
-  height: 22px;
+  width: 26px;
+  height: 26px;
   display: flex;
   align-items: center;
   justify-content: center;
   border-radius: var(--radius-full);
   background: transparent;
   color: var(--text-secondary);
-  font-size: 10px;
+  font-size: 11px;
   font-weight: var(--weight-medium);
 }
 
@@ -163,17 +163,17 @@
 }
 
 .sValue {
-  min-width: 34px;
+  min-width: 40px;
   text-align: center;
-  font-size: 10px;
+  font-size: 11px;
   font-weight: var(--weight-medium);
   color: var(--text-secondary);
   font-variant-numeric: tabular-nums;
 }
 
 .surfaceDot {
-  width: 16px;
-  height: 16px;
+  width: 18px;
+  height: 18px;
   border-radius: var(--radius-full);
   border: 2px solid var(--border);
   cursor: pointer;
@@ -191,8 +191,8 @@
 }
 
 .modeBtn {
-  height: 22px;
-  padding: 0 8px;
+  height: 26px;
+  padding: 0 10px;
   display: flex;
   align-items: center;
   gap: 4px;
@@ -200,7 +200,7 @@
   background: transparent;
   border: 0.5px solid transparent;
   color: var(--text-tertiary);
-  font-size: 9px;
+  font-size: 10px;
   font-weight: var(--weight-normal);
 }
 
@@ -217,14 +217,15 @@
 .navLeft,
 .navRight {
   position: absolute;
-  top: 44px;
+  top: 52px;
   bottom: 4px;
-  width: 48px;
+  width: 60px;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
   z-index: 15;
+  transition: background var(--duration-normal) var(--ease-out);
 }
 
 .navLeft {
@@ -235,9 +236,14 @@
   right: 0;
 }
 
+.navLeft:hover,
+.navRight:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
 .navLeft:active,
 .navRight:active {
-  background: radial-gradient(ellipse at center, rgba(255, 255, 255, 0.06) 0%, transparent 70%);
+  background: radial-gradient(ellipse at center, rgba(255, 255, 255, 0.08) 0%, transparent 70%);
 }
 
 .chevron {
@@ -247,7 +253,7 @@
 }
 
 .showChrome .chevron {
-  opacity: 0.4;
+  opacity: 0.7;
 }
 
 .navLeft:hover .chevron,
@@ -255,14 +261,31 @@
   opacity: 1;
 }
 
-/* ─────────────────────────── Bottom info + progress ─────────────────────────── */
+/* ─────────────────────────── Progress + bottom info ─────────────────────────── */
+/* Always-visible thin progress strip, directly under the (auto-hiding) top bar. */
+.progressTrack {
+  position: absolute;
+  top: 48px;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--border);
+  z-index: 21;
+}
+
+.progressFill {
+  height: 100%;
+  background: var(--accent);
+  transition: width var(--duration-normal) var(--ease-out);
+}
+
 .bottomInfo {
   position: absolute;
   bottom: 8px;
   left: 0;
   right: 0;
   text-align: center;
-  font-size: 9px;
+  font-size: 11px;
   font-weight: var(--weight-normal);
   color: var(--text-quaternary);
   font-variant-numeric: tabular-nums;
@@ -274,22 +297,4 @@
 
 .showChrome .bottomInfo {
   opacity: 1;
-}
-
-/* Always visible — the one persistent piece of chrome. */
-.progressTrack {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  height: 2px;
-  background: rgba(255, 255, 255, 0.06);
-  z-index: 21;
-}
-
-.progressFill {
-  height: 100%;
-  background: var(--accent);
-  opacity: 0.6;
-  transition: width var(--duration-normal) var(--ease-out);
 }

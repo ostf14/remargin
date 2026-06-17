@@ -96,20 +96,19 @@ export function BookGrid() {
       <header className={styles.header}>
         <h1 className={styles.logo}>remargin</h1>
 
-        {hasBooks && (
-          <div className={styles.searchWrap}>
-            <Search className={styles.searchIcon} size={12} aria-hidden="true" />
-            <input
-              className={styles.search}
-              type="text"
-              placeholder="Search"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-            />
-          </div>
-        )}
-
         <div className={styles.actions}>
+          {hasBooks && (
+            <div className={styles.searchWrap}>
+              <Search className={styles.searchIcon} size={14} aria-hidden="true" />
+              <input
+                className={styles.search}
+                type="text"
+                placeholder="Search"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+              />
+            </div>
+          )}
           {hasBooks && <span className={styles.count}>{countLabel}</span>}
           {hasBooks && (
             <select

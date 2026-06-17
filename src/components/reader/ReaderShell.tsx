@@ -127,10 +127,10 @@ export function ReaderShell({
       {!showAnnotations && (
         <>
           <div className={styles.navLeft} onClick={onPrev} role="button" aria-label="Previous page">
-            <ChevronLeft className={styles.chevron} size={16} />
+            <ChevronLeft className={styles.chevron} size={22} />
           </div>
           <div className={styles.navRight} onClick={onNext} role="button" aria-label="Next page">
-            <ChevronRight className={styles.chevron} size={16} />
+            <ChevronRight className={styles.chevron} size={22} />
           </div>
         </>
       )}
@@ -153,7 +153,7 @@ export function ReaderShell({
             title="Find in book (Ctrl+F)"
             aria-label="Find in book"
           >
-            <Search size={14} />
+            <Search size={16} />
           </button>
           <button
             className={`${styles.iconBtn} ${showAnnotations ? styles.iconBtnActive : ''}`}
@@ -161,7 +161,7 @@ export function ReaderShell({
             title="Annotations"
             aria-label="Toggle annotations"
           >
-            <PenTool size={14} />
+            <PenTool size={16} />
           </button>
           <button
             className={`${styles.iconBtn} ${settingsOpen ? styles.iconBtnActive : ''}`}
@@ -169,7 +169,7 @@ export function ReaderShell({
             title="Settings"
             aria-label="Settings"
           >
-            <Settings size={14} />
+            <Settings size={16} />
           </button>
 
           <div className={`${styles.settings} ${settingsOpen ? styles.settingsOpen : ''}`}>
