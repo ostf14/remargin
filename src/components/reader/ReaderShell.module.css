@@ -56,7 +56,7 @@
 }
 
 .title {
-  font-size: 13px;
+  font-size: 14px;
   font-weight: var(--weight-medium);
   color: var(--text-secondary);
   white-space: nowrap;
@@ -65,9 +65,9 @@
 }
 
 .subtitle {
-  font-size: 10px;
+  font-size: 11px;
   font-weight: var(--weight-normal);
-  color: var(--text-quaternary);
+  color: var(--text-tertiary);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -98,6 +98,73 @@
 
 .iconBtnActive {
   color: var(--accent);
+}
+
+/* ─────────────────────────── Inline header search ─────────────────────────── */
+.headerSearch {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 180px;
+  border-bottom: 0.5px solid var(--border);
+}
+
+.headerSearchIcon {
+  flex-shrink: 0;
+  color: var(--text-quaternary);
+}
+
+.headerSearchInput {
+  flex: 1;
+  min-width: 0;
+  appearance: none;
+  background: transparent;
+  border: none;
+  font-size: 12px;
+  font-weight: var(--weight-normal);
+  color: var(--text-primary);
+  padding: 4px 0;
+}
+
+.headerSearchInput:focus,
+.headerSearchInput:focus-visible {
+  outline: none;
+  box-shadow: none;
+}
+
+.headerSearchInput::placeholder {
+  color: var(--text-quaternary);
+}
+
+.searchCounter {
+  flex-shrink: 0;
+  font-size: 11px;
+  color: var(--text-quaternary);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.searchBtn {
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-full);
+  background: transparent;
+  color: var(--text-tertiary);
+}
+
+.searchBtn:hover:not(:disabled) {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
+.searchBtn:disabled {
+  opacity: 0.4;
+  cursor: default;
 }
 
 /* ─────────────────────────── Settings dropdown ─────────────────────────── */
@@ -214,6 +281,8 @@
 }
 
 /* ─────────────────────────── Side page-turn zones ─────────────────────────── */
+/* Always-visible chevrons (not part of the auto-hide chrome). Simple colour states,
+   no background, no fades — just a subtle press feedback. */
 .navLeft,
 .navRight {
   position: absolute;
@@ -225,7 +294,6 @@
   justify-content: center;
   cursor: pointer;
   z-index: 15;
-  transition: none;
 }
 
 .navLeft {
@@ -236,29 +304,20 @@
   right: 0;
 }
 
-.navLeft:hover,
-.navRight:hover {
-  background: rgba(255, 255, 255, 0.05);
-}
-
-.navLeft:active,
-.navRight:active {
-  background: none;
-}
-
 .chevron {
   color: var(--text-quaternary);
-  opacity: 0;
-  transition: opacity 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-.showChrome .chevron {
-  opacity: 0.7;
+  transition: color 100ms var(--ease-out), transform 100ms var(--ease-out);
 }
 
 .navLeft:hover .chevron,
 .navRight:hover .chevron {
-  opacity: 1;
+  color: var(--text-secondary);
+}
+
+.navLeft:active .chevron,
+.navRight:active .chevron {
+  color: var(--text-primary);
+  transform: scale(0.9);
 }
 
 /* ─────────────────────────── Progress + bottom info ─────────────────────────── */

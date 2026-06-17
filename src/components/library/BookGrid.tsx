@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Search, Plus, Sun, Moon, BookOpen } from 'lucide-react';
+import { Search, Plus, Sun, Moon, BookOpen, ChevronDown } from 'lucide-react';
 import type { Book } from '../../types';
 import { useLibrary } from '../../hooks/useLibrary';
 import { useReader } from '../../hooks/useReader';
@@ -50,6 +50,8 @@ export function BookGrid() {
   const [query, setQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const [sort, setSort] = useState<SortKey>('recent');
+  const [sortOpen, setSortOpen] = useState(false);
+  const sortRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Debounce the search input so filtering doesn't churn on every keystroke.
@@ -57,6 +59,16 @@ export function BookGrid() {
     const t = setTimeout(() => setDebouncedQuery(query), 200);
     return () => clearTimeout(t);
   }, [query]);
+
+  // Close the sort dropdown on any outside click.
+  useEffect(() => {
+    if (!sortOpen) return;
+    const onDown = (e: MouseEvent) => {
+      if (sortRef.current && !sortRef.current.contains(e.target as Node)) setSortOpen(false);
+    };
+    document.addEventListener('mousedown', onDown);
+    return () => document.removeEventListener('mousedown', onDown);
+  }, [sortOpen]);
 
   // Most-recently-opened book — becomes the big "Continue reading" hero card.
   const continueBook = useMemo(() => {
@@ -111,18 +123,32 @@ export function BookGrid() {
           )}
           {hasBooks && <span className={styles.count}>{countLabel}</span>}
           {hasBooks && (
-            <select
-              className={styles.sort}
-              value={sort}
-              onChange={(e) => setSort(e.target.value as SortKey)}
-              aria-label="Sort books"
-            >
-              {SORT_OPTIONS.map((o) => (
-                <option key={o.value} value={o.value}>
-                  {o.label}
-                </option>
-              ))}
-            </select>
+            <div className={styles.sortWrap} ref={sortRef}>
+              <button
+                className={styles.sortBtn}
+                onClick={() => setSortOpen((o) => !o)}
+                aria-label="Sort books"
+              >
+                {SORT_OPTIONS.find((o) => o.value === sort)?.label}
+                <ChevronDown size={12} />
+              </button>
+              {sortOpen && (
+                <div className={styles.sortMenu}>
+                  {SORT_OPTIONS.map((o) => (
+                    <button
+                      key={o.value}
+                      className={`${styles.sortOption} ${o.value === sort ? styles.sortOptionActive : ''}`}
+                      onClick={() => {
+                        setSort(o.value);
+                        setSortOpen(false);
+                      }}
+                    >
+                      {o.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
           )}
           <button
             className={styles.importBtn}

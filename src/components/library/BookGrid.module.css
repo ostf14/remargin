@@ -82,7 +82,15 @@
   font-variant-numeric: tabular-nums;
 }
 
-.sort {
+.sortWrap {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.sortBtn {
+  display: flex;
+  align-items: center;
+  gap: 3px;
   height: 24px;
   padding: 0 8px;
   font-size: 11px;
@@ -91,19 +99,46 @@
   background: transparent;
   border: 0.5px solid transparent;
   border-radius: var(--radius-full);
-  cursor: pointer;
-  appearance: none;
-  -webkit-appearance: none;
-  transition: background var(--duration-fast) var(--ease-out);
+  white-space: nowrap;
 }
 
-.sort:hover {
+.sortBtn:hover {
   background: var(--bg-tertiary);
 }
 
-.sort option {
+.sortMenu {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  min-width: 140px;
+  display: flex;
+  flex-direction: column;
+  padding: 4px;
   background: var(--bg-secondary);
-  color: var(--text-primary);
+  border: 0.5px solid var(--border);
+  border-radius: 8px;
+  box-shadow: var(--shadow-lg);
+  z-index: 20;
+}
+
+.sortOption {
+  text-align: left;
+  padding: 6px 12px;
+  font-size: 11px;
+  font-weight: var(--weight-normal);
+  color: var(--text-secondary);
+  background: transparent;
+  border: 0.5px solid transparent;
+  border-radius: 6px;
+  white-space: nowrap;
+}
+
+.sortOption:hover {
+  background: var(--bg-tertiary);
+}
+
+.sortOptionActive {
+  color: var(--accent);
 }
 
 .importBtn {

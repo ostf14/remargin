@@ -188,22 +188,22 @@
   left: 0;
   right: 0;
   padding: 12px;
-  background: linear-gradient(transparent, rgba(0, 0, 0, 0.8));
+  background: linear-gradient(transparent 30%, rgba(0, 0, 0, 0.85) 100%);
   z-index: 2;
   pointer-events: none;
 }
 
 .continueLabel {
-  font-size: 8px;
+  font-size: 10px;
   font-weight: var(--weight-medium);
-  color: rgba(255, 255, 255, 0.5);
+  color: rgba(255, 255, 255, 0.7);
   text-transform: uppercase;
   letter-spacing: 0.6px;
 }
 
 .continueTitle {
   margin-top: 3px;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: var(--weight-medium);
   color: #fff;
   white-space: nowrap;
@@ -213,14 +213,14 @@
 
 .continueAuthor {
   margin-top: 1px;
-  font-size: 9px;
+  font-size: 11px;
   font-weight: var(--weight-normal);
-  color: rgba(255, 255, 255, 0.5);
+  color: rgba(255, 255, 255, 0.6);
 }
 
 .continueBar {
   margin-top: 8px;
-  height: 1.5px;
+  height: 2px;
   background: rgba(255, 255, 255, 0.2);
 }
 
@@ -231,9 +231,9 @@
 
 .continueText {
   margin-top: 4px;
-  font-size: 8px;
+  font-size: 11px;
   font-weight: var(--weight-normal);
-  color: rgba(255, 255, 255, 0.45);
+  color: rgba(255, 255, 255, 0.5);
   font-variant-numeric: tabular-nums;
 }
 
@@ -243,7 +243,7 @@
 
 .metaTitle {
   font-family: var(--font-body);
-  font-size: 13px;
+  font-size: 14px;
   font-weight: var(--weight-medium);
   color: var(--text-primary);
   line-height: var(--leading-tight);
@@ -261,9 +261,9 @@
 
 .metaAuthor {
   margin-top: 2px;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: var(--weight-normal);
-  color: var(--text-quaternary);
+  color: var(--text-tertiary);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -272,7 +272,7 @@
 }
 
 .metaAuthor:hover {
-  color: var(--text-tertiary);
+  color: var(--text-secondary);
 }
 
 .metaInput {

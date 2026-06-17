@@ -10,7 +10,6 @@ import { AnnotationPanel } from '../annotations/AnnotationPanel';
 import { HighlightPopover } from '../annotations/HighlightPopover';
 import { MarginNotes, type PositionedNote } from '../annotations/MarginNotes';
 import { Toast } from './Toast';
-import { SearchBar } from './SearchBar';
 import { formatCitation } from '../../services/citation';
 import { countEpubWords, readingMinutes, formatDuration } from '../../services/wordCount';
 import styles from './EpubReader.module.css';
@@ -560,21 +559,17 @@ export function EpubReader({ book }: Props) {
     if (searchOpen) runSearch(debouncedSearch);
   }, [debouncedSearch, searchOpen, runSearch]);
 
-  // While search is open the rendition runs in scrolled-doc mode: paginated columns
-  // make it impossible to bring an arbitrary match to a known on-screen position, but a
-  // single vertical column scrolls like the PDF. flow() re-lays-out live; on close we
-  // flip back to paginated and restore wherever the reader ended up. (renditionRef is
-  // null until the book finishes rendering, so the initial closed state is a no-op.)
+  // Switching to scrolled-doc reflows the page — a visible glitch if it fires the instant
+  // search opens. So we defer the switch to the first navigation (navigateToCfi) and only
+  // restore paginated here, on close. searchFlowRef tracks whether we actually switched.
+  const searchFlowRef = useRef(false);
   useEffect(() => {
     const rendition = renditionRef.current;
-    if (!rendition) return;
-    if (searchOpen) {
-      rendition.flow('scrolled-doc');
-    } else {
-      const cfi = rendition.currentLocation()?.start?.cfi;
-      rendition.flow('paginated');
-      if (cfi) rendition.display(cfi);
-    }
+    if (searchOpen || !rendition || !searchFlowRef.current) return;
+    const cfi = rendition.currentLocation()?.start?.cfi;
+    rendition.flow('paginated');
+    if (cfi) rendition.display(cfi);
+    searchFlowRef.current = false;
   }, [searchOpen]);
 
   // Centre the active match in the visible reading viewport — the same outcome the PDF
@@ -604,6 +599,12 @@ export function EpubReader({ book }: Props) {
     (cfi: string) => {
       const rendition = renditionRef.current;
       if (!rendition) return;
+      // Lazily switch to scrolled-doc on the first jump (see the flow effect) so the
+      // reflow happens during the jump, not the instant search opened.
+      if (!searchFlowRef.current) {
+        rendition.flow('scrolled-doc');
+        searchFlowRef.current = true;
+      }
       if (searchHighlightRef.current) {
         try {
           rendition.annotations.remove(searchHighlightRef.current, 'highlight');
@@ -667,23 +668,22 @@ export function EpubReader({ book }: Props) {
       onPrev={() => renditionRef.current?.prev()}
       onNext={() => renditionRef.current?.next()}
       onOpenSearch={() => setSearchOpen(true)}
+      search={{
+        open: searchOpen,
+        query: searchQuery,
+        onQueryChange: setSearchQuery,
+        onPrev: () => gotoMatch(searchIndex - 1),
+        onNext: () => gotoMatch(searchIndex + 1),
+        onClose: closeSearch,
+        current: searchMatches.length ? searchIndex + 1 : 0,
+        total: searchMatches.length,
+        searching,
+      }}
       font={{
         onInc: () => setFontOffset((o) => clampFontOffset(o + FONT_STEP)),
         onDec: () => setFontOffset((o) => clampFontOffset(o - FONT_STEP)),
       }}
     >
-      {searchOpen && (
-        <SearchBar
-          query={searchQuery}
-          onQueryChange={setSearchQuery}
-          onPrev={() => gotoMatch(searchIndex - 1)}
-          onNext={() => gotoMatch(searchIndex + 1)}
-          onClose={closeSearch}
-          current={searchMatches.length ? searchIndex + 1 : 0}
-          total={searchMatches.length}
-          searching={searching}
-        />
-      )}
       <div className={styles.wrapper}>
         <div className={styles.readerArea}>
           <div ref={deskRef} className={`${styles.desk}${searchOpen ? ` ${styles.searching}` : ''}`}>

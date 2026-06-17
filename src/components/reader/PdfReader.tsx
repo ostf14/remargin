@@ -13,7 +13,6 @@ import { AnnotationPanel } from '../annotations/AnnotationPanel';
 import { HighlightPopover } from '../annotations/HighlightPopover';
 import { MarginNotes, type PositionedNote } from '../annotations/MarginNotes';
 import { Toast } from './Toast';
-import { SearchBar } from './SearchBar';
 import { formatCitation } from '../../services/citation';
 import { countPdfWords, readingMinutes, formatDuration } from '../../services/wordCount';
 import styles from './PdfReader.module.css';
@@ -854,20 +853,19 @@ export function PdfReader({ book }: Props) {
       onPrev={() => setPage((p) => Math.max(p - 1, 1))}
       onNext={() => setPage((p) => Math.min(p + 1, totalPages))}
       onOpenSearch={() => setSearchOpen(true)}
+      search={{
+        open: searchOpen,
+        query: searchQuery,
+        onQueryChange: setSearchQuery,
+        onPrev: () => gotoMatch(searchIndex - 1),
+        onNext: () => gotoMatch(searchIndex + 1),
+        onClose: closeSearch,
+        current: searchMatches.length ? searchIndex + 1 : 0,
+        total: searchMatches.length,
+        searching,
+      }}
       zoom={{ value: zoom, onIn: zoomIn, onOut: zoomOut }}
     >
-      {searchOpen && (
-        <SearchBar
-          query={searchQuery}
-          onQueryChange={setSearchQuery}
-          onPrev={() => gotoMatch(searchIndex - 1)}
-          onNext={() => gotoMatch(searchIndex + 1)}
-          onClose={closeSearch}
-          current={searchMatches.length ? searchIndex + 1 : 0}
-          total={searchMatches.length}
-          searching={searching}
-        />
-      )}
       <div className={styles.wrapper}>
         <div className={styles.readerArea}>
           {loading && <div className={styles.loading}>Loading PDF...</div>}
