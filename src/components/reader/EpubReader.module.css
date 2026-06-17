@@ -26,19 +26,31 @@
   padding: var(--space-xl) var(--space-xl) var(--space-lg);
 }
 
-/* While search is open the book is in scrolled-doc mode, which shows a vertical
-   scrollbar on epub.js's own scroll container (and, when zoomed, .desk and other
-   inner elements gain scrollbars too). Hide every scrollbar under the desk so the
-   reading surface looks like a clean page — scrolling still works via wheel/keys
-   and each match auto-centres. */
+/* In-book search switches the rendition to scrolled-doc mode, where epub.js scrolls its
+   own .epub-container and the app's global 6px scrollbar (globals.css) shows up. Hide it:
+   the reader reaches matches via Next/Prev, not by dragging. The container only scrolls
+   in scrolled-doc — paginated keeps it overflow:hidden — so hiding it unconditionally is
+   safe and doesn't depend on the .searching class reaching the DOM. The two-class
+   selector beats the global ::-webkit-scrollbar rule. */
+.viewer,
+.viewer :global(.epub-container) {
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* legacy Edge/IE */
+}
+.viewer::-webkit-scrollbar,
+.viewer :global(.epub-container)::-webkit-scrollbar {
+  display: none;
+}
+
+/* When the page is zoomed the outer .desk scrolls too; hide its scrollbar (and any other
+   scroller under it) only while search is open — it's wanted for normal zoomed reading. */
 .searching,
 .searching * {
-  scrollbar-width: none; /* Firefox */
+  scrollbar-width: none;
 }
 .searching::-webkit-scrollbar,
 .searching *::-webkit-scrollbar {
-  width: 0;
-  height: 0;
+  display: none;
 }
 
 /* The "page": a fixed-proportion cream sheet (900 × 1073 at full width). Height
