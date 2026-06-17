@@ -56,19 +56,12 @@ function surfaceInk(surface: ReadingSurface): string {
   return surface === 'sepia' ? '#5b4636' : surface === 'dark' ? '#d4d4d4' : '#313131';
 }
 
-// Internal epub.js shapes we reach into for paginated column positioning (not in the
-// public type surface). In paginated mode the manager lays the section out as
-// horizontal CSS columns; display(cfi) lands the section but not always the column.
-interface EpubView {
-  locationOf?: (target: string) => { left: number; top: number } | undefined;
-}
-interface EpubManager {
-  current?: () => EpubView | undefined;
-  container?: HTMLElement | null;
-}
+// The manager's scroll container isn't on epub.js's public type surface. Search
+// switches the rendition to scrolled-doc mode (a single vertical column, no pages) and
+// scrolls this element directly to centre the matched word — the same geometric
+// approach the PDF reader uses. We reach in through this minimal shape.
 interface RenditionInternal {
-  manager?: EpubManager;
-  currentLocation?: () => unknown;
+  manager?: { container?: HTMLElement | null };
 }
 
 function surfaceTheme(surface: ReadingSurface): Record<string, Record<string, string>> {
@@ -562,66 +555,66 @@ export function EpubReader({ book }: Props) {
     if (searchOpen) runSearch(debouncedSearch);
   }, [debouncedSearch, searchOpen, runSearch]);
 
-  // Bring the matched word's COLUMN into view. In paginated mode epub.js lays each
-  // section out as horizontal CSS columns inside the iframe, so display(cfi) lands the
-  // section but not always the column. Try the low-level manager (#3), then a
-  // highlight-geometry fallback (#4). The console.logs are intentional — left in for
-  // the user to read in the browser console while we pin down which path works.
-  const positionMatchColumn = useCallback((cfi: string) => {
+  // While search is open the rendition runs in scrolled-doc mode: paginated columns
+  // make it impossible to bring an arbitrary match to a known on-screen position, but a
+  // single vertical column scrolls like the PDF. flow() re-lays-out live; on close we
+  // flip back to paginated and restore wherever the reader ended up. (renditionRef is
+  // null until the book finishes rendering, so the initial closed state is a no-op.)
+  useEffect(() => {
     const rendition = renditionRef.current;
     if (!rendition) return;
-    const r = rendition as unknown as RenditionInternal;
-
-    let positioned = false;
-    // #3 — scroll the manager's container to the cfi's pixel offset.
-    try {
-      const view = r.manager?.current?.();
-      const offset = view?.locationOf?.(cfi);
-      const container = r.manager?.container;
-      console.log('[epub-search] view.locationOf:', offset, 'container?', !!container);
-      if (container && offset && typeof offset.left === 'number') {
-        container.scrollLeft = offset.left;
-        console.log('[epub-search] manager.container.scrollLeft =', offset.left);
-        positioned = true;
-      }
-    } catch (e) {
-      console.log('[epub-search] locationOf error:', e);
+    if (searchOpen) {
+      rendition.flow('scrolled-doc');
+    } else {
+      const cfi = rendition.currentLocation()?.start?.cfi;
+      rendition.flow('paginated');
+      if (cfi) rendition.display(cfi);
     }
+  }, [searchOpen]);
 
-    // #4 — find the highlight, compute its column, scroll the iframe content. Always
-    // logs diagnostics; only acts if #3 didn't position. Retries for async highlight.
-    const tryHl = (attempt: number) => {
+  // Centre the matched word vertically in the scroll viewport. Search runs in
+  // scrolled-doc mode, where the section is a single vertical column inside
+  // manager.container — so we position geometrically like the PDF reader: resolve the
+  // cfi to its live Range, measure it against the iframe + scroll container, and scroll
+  // so the match lands at the viewport's middle. Retries while the section is still
+  // reflowing after the flow switch / display. console.logs are intentional (left in
+  // for the user to read in the browser console while we confirm centering).
+  const centerMatch = useCallback((cfi: string) => {
+    const tryCenter = (attempt: number) => {
+      const rendition = renditionRef.current;
+      if (!rendition) return;
+      const container = (rendition as unknown as RenditionInternal).manager?.container;
       const iframe = viewerRef.current?.querySelector('iframe');
-      const doc = iframe?.contentDocument;
-      const hlEl = doc?.querySelector('.epubjs-hl') as HTMLElement | null;
+      let range: Range | null = null;
+      try {
+        range = rendition.getRange(cfi);
+      } catch {
+        range = null;
+      }
+      const rect = range?.getBoundingClientRect();
       console.log(
-        '[epub-search] hlEl found:',
-        !!hlEl,
-        'offsetLeft:',
-        hlEl?.offsetLeft,
-        'iframe.clientWidth:',
-        iframe?.clientWidth,
+        '[epub-search] center attempt',
+        attempt,
+        'rect?',
+        rect ? `${Math.round(rect.top)}×${Math.round(rect.height)}` : null,
+        'container?',
+        !!container,
       );
-      if (!iframe || !hlEl) {
-        if (attempt < 5) window.setTimeout(() => tryHl(attempt + 1), 100);
+      if (!container || !iframe || !rect || rect.height === 0) {
+        if (attempt < 6) window.setTimeout(() => tryCenter(attempt + 1), 100);
         return;
       }
-      const columnWidth = iframe.clientWidth || 1;
-      const columnIndex = Math.floor(hlEl.offsetLeft / columnWidth);
-      const wrapper: Element | null =
-        doc?.querySelector('.epub-container') ?? doc?.scrollingElement ?? doc?.documentElement ?? null;
-      console.log(
-        '[epub-search] columnIndex:',
-        columnIndex,
-        'wrapper:',
-        wrapper ? wrapper.className || wrapper.tagName : null,
-      );
-      if (!positioned && wrapper) {
-        wrapper.scrollLeft = columnIndex * columnWidth;
-        console.log('[epub-search] wrapper.scrollLeft =', columnIndex * columnWidth);
-      }
+      // Range rect is in the iframe's own viewport; the iframe isn't internally
+      // scrolled in scrolled-doc, so its top edge maps to iframeRect.top in the page.
+      const iframeRect = iframe.getBoundingClientRect();
+      const containerRect = container.getBoundingClientRect();
+      const matchCenter = iframeRect.top + rect.top + rect.height / 2;
+      const desired = containerRect.top + container.clientHeight / 2;
+      const target = Math.max(0, container.scrollTop + (matchCenter - desired));
+      console.log('[epub-search] center scrollTop', container.scrollTop, '→', Math.round(target));
+      container.scrollTo({ top: target, behavior: 'smooth' });
     };
-    tryHl(0);
+    tryCenter(0);
   }, []);
 
   // Navigate to + highlight the active match whenever the index or result set changes.
@@ -648,16 +641,10 @@ export function EpubReader({ book }: Props) {
         } catch (e) {
           console.log('[epub-search] highlight error:', e);
         }
-        const r = rendition as unknown as RenditionInternal;
-        try {
-          console.log('[epub-search] currentLocation after display:', r.currentLocation?.());
-        } catch {
-          /* ignore */
-        }
-        positionMatchColumn(cfi);
+        centerMatch(cfi);
       });
     },
-    [positionMatchColumn],
+    [centerMatch],
   );
 
   useEffect(() => {

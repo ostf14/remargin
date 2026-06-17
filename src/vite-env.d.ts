@@ -45,6 +45,8 @@ declare module 'epubjs' {
     display(target?: string): Promise<void>;
     prev(): Promise<void>;
     next(): Promise<void>;
+    flow(flow: string): void;
+    currentLocation(): { start?: { cfi?: string } } | undefined;
     destroy(): void;
     on(event: string, cb: (...args: unknown[]) => void): void;
     off(event: string, cb: (...args: unknown[]) => void): void;
