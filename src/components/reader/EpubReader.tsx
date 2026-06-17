@@ -556,30 +556,54 @@ export function EpubReader({ book }: Props) {
     if (searchOpen) runSearch(debouncedSearch);
   }, [debouncedSearch, searchOpen, runSearch]);
 
-  // Navigate to + highlight the active match whenever the index or result set changes.
-  const navigateToCfi = useCallback((cfi: string) => {
-    const rendition = renditionRef.current;
-    if (!rendition) return;
-    if (searchHighlightRef.current) {
-      try {
-        rendition.annotations.remove(searchHighlightRef.current, 'highlight');
-      } catch {
-        /* already gone */
-      }
-      searchHighlightRef.current = null;
+  // Scroll the .desk so the highlighted word sits at the vertical centre of the
+  // viewport. epub.js injects the highlight (.epubjs-hl) into the iframe, possibly
+  // async, so retry briefly if it's not there yet. getBoundingClientRect already
+  // reflects the page's CSS zoom transform, so this works at zoom > 1 too.
+  const centerOnHighlight = useCallback((attempt = 0) => {
+    const desk = deskRef.current;
+    const iframe = viewerRef.current?.querySelector('iframe');
+    const hlEl = iframe?.contentDocument?.querySelector('.epubjs-hl');
+    if (!desk || !iframe || !hlEl) {
+      if (attempt < 6) window.setTimeout(() => centerOnHighlight(attempt + 1), 100);
+      return;
     }
-    rendition.display(rangeCfiToStart(cfi)).then(() => {
-      try {
-        rendition.annotations.highlight(cfi, {}, () => {}, 'search-hit', {
-          fill: 'var(--accent)',
-          'fill-opacity': '0.35',
-        });
-        searchHighlightRef.current = cfi;
-      } catch {
-        /* ignore */
-      }
-    });
+    const hlRect = hlEl.getBoundingClientRect();
+    const iframeRect = iframe.getBoundingClientRect();
+    const deskRect = desk.getBoundingClientRect();
+    const wordY = iframeRect.top + hlRect.top - deskRect.top; // word's offset from desk top
+    desk.scrollTo({ top: desk.scrollTop + wordY - desk.clientHeight / 2, behavior: 'smooth' });
   }, []);
+
+  // Navigate to + highlight the active match whenever the index or result set changes.
+  const navigateToCfi = useCallback(
+    (cfi: string) => {
+      const rendition = renditionRef.current;
+      if (!rendition) return;
+      if (searchHighlightRef.current) {
+        try {
+          rendition.annotations.remove(searchHighlightRef.current, 'highlight');
+        } catch {
+          /* already gone */
+        }
+        searchHighlightRef.current = null;
+      }
+      // display() resolves once the match's section/column is rendered (after 'relocated').
+      rendition.display(rangeCfiToStart(cfi)).then(() => {
+        try {
+          rendition.annotations.highlight(cfi, {}, () => {}, 'search-hit', {
+            fill: 'var(--accent)',
+            'fill-opacity': '0.35',
+          });
+          searchHighlightRef.current = cfi;
+        } catch {
+          /* ignore */
+        }
+        centerOnHighlight();
+      });
+    },
+    [centerOnHighlight],
+  );
 
   useEffect(() => {
     const match = searchMatches[searchIndex];
