@@ -42,9 +42,9 @@ interface SearchControls {
 
 interface Props {
   title: string;
-  subtitle?: string;
+  subtitle?: string; // chapter (EPUB) / "Page n / total" (PDF) — no progress
   progress: number; // 0–100
-  progressText: string;
+  progressText: string; // "22% · ~4h 50m left" — shown in the always-on bottom pill
   onPrev: () => void;
   onNext: () => void;
   onOpenSearch: () => void;
@@ -70,10 +70,12 @@ const MODES: { key: ReaderMode; label: string; Icon: typeof BookOpen }[] = [
 const HIDE_DELAY = 3000;
 const HIDE_DELAY_SETTINGS = 6000;
 
-// Immersive chrome around either reader: a 48px top bar (book title + a meta line of
-// chapter/page · progress · time-left, an inline find field, and a settings dropdown),
-// always-visible side page-turn chevrons, and a thin progress strip. The bar and strip
-// auto-hide after a few seconds of no activity (kept up while search/settings are open).
+// Immersive chrome around either reader: a 48px top bar (title + chapter/page line, an
+// inline find field that slots in before the always-present action icons, and a settings
+// dropdown), always-visible side page-turn chevrons, a thin progress strip, and an
+// always-on progress pill in the bottom-left. The bar + strip auto-hide after a few
+// seconds of inactivity (kept up while search/settings are open). Page-turning — nav-zone
+// clicks/hover and the arrow keys — never summons the chrome.
 export function ReaderShell({
   title,
   subtitle,
@@ -124,9 +126,11 @@ export function ReaderShell({
   useEffect(() => {
     bump();
     const on = (e: Event) => {
-      // Turning a page (clicking/moving over a nav zone) must not summon the chrome.
+      // Page-turning must not summon the chrome: ignore clicks/moves over a nav zone and
+      // the arrow keys (which turn the page).
       const t = e.target as Element | null;
       if (t?.closest?.('[data-nav-zone]')) return;
+      if (e instanceof KeyboardEvent && e.key.startsWith('Arrow')) return;
       bump();
     };
     // 'reader-activity' is dispatched from inside the EPUB iframe (whose own pointer
@@ -147,9 +151,6 @@ export function ReaderShell({
   useEffect(() => {
     if (searchActive) bump();
   }, [searchActive, bump]);
-
-  // Header second line: chapter/page · progress% · time-left.
-  const metaLine = [subtitle, progressText].filter(Boolean).join(' · ');
 
   const searchCounter = search
     ? search.searching
@@ -196,10 +197,11 @@ export function ReaderShell({
 
         <div className={styles.titleBlock}>
           <div className={styles.title}>{title}</div>
-          {metaLine && <div className={styles.subtitle}>{metaLine}</div>}
+          {subtitle && <div className={styles.subtitle}>{subtitle}</div>}
         </div>
 
-        {searchActive && search ? (
+        {/* Find field slots in between the title and the (always-present) action icons. */}
+        {searchActive && search && (
           <div className={styles.headerSearch}>
             <Search className={styles.headerSearchIcon} size={12} aria-hidden="true" />
             <input
@@ -245,107 +247,107 @@ export function ReaderShell({
               <X size={14} />
             </button>
           </div>
-        ) : (
-          <div className={styles.topActions}>
-            <button
-              className={styles.iconBtn}
-              onClick={onOpenSearch}
-              title="Find in book (Ctrl+F)"
-              aria-label="Find in book"
-            >
-              <Search size={16} />
-            </button>
-            <button
-              className={`${styles.iconBtn} ${showAnnotations ? styles.iconBtnActive : ''}`}
-              onClick={() => setShowAnnotations(!showAnnotations)}
-              title="Annotations"
-              aria-label="Toggle annotations"
-            >
-              <PenTool size={16} />
-            </button>
-            <button
-              className={`${styles.iconBtn} ${settingsOpen ? styles.iconBtnActive : ''}`}
-              onClick={() => setSettingsOpen((o) => !o)}
-              title="Settings"
-              aria-label="Settings"
-            >
-              <Settings size={16} />
-            </button>
+        )}
 
-            <div className={`${styles.settings} ${settingsOpen ? styles.settingsOpen : ''}`}>
-              {zoom && (
-                <div className={styles.row}>
-                  <span className={styles.label}>Zoom</span>
-                  <button className={styles.sBtn} onClick={zoom.onOut} aria-label="Zoom out">
-                    &minus;
-                  </button>
-                  <span className={styles.sValue}>{Math.round(zoom.value * 100)}%</span>
-                  <button className={styles.sBtn} onClick={zoom.onIn} aria-label="Zoom in">
-                    +
-                  </button>
-                </div>
-              )}
-              {font && (
-                <div className={styles.row}>
-                  <span className={styles.label}>Font</span>
-                  <button className={styles.sBtn} onClick={font.onDec} aria-label="Smaller text">
-                    A&minus;
-                  </button>
-                  <button className={styles.sBtn} onClick={font.onInc} aria-label="Larger text">
-                    A+
-                  </button>
-                </div>
-              )}
+        <div className={styles.topActions}>
+          <button
+            className={`${styles.iconBtn} ${searchActive ? styles.iconBtnActive : ''}`}
+            onClick={onOpenSearch}
+            title="Find in book (Ctrl+F)"
+            aria-label="Find in book"
+          >
+            <Search size={16} />
+          </button>
+          <button
+            className={`${styles.iconBtn} ${showAnnotations ? styles.iconBtnActive : ''}`}
+            onClick={() => setShowAnnotations(!showAnnotations)}
+            title="Annotations"
+            aria-label="Toggle annotations"
+          >
+            <PenTool size={16} />
+          </button>
+          <button
+            className={`${styles.iconBtn} ${settingsOpen ? styles.iconBtnActive : ''}`}
+            onClick={() => setSettingsOpen((o) => !o)}
+            title="Settings"
+            aria-label="Settings"
+          >
+            <Settings size={16} />
+          </button>
+
+          <div className={`${styles.settings} ${settingsOpen ? styles.settingsOpen : ''}`}>
+            {zoom && (
               <div className={styles.row}>
-                <span className={styles.label}>Page</span>
-                {SURFACES.map((s) => (
-                  <button
-                    key={s.key}
-                    className={`${styles.surfaceDot} ${readingSurface === s.key ? styles.surfaceActive : ''}`}
-                    style={{ background: s.bg }}
-                    onClick={() => setReadingSurface(s.key)}
-                    aria-label={`${s.key} page`}
-                  />
-                ))}
-              </div>
-              <div className={styles.row}>
-                <span className={styles.label}>Theme</span>
-                <button
-                  className={`${styles.sBtn} ${theme === 'light' ? styles.sBtnActive : ''}`}
-                  onClick={() => {
-                    if (theme !== 'light') toggleTheme();
-                  }}
-                  aria-label="Light theme"
-                >
-                  <Sun size={12} />
+                <span className={styles.label}>Zoom</span>
+                <button className={styles.sBtn} onClick={zoom.onOut} aria-label="Zoom out">
+                  &minus;
                 </button>
-                <button
-                  className={`${styles.sBtn} ${theme === 'dark' ? styles.sBtnActive : ''}`}
-                  onClick={() => {
-                    if (theme !== 'dark') toggleTheme();
-                  }}
-                  aria-label="Dark theme"
-                >
-                  <Moon size={12} />
+                <span className={styles.sValue}>{Math.round(zoom.value * 100)}%</span>
+                <button className={styles.sBtn} onClick={zoom.onIn} aria-label="Zoom in">
+                  +
                 </button>
               </div>
-              <div className={styles.divider} />
+            )}
+            {font && (
               <div className={styles.row}>
-                <span className={styles.label}>Mode</span>
-                {MODES.map(({ key, label, Icon }) => (
-                  <button
-                    key={key}
-                    className={`${styles.modeBtn} ${readerMode === key ? styles.modeActive : ''}`}
-                    onClick={() => setReaderMode(key)}
-                  >
-                    <Icon size={10} />
-                    {label}
-                  </button>
-                ))}
+                <span className={styles.label}>Font</span>
+                <button className={styles.sBtn} onClick={font.onDec} aria-label="Smaller text">
+                  A&minus;
+                </button>
+                <button className={styles.sBtn} onClick={font.onInc} aria-label="Larger text">
+                  A+
+                </button>
               </div>
+            )}
+            <div className={styles.row}>
+              <span className={styles.label}>Page</span>
+              {SURFACES.map((s) => (
+                <button
+                  key={s.key}
+                  className={`${styles.surfaceDot} ${readingSurface === s.key ? styles.surfaceActive : ''}`}
+                  style={{ background: s.bg }}
+                  onClick={() => setReadingSurface(s.key)}
+                  aria-label={`${s.key} page`}
+                />
+              ))}
+            </div>
+            <div className={styles.row}>
+              <span className={styles.label}>Theme</span>
+              <button
+                className={`${styles.sBtn} ${theme === 'light' ? styles.sBtnActive : ''}`}
+                onClick={() => {
+                  if (theme !== 'light') toggleTheme();
+                }}
+                aria-label="Light theme"
+              >
+                <Sun size={12} />
+              </button>
+              <button
+                className={`${styles.sBtn} ${theme === 'dark' ? styles.sBtnActive : ''}`}
+                onClick={() => {
+                  if (theme !== 'dark') toggleTheme();
+                }}
+                aria-label="Dark theme"
+              >
+                <Moon size={12} />
+              </button>
+            </div>
+            <div className={styles.divider} />
+            <div className={styles.row}>
+              <span className={styles.label}>Mode</span>
+              {MODES.map(({ key, label, Icon }) => (
+                <button
+                  key={key}
+                  className={`${styles.modeBtn} ${readerMode === key ? styles.modeActive : ''}`}
+                  onClick={() => setReaderMode(key)}
+                >
+                  <Icon size={10} />
+                  {label}
+                </button>
+              ))}
             </div>
           </div>
-        )}
+        </div>
       </header>
 
       <div className={styles.progressTrack}>
@@ -354,6 +356,9 @@ export function ReaderShell({
           style={{ width: `${Math.max(0, Math.min(100, progress))}%` }}
         />
       </div>
+
+      {/* Always-on progress pill (bottom-left), like a word count — never auto-hides. */}
+      {progressText && <div className={styles.progressPill}>{progressText}</div>}
     </div>
   );
 }

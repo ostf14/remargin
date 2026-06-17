@@ -181,59 +181,43 @@
   }
 }
 
-/* "Continue reading" overlay — only on the hero (first) card; all its info lives here. */
-.continueOverlay {
+/* "Continue" pill in the cover's top-left — the only cover-level marker on the hero
+   card; its title/author/progress sit below the cover like every other card. */
+.continueBadge {
   position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  padding: 12px;
-  background: linear-gradient(transparent 30%, rgba(0, 0, 0, 0.85) 100%);
-  z-index: 2;
-  pointer-events: none;
-}
-
-.continueLabel {
-  font-size: 10px;
-  font-weight: var(--weight-medium);
-  color: rgba(255, 255, 255, 0.7);
-  text-transform: uppercase;
-  letter-spacing: 0.6px;
-}
-
-.continueTitle {
-  margin-top: 3px;
-  font-size: 14px;
-  font-weight: var(--weight-medium);
+  top: 6px;
+  left: 6px;
+  background: var(--accent);
   color: #fff;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  font-size: 9px;
+  font-weight: var(--weight-medium);
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+  z-index: 2;
 }
 
-.continueAuthor {
-  margin-top: 1px;
-  font-size: 11px;
-  font-weight: var(--weight-normal);
-  color: rgba(255, 255, 255, 0.6);
-}
-
-.continueBar {
+/* Progress shown under the author on the hero card. */
+.featuredProgress {
   margin-top: 8px;
-  height: 2px;
-  background: rgba(255, 255, 255, 0.2);
 }
 
-.continueFill {
+.fpBar {
+  height: 2px;
+  border-radius: var(--radius-full);
+  background: var(--border);
+  overflow: hidden;
+}
+
+.fpFill {
   height: 100%;
   background: var(--accent);
 }
 
-.continueText {
+.fpText {
   margin-top: 4px;
   font-size: 11px;
   font-weight: var(--weight-normal);
-  color: rgba(255, 255, 255, 0.5);
+  color: var(--text-tertiary);
   font-variant-numeric: tabular-nums;
 }
 

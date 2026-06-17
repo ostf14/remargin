@@ -178,29 +178,18 @@
 /* Grid with a larger first (hero) card. */
 .grid {
   display: grid;
-  grid-template-columns: 1.3fr 1fr 1fr 1fr 1fr;
-  gap: 16px;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 14px;
   padding: 16px 20px;
   align-items: start;
 }
 
-@media (max-width: 1200px) {
-  .grid {
-    grid-template-columns: 1.3fr 1fr 1fr 1fr;
-  }
-}
-
-@media (max-width: 900px) {
-  .grid {
-    grid-template-columns: 1.3fr 1fr 1fr;
-  }
+/* The hero (continue-reading) card is a little larger than the rest. */
+.grid > *:first-child {
+  grid-column: span 2;
 }
 
 @media (max-width: 600px) {
-  .grid {
-    grid-template-columns: 1fr 1fr;
-  }
-
   .grid > *:first-child {
     grid-column: 1 / -1;
   }

@@ -66,6 +66,13 @@ function surfaceTheme(surface: ReadingSurface): Record<string, Record<string, st
       'user-select': 'text !important',
     },
     a: { color: `${link} !important` },
+    // Keep images within the column so they don't get cropped or bleed onto the next page.
+    img: {
+      'max-width': '100% !important',
+      height: 'auto !important',
+      'page-break-inside': 'avoid !important',
+      'break-inside': 'avoid !important',
+    },
     '::selection': { background: 'rgba(142, 92, 214, 0.3) !important' },
   };
 }

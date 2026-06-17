@@ -66,6 +66,8 @@ export function BookCard({ book, featured, enriching, onClick, onRemove, onUpdat
 
         <span className={styles.badge}>{book.format}</span>
 
+        {featured && <span className={styles.continueBadge}>Continue</span>}
+
         <button
           className={styles.removeBtn}
           onClick={(e) => {
@@ -93,63 +95,58 @@ export function BookCard({ book, featured, enriching, onClick, onRemove, onUpdat
             <div className={styles.spinner} />
           </div>
         )}
+      </div>
+
+      <div className={styles.meta}>
+        {editing === 'title' ? (
+          <input
+            className={styles.metaInput}
+            value={draft}
+            autoFocus
+            onChange={(e) => setDraft(e.target.value)}
+            onBlur={commit}
+            onKeyDown={onKeyDown}
+          />
+        ) : (
+          <div
+            className={styles.metaTitle}
+            title="Click to edit title"
+            onClick={(e) => startEdit('title', e)}
+          >
+            {book.title}
+          </div>
+        )}
+
+        {editing === 'author' ? (
+          <input
+            className={styles.metaInput}
+            value={draft}
+            autoFocus
+            onChange={(e) => setDraft(e.target.value)}
+            onBlur={commit}
+            onKeyDown={onKeyDown}
+          />
+        ) : (
+          <div
+            className={styles.metaAuthor}
+            title="Click to edit author"
+            onClick={(e) => startEdit('author', e)}
+          >
+            {book.author}
+          </div>
+        )}
 
         {featured && (
-          <div className={styles.continueOverlay}>
-            <div className={styles.continueLabel}>Continue reading</div>
-            <div className={styles.continueTitle}>{book.title}</div>
-            <div className={styles.continueAuthor}>{book.author}</div>
-            <div className={styles.continueBar}>
-              <div className={styles.continueFill} style={{ width: `${progress}%` }} />
+          <div className={styles.featuredProgress}>
+            <div className={styles.fpBar}>
+              <div className={styles.fpFill} style={{ width: `${progress}%` }} />
             </div>
-            <div className={styles.continueText}>
+            <div className={styles.fpText}>
               {progress}%{timeLeft ? ` · ~${timeLeft} left` : ''}
             </div>
           </div>
         )}
       </div>
-
-      {!featured && (
-        <div className={styles.meta}>
-          {editing === 'title' ? (
-            <input
-              className={styles.metaInput}
-              value={draft}
-              autoFocus
-              onChange={(e) => setDraft(e.target.value)}
-              onBlur={commit}
-              onKeyDown={onKeyDown}
-            />
-          ) : (
-            <div
-              className={styles.metaTitle}
-              title="Click to edit title"
-              onClick={(e) => startEdit('title', e)}
-            >
-              {book.title}
-            </div>
-          )}
-
-          {editing === 'author' ? (
-            <input
-              className={styles.metaInput}
-              value={draft}
-              autoFocus
-              onChange={(e) => setDraft(e.target.value)}
-              onBlur={commit}
-              onKeyDown={onKeyDown}
-            />
-          ) : (
-            <div
-              className={styles.metaAuthor}
-              title="Click to edit author"
-              onClick={(e) => startEdit('author', e)}
-            >
-              {book.author}
-            </div>
-          )}
-        </div>
-      )}
     </div>
   );
 }
