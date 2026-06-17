@@ -65,6 +65,7 @@ const DEFAULT_APP_STATE: AppState = {
   theme: 'dark',
   epubFontSizeOffset: 0,
   readingSurface: 'light',
+  readerMode: 'pages',
 };
 
 export function loadAppState(): AppState {

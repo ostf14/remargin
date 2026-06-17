@@ -2,13 +2,16 @@
    actually has a note (see .hasNotes) — otherwise the margin blends into the page. */
 .column {
   position: relative;
-  width: 250px;
+  width: 0;
   flex-shrink: 0;
   align-self: stretch;
   background: transparent;
 }
 
+/* Reserve the margin only when the page has a note — otherwise the text uses the full
+   width of the page and the divider line disappears. */
 .hasNotes {
+  width: 250px;
   border-left: 1px solid var(--reader-divider);
 }
 

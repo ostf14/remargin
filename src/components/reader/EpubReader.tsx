@@ -5,16 +5,14 @@ import { useLibrary } from '../../hooks/useLibrary';
 import { useAnnotations } from '../../hooks/useAnnotations';
 import { useReader } from '../../hooks/useReader';
 import { getBookFile, loadAppState, saveAppState } from '../../services/storage';
-import { ReaderToolbar } from './ReaderToolbar';
+import { ReaderShell } from './ReaderShell';
 import { AnnotationPanel } from '../annotations/AnnotationPanel';
 import { HighlightPopover } from '../annotations/HighlightPopover';
 import { MarginNotes, type PositionedNote } from '../annotations/MarginNotes';
 import { Toast } from './Toast';
 import { SearchBar } from './SearchBar';
-import { ReaderStatus } from './ReaderStatus';
-import { ReaderControls } from './ReaderControls';
 import { formatCitation } from '../../services/citation';
-import { countEpubWords } from '../../services/wordCount';
+import { countEpubWords, readingMinutes, formatDuration } from '../../services/wordCount';
 import styles from './EpubReader.module.css';
 
 interface EpubSearchMatch {
@@ -36,7 +34,6 @@ const clampFontOffset = (o: number) => Math.max(FONT_MIN, Math.min(FONT_MAX, o))
 // reader. Distinct from font size: zoom scales visually, A±/A− reflows the text.
 const ZOOM_MIN = 0.5;
 const ZOOM_MAX = 3;
-const ZOOM_STEP = 0.25;
 const clampZoom = (z: number) => Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, z));
 
 // Number-key → highlight colour (keyboard highlight, no popover).
@@ -285,6 +282,11 @@ export function EpubReader({ book }: Props) {
         const doc = container.querySelector('iframe')?.contentDocument;
         if (doc && !attachedDocs.has(doc)) {
           doc.addEventListener('wheel', handleZoomWheel, { passive: false });
+          // Forward pointer activity inside the iframe so the chrome auto-hide timer
+          // (which lives in the parent document) keeps resetting while reading EPUB.
+          const ping = () => window.dispatchEvent(new Event('reader-activity'));
+          doc.addEventListener('mousemove', ping);
+          doc.addEventListener('mousedown', ping);
           // The rendered content is a separate document, so the parent's Google Fonts
           // <link> doesn't reach it — load the reading font (Literata) inside the iframe.
           // Falls back to Georgia (in the theme stack) if the request is blocked.
@@ -651,10 +653,25 @@ export function EpubReader({ book }: Props) {
     searchHighlightRef.current = null;
   };
 
+  const timeLeft = wordCount
+    ? formatDuration(readingMinutes(Math.max(0, wordCount * (1 - percentage / 100))))
+    : null;
+  const progressText = `${Math.round(percentage)}%${timeLeft ? ` · ~${timeLeft} left` : ''}`;
+
   return (
-    <>
-      <ReaderToolbar chapter={chapter} onOpenSearch={() => setSearchOpen(true)} />
-      <ReaderStatus wordCount={wordCount} percentage={percentage} />
+    <ReaderShell
+      title={book.title}
+      subtitle={chapter || 'Chapter'}
+      progress={percentage}
+      progressText={progressText}
+      onPrev={() => renditionRef.current?.prev()}
+      onNext={() => renditionRef.current?.next()}
+      onOpenSearch={() => setSearchOpen(true)}
+      font={{
+        onInc: () => setFontOffset((o) => clampFontOffset(o + FONT_STEP)),
+        onDec: () => setFontOffset((o) => clampFontOffset(o - FONT_STEP)),
+      }}
+    >
       {searchOpen && (
         <SearchBar
           query={searchQuery}
@@ -689,70 +706,6 @@ export function EpubReader({ book }: Props) {
               />
             </div>
           </div>
-
-          <div className={styles.pageNav}>
-            <div className={styles.navGroup}>
-              <button
-                className={styles.pageBtn}
-                onClick={() => renditionRef.current?.prev()}
-              >
-                &larr; Prev
-              </button>
-              <span className={styles.pageInfo}>
-                {chapter || 'Chapter'} — {Math.round(percentage)}%
-              </span>
-              <button
-                className={styles.pageBtn}
-                onClick={() => renditionRef.current?.next()}
-              >
-                Next &rarr;
-              </button>
-            </div>
-            <div className={styles.divider} />
-            <div className={styles.midControls}>
-              <div className={styles.zoomGroup}>
-              <button
-                className={styles.pageBtn}
-                onClick={() => setZoom((z) => clampZoom(+(z - ZOOM_STEP).toFixed(2)))}
-                disabled={zoom <= ZOOM_MIN}
-                aria-label="Zoom out"
-              >
-                &minus;
-              </button>
-              <span className={styles.zoomLevel}>{Math.round(zoom * 100)}%</span>
-              <button
-                className={styles.pageBtn}
-                onClick={() => setZoom((z) => clampZoom(+(z + ZOOM_STEP).toFixed(2)))}
-                disabled={zoom >= ZOOM_MAX}
-                aria-label="Zoom in"
-              >
-                +
-              </button>
-            </div>
-            <div className={styles.fontGroup}>
-              <button
-                className={styles.pageBtn}
-                onClick={() => setFontOffset((o) => clampFontOffset(o - FONT_STEP))}
-                disabled={fontOffset <= FONT_MIN}
-                title="Smaller text"
-              >
-                A&minus;
-              </button>
-              <button
-                className={styles.pageBtn}
-                onClick={() => setFontOffset((o) => clampFontOffset(o + FONT_STEP))}
-                disabled={fontOffset >= FONT_MAX}
-                title="Larger text"
-              >
-                A+
-              </button>
-              </div>
-            </div>
-            <div className={styles.divider} />
-            <div className={styles.footerControls}>
-              <ReaderControls />
-            </div>
-          </div>
         </div>
 
         {showAnnotations && (
@@ -776,6 +729,6 @@ export function EpubReader({ book }: Props) {
       )}
 
       <Toast message={toast} />
-    </>
+    </ReaderShell>
   );
 }

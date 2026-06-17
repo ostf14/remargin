@@ -1,0 +1,295 @@
+.shell {
+  position: fixed;
+  inset: 0;
+  background: var(--bg-primary);
+  overflow: hidden;
+}
+
+/* Reader content fills the whole viewport; chrome floats over it. */
+.content {
+  position: absolute;
+  inset: 0;
+}
+
+/* ─────────────────────────── Top bar ─────────────────────────── */
+.topBar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 12px;
+  background: var(--bg-primary);
+  border-bottom: 0.5px solid var(--border);
+  z-index: 20;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.showChrome .topBar {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.backBtn {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: var(--weight-normal);
+  color: var(--text-tertiary);
+}
+
+.backBtn:hover {
+  color: var(--text-primary);
+}
+
+.titleBlock {
+  flex: 1;
+  min-width: 0;
+  text-align: center;
+}
+
+.title {
+  font-size: 11px;
+  font-weight: var(--weight-medium);
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.subtitle {
+  font-size: 9px;
+  font-weight: var(--weight-normal);
+  color: var(--text-quaternary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.topActions {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.iconBtn {
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-full);
+  background: transparent;
+  color: var(--text-tertiary);
+}
+
+.iconBtn:hover {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
+.iconBtnActive {
+  color: var(--accent);
+}
+
+/* ─────────────────────────── Settings dropdown ─────────────────────────── */
+.settings {
+  position: absolute;
+  top: 40px;
+  right: 0;
+  background: var(--bg-secondary);
+  border: 0.5px solid var(--border);
+  border-radius: 0 0 0 8px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  z-index: 30;
+  opacity: 0;
+  transform: translateY(-8px);
+  pointer-events: none;
+  transition: opacity 0.2s cubic-bezier(0.16, 1, 0.3, 1),
+    transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.settingsOpen {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.label {
+  flex-shrink: 0;
+  min-width: 40px;
+  font-size: 9px;
+  font-weight: var(--weight-normal);
+  color: var(--text-quaternary);
+}
+
+.sBtn {
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-full);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 10px;
+  font-weight: var(--weight-medium);
+}
+
+.sBtn:hover {
+  background: var(--bg-tertiary);
+}
+
+.sBtnActive {
+  color: var(--text-primary);
+  background: var(--bg-tertiary);
+}
+
+.sValue {
+  min-width: 34px;
+  text-align: center;
+  font-size: 10px;
+  font-weight: var(--weight-medium);
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.surfaceDot {
+  width: 16px;
+  height: 16px;
+  border-radius: var(--radius-full);
+  border: 2px solid var(--border);
+  cursor: pointer;
+  transition: border-color var(--duration-fast) var(--ease-out);
+}
+
+.surfaceActive {
+  border-color: var(--accent);
+}
+
+.divider {
+  height: 0.5px;
+  background: var(--border);
+  margin: 2px 0;
+}
+
+.modeBtn {
+  height: 22px;
+  padding: 0 8px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  border-radius: 6px;
+  background: transparent;
+  border: 0.5px solid transparent;
+  color: var(--text-tertiary);
+  font-size: 9px;
+  font-weight: var(--weight-normal);
+}
+
+.modeBtn:hover {
+  background: var(--bg-tertiary);
+}
+
+.modeActive {
+  color: var(--text-primary);
+  border: 0.5px solid var(--border);
+}
+
+/* ─────────────────────────── Side page-turn zones ─────────────────────────── */
+.navLeft,
+.navRight {
+  position: absolute;
+  top: 44px;
+  bottom: 4px;
+  width: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 15;
+}
+
+.navLeft {
+  left: 0;
+}
+
+.navRight {
+  right: 0;
+}
+
+.navLeft:active,
+.navRight:active {
+  background: radial-gradient(ellipse at center, rgba(255, 255, 255, 0.06) 0%, transparent 70%);
+}
+
+.chevron {
+  color: var(--text-quaternary);
+  opacity: 0;
+  transition: opacity 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.showChrome .chevron {
+  opacity: 0.4;
+}
+
+.navLeft:hover .chevron,
+.navRight:hover .chevron {
+  opacity: 1;
+}
+
+/* ─────────────────────────── Bottom info + progress ─────────────────────────── */
+.bottomInfo {
+  position: absolute;
+  bottom: 8px;
+  left: 0;
+  right: 0;
+  text-align: center;
+  font-size: 9px;
+  font-weight: var(--weight-normal);
+  color: var(--text-quaternary);
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+  z-index: 20;
+  opacity: 0;
+  transition: opacity 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.showChrome .bottomInfo {
+  opacity: 1;
+}
+
+/* Always visible — the one persistent piece of chrome. */
+.progressTrack {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: rgba(255, 255, 255, 0.06);
+  z-index: 21;
+}
+
+.progressFill {
+  height: 100%;
+  background: var(--accent);
+  opacity: 0.6;
+  transition: width var(--duration-normal) var(--ease-out);
+}

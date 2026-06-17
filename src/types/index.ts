@@ -6,6 +6,8 @@ export type ViewMode = 'library' | 'reader';
 
 export type ReadingSurface = 'light' | 'sepia' | 'dark';
 
+export type ReaderMode = 'pages' | 'scroll' | 'flip';
+
 export interface EpubAnchor {
   kind: 'epub';
   cfi: string;
@@ -53,4 +55,5 @@ export interface AppState {
   theme: 'dark' | 'light';
   epubFontSizeOffset: number; // default 0, range -4 to +8
   readingSurface: ReadingSurface; // page tint while reading, separate from app theme
+  readerMode: ReaderMode; // pages | scroll | flip (UI only for now; default 'pages')
 }

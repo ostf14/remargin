@@ -8,16 +8,14 @@ import { useLibrary } from '../../hooks/useLibrary';
 import { useAnnotations } from '../../hooks/useAnnotations';
 import { useReader } from '../../hooks/useReader';
 import { getBookFile } from '../../services/storage';
-import { ReaderToolbar } from './ReaderToolbar';
+import { ReaderShell } from './ReaderShell';
 import { AnnotationPanel } from '../annotations/AnnotationPanel';
 import { HighlightPopover } from '../annotations/HighlightPopover';
 import { MarginNotes, type PositionedNote } from '../annotations/MarginNotes';
 import { Toast } from './Toast';
 import { SearchBar } from './SearchBar';
-import { ReaderStatus } from './ReaderStatus';
-import { ReaderControls } from './ReaderControls';
 import { formatCitation } from '../../services/citation';
-import { countPdfWords } from '../../services/wordCount';
+import { countPdfWords, readingMinutes, formatDuration } from '../../services/wordCount';
 import styles from './PdfReader.module.css';
 
 // Word-level find highlight on the (transparent) text layer: each occurrence of the
@@ -800,7 +798,6 @@ export function PdfReader({ book }: Props) {
   const clampZoom = (z: number) => Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, z));
   const zoomIn = () => setZoom((z) => clampZoom(+(z + 0.25).toFixed(2)));
   const zoomOut = () => setZoom((z) => clampZoom(+(z - 0.25).toFixed(2)));
-  const fitWidth = () => setZoom(1);
 
   // Ctrl + wheel: continuous zoom (preventDefault blocks the browser's page zoom).
   useEffect(() => {
@@ -843,11 +840,22 @@ export function PdfReader({ book }: Props) {
   }, [renderPage]);
 
   const percentage = totalPages > 0 ? Math.round((page / totalPages) * 100) : 0;
+  const timeLeft = wordCount
+    ? formatDuration(readingMinutes(Math.max(0, wordCount * (1 - percentage / 100))))
+    : null;
+  const progressText = `${page} / ${totalPages}${timeLeft ? ` · ~${timeLeft} left` : ''}`;
 
   return (
-    <>
-      <ReaderToolbar chapter={`Page ${page}`} onOpenSearch={() => setSearchOpen(true)} />
-      <ReaderStatus wordCount={wordCount} percentage={percentage} />
+    <ReaderShell
+      title={book.title}
+      subtitle={`Page ${page}`}
+      progress={percentage}
+      progressText={progressText}
+      onPrev={() => setPage((p) => Math.max(p - 1, 1))}
+      onNext={() => setPage((p) => Math.min(p + 1, totalPages))}
+      onOpenSearch={() => setSearchOpen(true)}
+      zoom={{ value: zoom, onIn: zoomIn, onOut: zoomOut }}
+    >
       {searchOpen && (
         <SearchBar
           query={searchQuery}
@@ -894,53 +902,6 @@ export function PdfReader({ book }: Props) {
                 onDelete={deleteAnnotation}
                 onBlurEmpty={() => setAutoFocusId(null)}
               />
-            </div>
-          </div>
-          <div className={styles.pageNav}>
-            <div className={styles.navGroup}>
-              <button
-                className={styles.pageBtn}
-                onClick={() => setPage((p) => Math.max(p - 1, 1))}
-                disabled={page <= 1}
-              >
-                &larr; Prev
-              </button>
-              <span className={styles.pageInfo}>
-                {page} / {totalPages}
-              </span>
-              <button
-                className={styles.pageBtn}
-                onClick={() => setPage((p) => Math.min(p + 1, totalPages))}
-                disabled={page >= totalPages}
-              >
-                Next &rarr;
-              </button>
-            </div>
-            <div className={styles.divider} />
-            <div className={styles.zoomGroup}>
-              <button
-                className={styles.pageBtn}
-                onClick={zoomOut}
-                disabled={zoom <= ZOOM_MIN}
-                aria-label="Zoom out"
-              >
-                &minus;
-              </button>
-              <button className={styles.zoomLevel} onClick={fitWidth} title="Fit width">
-                {Math.round(zoom * 100)}%
-              </button>
-              <button
-                className={styles.pageBtn}
-                onClick={zoomIn}
-                disabled={zoom >= ZOOM_MAX}
-                aria-label="Zoom in"
-              >
-                +
-              </button>
-            </div>
-            <div className={styles.divider} />
-            <div className={styles.footerControls}>
-              <ReaderControls />
             </div>
           </div>
         </div>
@@ -991,6 +952,6 @@ export function PdfReader({ book }: Props) {
       )}
 
       <Toast message={toast} />
-    </>
+    </ReaderShell>
   );
 }

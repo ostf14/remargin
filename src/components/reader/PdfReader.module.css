@@ -1,9 +1,6 @@
 .wrapper {
-  position: fixed;
-  top: var(--toolbar-height);
-  left: 0;
-  right: 0;
-  bottom: 0;
+  position: absolute;
+  inset: 0;
   display: flex;
 }
 
@@ -22,7 +19,7 @@
   display: flex;
   justify-content: center;
   align-items: flex-start;
-  padding: var(--space-xl);
+  padding: 48px var(--space-8) var(--space-8); /* top clears the 40px chrome bar */
 }
 
 /* The "page": one cream sheet holding the rendered PDF and the notes margin. The zoom
@@ -93,85 +90,6 @@
 /* Native selection is hidden — we paint a gap-free highlight into .selectionLayer. */
 :global(.textLayer) ::selection {
   background: transparent;
-}
-
-.pageNav {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--space-4);
-  padding: var(--space-2) var(--space-6);
-  background: var(--bg-secondary);
-  border-top: 1px solid var(--border-subtle);
-  width: 100%;
-}
-
-/* Footer reads as three divider-separated groups: navigation · zoom · surface/theme. */
-.navGroup {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-}
-
-.divider {
-  align-self: center;
-  flex-shrink: 0;
-  width: 1px;
-  height: 20px;
-  background: var(--border);
-}
-
-.footerControls {
-  display: flex;
-  align-items: center;
-}
-
-.pageBtn {
-  padding: var(--space-2) var(--space-4);
-  border-radius: var(--radius-md);
-  background: var(--bg-tertiary);
-  color: var(--text-secondary);
-  font-size: var(--text-sm);
-  transition: background var(--duration-fast) var(--ease-out),
-    color var(--duration-fast) var(--ease-out);
-}
-
-.pageBtn:hover:not(:disabled) {
-  background: var(--bg-hover);
-  color: var(--text-primary);
-}
-
-.pageBtn:disabled {
-  opacity: 0.3;
-  cursor: not-allowed;
-}
-
-.pageInfo {
-  font-size: var(--text-sm);
-  color: var(--text-tertiary);
-  min-width: 80px;
-  text-align: center;
-}
-
-.zoomGroup {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-}
-
-.zoomLevel {
-  min-width: 52px;
-  text-align: center;
-  font-size: var(--text-sm);
-  color: var(--text-secondary);
-  padding: var(--space-xs) var(--space-sm);
-  border-radius: var(--radius-sm);
-  transition: background var(--transition-fast), color var(--transition-fast);
-}
-
-.zoomLevel:hover {
-  background: var(--bg-hover);
-  color: var(--text-primary);
 }
 
 .loading {

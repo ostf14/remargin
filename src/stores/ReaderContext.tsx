@@ -1,5 +1,5 @@
 import { createContext, useEffect, useState, type ReactNode } from 'react';
-import type { Book, ReadingSurface, ViewMode } from '../types';
+import type { Book, ReaderMode, ReadingSurface, ViewMode } from '../types';
 import { useLibrary } from '../hooks/useLibrary';
 import { loadAppState, saveAppState } from '../services/storage';
 
@@ -16,6 +16,8 @@ interface ReaderState {
   toggleTheme: () => void;
   readingSurface: ReadingSurface;
   setReadingSurface: (s: ReadingSurface) => void;
+  readerMode: ReaderMode;
+  setReaderMode: (m: ReaderMode) => void;
 }
 
 export const ReaderContext = createContext<ReaderState>({
@@ -29,6 +31,8 @@ export const ReaderContext = createContext<ReaderState>({
   toggleTheme: () => {},
   readingSurface: 'light',
   setReadingSurface: () => {},
+  readerMode: 'pages',
+  setReaderMode: () => {},
 });
 
 // Resolve the persisted view: reopen the last book if it still exists.
@@ -50,6 +54,7 @@ export function ReaderProvider({ children }: { children: ReactNode }) {
   const [readingSurface, setReadingSurfaceState] = useState<ReadingSurface>(
     () => loadAppState().readingSurface,
   );
+  const [readerMode, setReaderModeState] = useState<ReaderMode>(() => loadAppState().readerMode);
 
   // Reflect the theme onto <html> so CSS custom properties switch app-wide.
   useEffect(() => {
@@ -79,6 +84,11 @@ export function ReaderProvider({ children }: { children: ReactNode }) {
     saveAppState({ ...loadAppState(), readingSurface: s });
   };
 
+  const setReaderMode = (m: ReaderMode) => {
+    setReaderModeState(m);
+    saveAppState({ ...loadAppState(), readerMode: m });
+  };
+
   const openBook = (book: Book) => {
     setCurrentBook(book);
     setViewMode('reader');
@@ -106,6 +116,8 @@ export function ReaderProvider({ children }: { children: ReactNode }) {
         toggleTheme,
         readingSurface,
         setReadingSurface,
+        readerMode,
+        setReaderMode,
       }}
     >
       {children}

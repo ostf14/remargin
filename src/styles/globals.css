@@ -201,8 +201,8 @@ button {
     color var(--duration-fast) var(--ease-out);
 }
 
-/* Lucide icons default to stroke-width 2 (too heavy); 1.5 globally. */
-.lucide {
+/* Icons default to stroke-width 2 (too heavy); 1.5 globally. */
+svg {
   stroke-width: 1.5;
 }
 
