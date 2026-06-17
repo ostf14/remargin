@@ -7,7 +7,14 @@ export interface BookMetadata {
 interface GoogleVolumeInfo {
   title?: string;
   authors?: string[];
-  imageLinks?: { thumbnail?: string; smallThumbnail?: string };
+  imageLinks?: {
+    smallThumbnail?: string;
+    thumbnail?: string;
+    small?: string;
+    medium?: string;
+    large?: string;
+    extraLarge?: string;
+  };
 }
 
 interface GoogleBooksResponse {
@@ -33,10 +40,17 @@ export async function fetchBookMetadata(title: string, author?: string): Promise
     const info = json.items?.[0]?.volumeInfo;
     if (!info) return {};
 
+    // Prefer the largest image available; otherwise fall back to the thumbnail with its
+    // zoom bumped (Google's thumbnail URLs default to a tiny &zoom=1) and the page-curl
+    // effect stripped.
+    const links = info.imageLinks;
+    const raw = links?.extraLarge || links?.large || links?.medium || links?.thumbnail;
     let coverUrl: string | undefined;
-    const thumb = info.imageLinks?.thumbnail;
-    if (thumb) {
-      coverUrl = thumb.replace('http://', 'https://').replace('&edge=curl', '');
+    if (raw) {
+      coverUrl = raw
+        .replace('http://', 'https://')
+        .replace('&edge=curl', '')
+        .replace(/&zoom=\d+/, '&zoom=3');
     }
 
     return {

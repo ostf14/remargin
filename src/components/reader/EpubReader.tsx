@@ -66,12 +66,16 @@ function surfaceTheme(surface: ReadingSurface): Record<string, Record<string, st
       'user-select': 'text !important',
     },
     a: { color: `${link} !important` },
-    // Keep images within the column so they don't get cropped or bleed onto the next page.
-    img: {
+    // Keep media within the column/page so it can't get cropped or bleed onto the next page.
+    'img, svg, video, canvas, figure': {
       'max-width': '100% !important',
+      'max-height': '95vh !important',
       height: 'auto !important',
       'page-break-inside': 'avoid !important',
       'break-inside': 'avoid !important',
+      display: 'block !important',
+      margin: '0 auto !important',
+      'object-fit': 'contain !important',
     },
     '::selection': { background: 'rgba(142, 92, 214, 0.3) !important' },
   };
@@ -133,8 +137,7 @@ export function EpubReader({ book }: Props) {
   // on the outer document — both call the latest handler through this ref.
   const shortcutKeyRef = useRef<(e: KeyboardEvent) => void>(() => {});
 
-  // In-book search (Ctrl+F).
-  const [searchOpen, setSearchOpen] = useState(false);
+  // In-book search — always visible in the header (no open/close toggle).
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [searchMatches, setSearchMatches] = useState<EpubSearchMatch[]>([]);
@@ -463,8 +466,7 @@ export function EpubReader({ book }: Props) {
   // the epub iframe, so its text comes from the open popover (set on 'selected').
   const handleShortcutKey = (e: KeyboardEvent) => {
     if ((e.ctrlKey || e.metaKey) && (e.key === 'f' || e.key === 'F')) {
-      e.preventDefault();
-      setSearchOpen(true);
+      e.preventDefault(); // search lives in the header always; just block the browser find
       return;
     }
     const t = e.target as HTMLElement | null;
@@ -563,21 +565,21 @@ export function EpubReader({ book }: Props) {
   }, [book.id]);
 
   useEffect(() => {
-    if (searchOpen) runSearch(debouncedSearch);
-  }, [debouncedSearch, searchOpen, runSearch]);
+    runSearch(debouncedSearch);
+  }, [debouncedSearch, runSearch]);
 
-  // Switching to scrolled-doc reflows the page — a visible glitch if it fires the instant
-  // search opens. So we defer the switch to the first navigation (navigateToCfi) and only
-  // restore paginated here, on close. searchFlowRef tracks whether we actually switched.
+  // Scrolled-doc reflows the page (a glitch), so we switch lazily on the first navigation
+  // (navigateToCfi) and restore paginated once the query is cleared. searchFlowRef tracks
+  // whether we actually switched.
   const searchFlowRef = useRef(false);
   useEffect(() => {
     const rendition = renditionRef.current;
-    if (searchOpen || !rendition || !searchFlowRef.current) return;
+    if (!rendition || !searchFlowRef.current || debouncedSearch.trim() !== '') return;
     const cfi = rendition.currentLocation()?.start?.cfi;
     rendition.flow('paginated');
     if (cfi) rendition.display(cfi);
     searchFlowRef.current = false;
-  }, [searchOpen]);
+  }, [debouncedSearch]);
 
   // Centre the active match in the visible reading viewport — the same outcome the PDF
   // reader gives by scrolling its container to the match. In scrolled-doc mode the text
@@ -638,8 +640,8 @@ export function EpubReader({ book }: Props) {
 
   useEffect(() => {
     const match = searchMatches[searchIndex];
-    if (searchOpen && match) navigateToCfi(match.cfi);
-  }, [searchIndex, searchMatches, searchOpen, navigateToCfi]);
+    if (match) navigateToCfi(match.cfi);
+  }, [searchIndex, searchMatches, navigateToCfi]);
 
   const gotoMatch = (i: number) => {
     if (!searchMatches.length) return;
@@ -647,8 +649,9 @@ export function EpubReader({ book }: Props) {
     setSearchIndex(((i % n) + n) % n);
   };
 
-  const closeSearch = () => {
-    setSearchOpen(false);
+  const clearSearch = () => {
+    setSearchQuery('');
+    setDebouncedSearch('');
     searchSeqRef.current++;
     const rendition = renditionRef.current;
     if (rendition && searchHighlightRef.current) {
@@ -674,14 +677,12 @@ export function EpubReader({ book }: Props) {
       progressText={progressText}
       onPrev={() => renditionRef.current?.prev()}
       onNext={() => renditionRef.current?.next()}
-      onOpenSearch={() => setSearchOpen(true)}
       search={{
-        open: searchOpen,
         query: searchQuery,
         onQueryChange: setSearchQuery,
         onPrev: () => gotoMatch(searchIndex - 1),
         onNext: () => gotoMatch(searchIndex + 1),
-        onClose: closeSearch,
+        onClose: clearSearch,
         current: searchMatches.length ? searchIndex + 1 : 0,
         total: searchMatches.length,
         searching,
@@ -693,7 +694,7 @@ export function EpubReader({ book }: Props) {
     >
       <div className={styles.wrapper}>
         <div className={styles.readerArea}>
-          <div ref={deskRef} className={`${styles.desk}${searchOpen ? ` ${styles.searching}` : ''}`}>
+          <div ref={deskRef} className={`${styles.desk}${searchQuery ? ` ${styles.searching}` : ''}`}>
             <div
               ref={pageElRef}
               className={styles.page}

@@ -29,7 +29,6 @@ interface FontControls {
   onDec: () => void;
 }
 interface SearchControls {
-  open: boolean;
   query: string;
   onQueryChange: (v: string) => void;
   onPrev: () => void;
@@ -47,8 +46,7 @@ interface Props {
   progressText: string; // "22% · ~4h 50m left" — shown in the always-on bottom pill
   onPrev: () => void;
   onNext: () => void;
-  onOpenSearch: () => void;
-  search?: SearchControls; // in-book find, rendered inline in the header
+  search?: SearchControls; // in-book find, always shown inline in the header
   zoom?: ZoomControls; // PDF only
   font?: FontControls; // EPUB only
   children: ReactNode;
@@ -83,7 +81,6 @@ export function ReaderShell({
   progressText,
   onPrev,
   onNext,
-  onOpenSearch,
   search,
   zoom,
   font,
@@ -105,7 +102,7 @@ export function ReaderShell({
   const timerRef = useRef<number | null>(null);
   const settingsRef = useRef(settingsOpen);
   settingsRef.current = settingsOpen;
-  const searchActive = !!search?.open;
+  const searchActive = !!search?.query; // a non-empty query keeps the chrome up
   const searchRef = useRef(searchActive);
   searchRef.current = searchActive;
 
@@ -200,15 +197,14 @@ export function ReaderShell({
           {subtitle && <div className={styles.subtitle}>{subtitle}</div>}
         </div>
 
-        {/* Find field slots in between the title and the (always-present) action icons. */}
-        {searchActive && search && (
+        {/* Find field is always present, between the title and the action icons. */}
+        {search && (
           <div className={styles.headerSearch}>
             <Search className={styles.headerSearchIcon} size={12} aria-hidden="true" />
             <input
               className={styles.headerSearchInput}
               type="text"
               placeholder="Search"
-              autoFocus
               value={search.query}
               onChange={(e) => search.onQueryChange(e.target.value)}
               onKeyDown={(e) => {
@@ -250,14 +246,6 @@ export function ReaderShell({
         )}
 
         <div className={styles.topActions}>
-          <button
-            className={`${styles.iconBtn} ${searchActive ? styles.iconBtnActive : ''}`}
-            onClick={onOpenSearch}
-            title="Find in book (Ctrl+F)"
-            aria-label="Find in book"
-          >
-            <Search size={16} />
-          </button>
           <button
             className={`${styles.iconBtn} ${showAnnotations ? styles.iconBtnActive : ''}`}
             onClick={() => setShowAnnotations(!showAnnotations)}

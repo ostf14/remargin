@@ -184,16 +184,6 @@
   align-items: start;
 }
 
-/* The hero (continue-reading) card is a little larger than the rest. */
-.grid > *:first-child {
-  grid-column: span 2;
-}
-
-@media (max-width: 600px) {
-  .grid > *:first-child {
-    grid-column: 1 / -1;
-  }
-}
 
 /* Empty library. */
 .empty {

@@ -277,8 +277,7 @@ export function PdfReader({ book }: Props) {
   // Keydown handler is registered once but must see fresh state — bridge via a ref.
   const shortcutKeyRef = useRef<(e: KeyboardEvent) => void>(() => {});
 
-  // In-book search (Ctrl+F).
-  const [searchOpen, setSearchOpen] = useState(false);
+  // In-book search — always visible in the header (no open/close toggle).
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [searchMatches, setSearchMatches] = useState<SearchMatch[]>([]);
@@ -288,7 +287,7 @@ export function PdfReader({ book }: Props) {
   const searchCacheRef = useRef<{ query: string; matches: SearchMatch[] } | null>(null);
   // Effective query for the text-layer highlight, read inside renderPage.
   const searchActiveRef = useRef('');
-  searchActiveRef.current = searchOpen ? debouncedSearch : '';
+  searchActiveRef.current = debouncedSearch;
 
   // Draw all saved highlights for a page into the highlight layer, in the canvas's
   // fit-width CSS coords (× baseScale). The page's CSS zoom transform scales them
@@ -658,8 +657,7 @@ export function PdfReader({ book }: Props) {
   // handled separately by onCopy, keeping its newline cleanup).
   const handleShortcutKey = (e: KeyboardEvent) => {
     if ((e.ctrlKey || e.metaKey) && (e.key === 'f' || e.key === 'F')) {
-      e.preventDefault();
-      setSearchOpen(true);
+      e.preventDefault(); // search lives in the header always; just block the browser find
       return;
     }
     const t = e.target as HTMLElement | null;
@@ -742,21 +740,20 @@ export function PdfReader({ book }: Props) {
   }, []);
 
   useEffect(() => {
-    if (searchOpen) runSearch(debouncedSearch);
-  }, [debouncedSearch, searchOpen, runSearch]);
+    runSearch(debouncedSearch);
+  }, [debouncedSearch, runSearch]);
 
   // Re-tint matches on the current page when the query changes (page changes are
   // re-tinted by renderPage once its text layer rebuilds).
   useEffect(() => {
     const el = textLayerRef.current;
-    if (el) highlightSearchInTextLayer(el, searchOpen ? debouncedSearch : '');
-  }, [debouncedSearch, searchOpen]);
+    if (el) highlightSearchInTextLayer(el, debouncedSearch);
+  }, [debouncedSearch]);
 
   // Centre the active match in the reading viewport. Geometry-based (the stored y +
   // the canvas rect), so it doesn't depend on async <mark> rendering. The target page
   // renders async after navigation, so retry until it's the current, sized page.
   useEffect(() => {
-    if (!searchOpen) return;
     const match = searchMatches[searchIndex];
     if (!match) return;
     let tries = 0;
@@ -777,7 +774,7 @@ export function PdfReader({ book }: Props) {
     };
     raf = requestAnimationFrame(attempt);
     return () => cancelAnimationFrame(raf);
-  }, [searchIndex, page, searchMatches, searchOpen]);
+  }, [searchIndex, page, searchMatches]);
 
   const gotoMatch = (i: number) => {
     if (!searchMatches.length) return;
@@ -787,8 +784,9 @@ export function PdfReader({ book }: Props) {
     setPage(searchMatches[idx].page);
   };
 
-  const closeSearch = () => {
-    setSearchOpen(false);
+  const clearSearch = () => {
+    setSearchQuery('');
+    setDebouncedSearch('');
     searchSeqRef.current++;
   };
 
@@ -852,14 +850,12 @@ export function PdfReader({ book }: Props) {
       progressText={progressText}
       onPrev={() => setPage((p) => Math.max(p - 1, 1))}
       onNext={() => setPage((p) => Math.min(p + 1, totalPages))}
-      onOpenSearch={() => setSearchOpen(true)}
       search={{
-        open: searchOpen,
         query: searchQuery,
         onQueryChange: setSearchQuery,
         onPrev: () => gotoMatch(searchIndex - 1),
         onNext: () => gotoMatch(searchIndex + 1),
-        onClose: closeSearch,
+        onClose: clearSearch,
         current: searchMatches.length ? searchIndex + 1 : 0,
         total: searchMatches.length,
         searching,
