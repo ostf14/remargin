@@ -658,7 +658,7 @@ export function EpubReader({ book }: Props) {
       )}
       <div className={styles.wrapper}>
         <div className={styles.readerArea}>
-          <div ref={deskRef} className={styles.desk}>
+          <div ref={deskRef} className={`${styles.desk}${searchOpen ? ` ${styles.searching}` : ''}`}>
             <div
               ref={pageElRef}
               className={styles.page}
