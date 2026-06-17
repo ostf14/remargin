@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { Search, Plus, Sun, Moon, BookOpen } from 'lucide-react';
 import type { Book } from '../../types';
 import { useLibrary } from '../../hooks/useLibrary';
 import { useReader } from '../../hooks/useReader';
 import { useImport } from '../../hooks/useImport';
 import { BookCard } from './BookCard';
-import { ContinueReading } from './ContinueReading';
 import { ConfirmDialog } from './ConfirmDialog';
 import styles from './BookGrid.module.css';
 
@@ -58,7 +58,7 @@ export function BookGrid() {
     return () => clearTimeout(t);
   }, [query]);
 
-  // Most-recently-opened book powers the "Continue reading" hero (null if none opened yet).
+  // Most-recently-opened book — becomes the big "Continue reading" hero card.
   const continueBook = useMemo(() => {
     let latest: Book | null = null;
     for (const b of books) {
@@ -75,8 +75,12 @@ export function BookGrid() {
   );
 
   const searching = needle !== '';
+  // The hero overlay shows only when the first card actually is the continue book
+  // (true by default — 'recent' sort puts it first — and suppressed while searching).
+  const heroId = !searching && continueBook ? continueBook.id : null;
+
   const countLabel = searching
-    ? `${visibleBooks.length} of ${books.length} books`
+    ? `${visibleBooks.length} of ${books.length}`
     : `${books.length} ${books.length === 1 ? 'book' : 'books'}`;
 
   const openPicker = () => fileInputRef.current?.click();
@@ -93,27 +97,15 @@ export function BookGrid() {
         <h1 className={styles.logo}>remargin</h1>
 
         {hasBooks && (
-          <div className={styles.searchArea}>
-            <div className={styles.searchWrap}>
-              <span className={styles.searchIcon} aria-hidden="true">⌕</span>
-              <input
-                className={styles.search}
-                type="text"
-                placeholder="Search books..."
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-              />
-              {query && (
-                <button
-                  className={styles.clearInput}
-                  onClick={() => setQuery('')}
-                  title="Clear search"
-                  aria-label="Clear search"
-                >
-                  ×
-                </button>
-              )}
-            </div>
+          <div className={styles.searchWrap}>
+            <Search className={styles.searchIcon} size={12} aria-hidden="true" />
+            <input
+              className={styles.search}
+              type="text"
+              placeholder="Search"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+            />
           </div>
         )}
 
@@ -139,14 +131,15 @@ export function BookGrid() {
             title="Import book"
             aria-label="Import book"
           >
-            +
+            <Plus size={16} />
           </button>
           <button
             className={styles.themeToggle}
             onClick={toggleTheme}
             title={theme === 'dark' ? 'Light theme' : 'Dark theme'}
+            aria-label="Toggle theme"
           >
-            {theme === 'dark' ? '☀' : '☾'}
+            {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
           </button>
         </div>
       </header>
@@ -162,41 +155,34 @@ export function BookGrid() {
 
       {!hasBooks ? (
         <div className={styles.empty}>
-          <div className={styles.emptyIcon}>📚</div>
+          <BookOpen className={styles.emptyIcon} size={32} aria-hidden="true" />
           <div className={styles.emptyTitle}>Your library is empty</div>
-          <div className={styles.emptyHint}>Drop a book here or click + to start reading</div>
+          <div className={styles.emptyHint}>Drop a book or click + to start</div>
           <button className={styles.emptyBtn} onClick={openPicker}>
-            Import Book
+            Import
+          </button>
+        </div>
+      ) : visibleBooks.length === 0 ? (
+        <div className={styles.noResults}>
+          <div className={styles.noResultsTitle}>No books found</div>
+          <div className={styles.noResultsHint}>Nothing matches “{debouncedQuery.trim()}”.</div>
+          <button className={styles.clearBtn} onClick={() => setQuery('')}>
+            Clear search
           </button>
         </div>
       ) : (
-        <div className={styles.body}>
-          {continueBook && (
-            <ContinueReading book={continueBook} onContinue={() => openBook(continueBook)} />
-          )}
-
-          {visibleBooks.length === 0 ? (
-            <div className={styles.noResults}>
-              <div className={styles.noResultsTitle}>No books found</div>
-              <div className={styles.noResultsHint}>Nothing matches “{debouncedQuery.trim()}”.</div>
-              <button className={styles.clearBtn} onClick={() => setQuery('')}>
-                Clear search
-              </button>
-            </div>
-          ) : (
-            <div className={styles.grid}>
-              {visibleBooks.map((book) => (
-                <BookCard
-                  key={book.id}
-                  book={book}
-                  enriching={enrichingIds.has(book.id)}
-                  onClick={() => openBook(book)}
-                  onRemove={() => setPendingDelete(book)}
-                  onUpdate={updateBook}
-                />
-              ))}
-            </div>
-          )}
+        <div className={styles.grid}>
+          {visibleBooks.map((book, i) => (
+            <BookCard
+              key={book.id}
+              book={book}
+              featured={i === 0 && book.id === heroId}
+              enriching={enrichingIds.has(book.id)}
+              onClick={() => openBook(book)}
+              onRemove={() => setPendingDelete(book)}
+              onUpdate={updateBook}
+            />
+          ))}
         </div>
       )}
 

@@ -5,6 +5,7 @@ import styles from './BookCard.module.css';
 
 interface Props {
   book: Book;
+  featured?: boolean; // the big "Continue reading" hero card (first in the grid)
   enriching?: boolean;
   onClick: () => void;
   onRemove: (e: React.MouseEvent) => void;
@@ -13,10 +14,15 @@ interface Props {
 
 type Field = 'title' | 'author';
 
-export function BookCard({ book, enriching, onClick, onRemove, onUpdate }: Props) {
-  const progress = book.progress ?? 0;
+export function BookCard({ book, featured, enriching, onClick, onRemove, onUpdate }: Props) {
+  const progress = Math.round(book.progress ?? 0);
   const [editing, setEditing] = useState<Field | null>(null);
   const [draft, setDraft] = useState('');
+
+  // Estimated reading time remaining, for the hero overlay ("22% · ~5h left").
+  const timeLeft = book.wordCount
+    ? formatDuration(readingMinutes(book.wordCount * (1 - progress / 100)))
+    : null;
 
   const startEdit = (field: Field, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -67,17 +73,18 @@ export function BookCard({ book, enriching, onClick, onRemove, onUpdate }: Props
             onRemove(e);
           }}
           title="Remove"
+          aria-label="Remove book"
         >
           ×
         </button>
 
-        {progress > 0 && (
+        {!featured && progress > 0 && (
           <div className={styles.progressBar}>
             <div className={styles.progressFill} style={{ width: `${progress}%` }} />
           </div>
         )}
 
-        {book.wordCount ? (
+        {!featured && book.wordCount ? (
           <span className={styles.timeBadge}>~{formatDuration(readingMinutes(book.wordCount))}</span>
         ) : null}
 
@@ -86,47 +93,63 @@ export function BookCard({ book, enriching, onClick, onRemove, onUpdate }: Props
             <div className={styles.spinner} />
           </div>
         )}
-      </div>
 
-      <div className={styles.meta}>
-        {editing === 'title' ? (
-          <input
-            className={styles.metaInput}
-            value={draft}
-            autoFocus
-            onChange={(e) => setDraft(e.target.value)}
-            onBlur={commit}
-            onKeyDown={onKeyDown}
-          />
-        ) : (
-          <div
-            className={styles.metaTitle}
-            title="Click to edit title"
-            onClick={(e) => startEdit('title', e)}
-          >
-            {book.title}
-          </div>
-        )}
-
-        {editing === 'author' ? (
-          <input
-            className={styles.metaInput}
-            value={draft}
-            autoFocus
-            onChange={(e) => setDraft(e.target.value)}
-            onBlur={commit}
-            onKeyDown={onKeyDown}
-          />
-        ) : (
-          <div
-            className={styles.metaAuthor}
-            title="Click to edit author"
-            onClick={(e) => startEdit('author', e)}
-          >
-            {book.author}
+        {featured && (
+          <div className={styles.continueOverlay}>
+            <div className={styles.continueLabel}>Continue reading</div>
+            <div className={styles.continueTitle}>{book.title}</div>
+            <div className={styles.continueAuthor}>{book.author}</div>
+            <div className={styles.continueBar}>
+              <div className={styles.continueFill} style={{ width: `${progress}%` }} />
+            </div>
+            <div className={styles.continueText}>
+              {progress}%{timeLeft ? ` · ~${timeLeft} left` : ''}
+            </div>
           </div>
         )}
       </div>
+
+      {!featured && (
+        <div className={styles.meta}>
+          {editing === 'title' ? (
+            <input
+              className={styles.metaInput}
+              value={draft}
+              autoFocus
+              onChange={(e) => setDraft(e.target.value)}
+              onBlur={commit}
+              onKeyDown={onKeyDown}
+            />
+          ) : (
+            <div
+              className={styles.metaTitle}
+              title="Click to edit title"
+              onClick={(e) => startEdit('title', e)}
+            >
+              {book.title}
+            </div>
+          )}
+
+          {editing === 'author' ? (
+            <input
+              className={styles.metaInput}
+              value={draft}
+              autoFocus
+              onChange={(e) => setDraft(e.target.value)}
+              onBlur={commit}
+              onKeyDown={onKeyDown}
+            />
+          ) : (
+            <div
+              className={styles.metaAuthor}
+              title="Click to edit author"
+              onClick={(e) => startEdit('author', e)}
+            >
+              {book.author}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

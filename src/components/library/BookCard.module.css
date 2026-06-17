@@ -7,21 +7,19 @@
   aspect-ratio: 2 / 3;
   overflow: hidden;
   border-radius: var(--radius-md);
+  border: 0.5px solid var(--border);
   background: var(--bg-secondary);
-  box-shadow: var(--shadow-md);
-  border: 1px solid var(--border);
   cursor: pointer;
-  transition: box-shadow var(--duration-normal) var(--ease-out),
-    transform var(--duration-normal) var(--ease-out);
+  transition: transform var(--duration-normal) var(--ease-out),
+    box-shadow var(--duration-normal) var(--ease-out);
 }
 
 .coverWrap:hover {
-  box-shadow: var(--shadow-lg);
   transform: translateY(-3px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35);
 }
 
-/* Light film over the art: highlight top-left, shadow bottom-right — as if light
-   falls on a physical book. Just a thin layer; no rotation, no spine. */
+/* Light film over the art: highlight top-left, shadow bottom-right. */
 .coverWrap::after {
   content: '';
   position: absolute;
@@ -29,11 +27,9 @@
   border-radius: inherit;
   background: linear-gradient(
     135deg,
-    rgba(255, 255, 255, 0.12) 0%,
-    rgba(255, 255, 255, 0.04) 30%,
+    rgba(255, 255, 255, 0.1) 0%,
     transparent 50%,
-    rgba(0, 0, 0, 0.06) 80%,
-    rgba(0, 0, 0, 0.15) 100%
+    rgba(0, 0, 0, 0.12) 100%
   );
   pointer-events: none;
   z-index: 1;
@@ -54,20 +50,20 @@
   align-items: center;
   justify-content: center;
   background: linear-gradient(135deg, var(--bg-tertiary), var(--bg-hover));
-  padding: var(--space-6);
+  padding: var(--space-4);
   text-align: center;
 }
 
 .placeholderIcon {
-  font-size: 2.5rem;
+  font-size: 2rem;
   margin-bottom: var(--space-2);
   opacity: 0.5;
 }
 
 .placeholderTitle {
-  font-family: var(--font-display);
+  font-family: var(--font-body);
   font-size: var(--text-sm);
-  font-weight: var(--weight-normal);
+  font-weight: var(--weight-medium);
   color: var(--text-secondary);
   line-height: var(--leading-tight);
   display: -webkit-box;
@@ -76,35 +72,34 @@
   overflow: hidden;
 }
 
-/* Subtle frosted chip — present but quiet, so the cover stays the hero. */
 .badge {
   position: absolute;
-  top: var(--space-2);
-  right: var(--space-2);
-  background: rgba(0, 0, 0, 0.5);
+  top: 6px;
+  right: 6px;
+  background: rgba(0, 0, 0, 0.55);
   backdrop-filter: blur(4px);
   -webkit-backdrop-filter: blur(4px);
-  color: rgba(255, 255, 255, 0.7);
-  font-size: 10px;
-  padding: 2px 6px;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 9px;
+  font-weight: var(--weight-medium);
+  padding: 1px 5px;
   border-radius: var(--radius-sm);
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  font-weight: var(--weight-medium);
   z-index: 2;
 }
 
-/* Reading time is secondary metadata — only surfaces on hover. */
 .timeBadge {
   position: absolute;
-  bottom: var(--space-2);
-  left: var(--space-2);
-  background: rgba(0, 0, 0, 0.5);
+  bottom: 6px;
+  left: 6px;
+  background: rgba(0, 0, 0, 0.55);
   backdrop-filter: blur(4px);
   -webkit-backdrop-filter: blur(4px);
-  color: rgba(255, 255, 255, 0.7);
-  font-size: 10px;
-  padding: 2px 6px;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 9px;
+  font-weight: var(--weight-medium);
+  padding: 1px 5px;
   border-radius: var(--radius-sm);
   font-variant-numeric: tabular-nums;
   opacity: 0;
@@ -118,14 +113,14 @@
 
 .removeBtn {
   position: absolute;
-  top: var(--space-2);
-  left: var(--space-2);
-  width: 28px;
-  height: 28px;
+  top: 6px;
+  left: 6px;
+  width: 24px;
+  height: 24px;
   border-radius: var(--radius-full);
-  background: rgba(0, 0, 0, 0.5);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
   color: #fff;
   display: flex;
   align-items: center;
@@ -150,16 +145,15 @@
   bottom: 0;
   left: 0;
   right: 0;
-  height: 3px;
-  background: rgba(255, 255, 255, 0.18);
+  height: 1.5px;
+  background: rgba(255, 255, 255, 0.08);
   z-index: 2;
 }
 
 .progressFill {
   height: 100%;
   background: var(--accent);
-  border-radius: var(--radius-full);
-  transition: width var(--duration-normal) var(--ease-out);
+  opacity: 0.7;
 }
 
 .enriching {
@@ -173,8 +167,8 @@
 }
 
 .spinner {
-  width: 24px;
-  height: 24px;
+  width: 22px;
+  height: 22px;
   border: 2px solid rgba(255, 255, 255, 0.3);
   border-top-color: #fff;
   border-radius: var(--radius-full);
@@ -187,14 +181,70 @@
   }
 }
 
+/* "Continue reading" overlay — only on the hero (first) card; all its info lives here. */
+.continueOverlay {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 12px;
+  background: linear-gradient(transparent, rgba(0, 0, 0, 0.8));
+  z-index: 2;
+  pointer-events: none;
+}
+
+.continueLabel {
+  font-size: 8px;
+  font-weight: var(--weight-medium);
+  color: rgba(255, 255, 255, 0.5);
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+}
+
+.continueTitle {
+  margin-top: 3px;
+  font-size: 12px;
+  font-weight: var(--weight-medium);
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.continueAuthor {
+  margin-top: 1px;
+  font-size: 9px;
+  font-weight: var(--weight-normal);
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.continueBar {
+  margin-top: 8px;
+  height: 1.5px;
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.continueFill {
+  height: 100%;
+  background: var(--accent);
+}
+
+.continueText {
+  margin-top: 4px;
+  font-size: 8px;
+  font-weight: var(--weight-normal);
+  color: rgba(255, 255, 255, 0.45);
+  font-variant-numeric: tabular-nums;
+}
+
 .meta {
-  padding: var(--space-3) 2px 0;
+  padding-top: 8px;
 }
 
 .metaTitle {
-  font-family: var(--font-display);
-  font-size: 14px;
-  font-weight: var(--weight-normal);
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: var(--weight-medium);
   color: var(--text-primary);
   line-height: var(--leading-tight);
   display: -webkit-box;
@@ -210,9 +260,10 @@
 }
 
 .metaAuthor {
-  margin-top: var(--space-1);
-  font-size: 12px;
-  color: var(--text-tertiary);
+  margin-top: 2px;
+  font-size: 11px;
+  font-weight: var(--weight-normal);
+  color: var(--text-quaternary);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -221,16 +272,15 @@
 }
 
 .metaAuthor:hover {
-  color: var(--text-secondary);
+  color: var(--text-tertiary);
 }
 
 .metaInput {
   width: 100%;
-  margin-bottom: var(--space-1);
-  font-size: var(--text-sm);
+  font-size: 13px;
   color: var(--text-primary);
   background: var(--bg-tertiary);
-  border: 1px solid var(--accent);
+  border: 0.5px solid var(--accent);
   border-radius: var(--radius-sm);
   padding: 2px 4px;
 }
