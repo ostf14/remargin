@@ -225,7 +225,7 @@
   justify-content: center;
   cursor: pointer;
   z-index: 15;
-  transition: background var(--duration-normal) var(--ease-out);
+  transition: none;
 }
 
 .navLeft {
@@ -243,13 +243,13 @@
 
 .navLeft:active,
 .navRight:active {
-  background: radial-gradient(ellipse at center, rgba(255, 255, 255, 0.08) 0%, transparent 70%);
+  background: none;
 }
 
 .chevron {
   color: var(--text-quaternary);
   opacity: 0;
-  transition: opacity 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: opacity 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .showChrome .chevron {
@@ -262,7 +262,8 @@
 }
 
 /* ─────────────────────────── Progress + bottom info ─────────────────────────── */
-/* Always-visible thin progress strip, directly under the (auto-hiding) top bar. */
+/* Thin full-width progress strip just under the top bar. Part of the auto-hide chrome,
+   so it fades in and out together with everything else. */
 .progressTrack {
   position: absolute;
   top: 48px;
@@ -271,30 +272,16 @@
   height: 2px;
   background: var(--border);
   z-index: 21;
+  opacity: 0;
+  transition: opacity 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.showChrome .progressTrack {
+  opacity: 1;
 }
 
 .progressFill {
   height: 100%;
   background: var(--accent);
   transition: width var(--duration-normal) var(--ease-out);
-}
-
-.bottomInfo {
-  position: absolute;
-  bottom: 8px;
-  left: 0;
-  right: 0;
-  text-align: center;
-  font-size: 11px;
-  font-weight: var(--weight-normal);
-  color: var(--text-quaternary);
-  font-variant-numeric: tabular-nums;
-  pointer-events: none;
-  z-index: 20;
-  opacity: 0;
-  transition: opacity 0.4s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-.showChrome .bottomInfo {
-  opacity: 1;
 }

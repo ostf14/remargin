@@ -55,9 +55,10 @@ const MODES: { key: ReaderMode; label: string; Icon: typeof BookOpen }[] = [
 const HIDE_DELAY = 3000;
 const HIDE_DELAY_SETTINGS = 6000;
 
-// Immersive chrome around either reader: a 40px top bar, a settings dropdown, invisible
-// side page-turn zones, and an always-visible 2px progress bar. Everything but the
-// progress bar auto-hides after a few seconds of no pointer/keyboard activity.
+// Immersive chrome around either reader: a 48px top bar (book title + a meta line of
+// chapter/page · progress · time-left, plus a settings dropdown), invisible side
+// page-turn zones, and a thin progress strip under the bar. All of it auto-hides after
+// a few seconds of no pointer/keyboard activity.
 export function ReaderShell({
   title,
   subtitle,
@@ -119,6 +120,9 @@ export function ReaderShell({
     if (settingsOpen) bump();
   }, [settingsOpen, bump]);
 
+  // Header second line: chapter/page · progress% · time-left.
+  const metaLine = [subtitle, progressText].filter(Boolean).join(' · ');
+
   return (
     <div className={`${styles.shell} ${show ? styles.showChrome : ''}`}>
       <div className={styles.content}>{children}</div>
@@ -143,7 +147,7 @@ export function ReaderShell({
 
         <div className={styles.titleBlock}>
           <div className={styles.title}>{title}</div>
-          {subtitle && <div className={styles.subtitle}>{subtitle}</div>}
+          {metaLine && <div className={styles.subtitle}>{metaLine}</div>}
         </div>
 
         <div className={styles.topActions}>
@@ -247,9 +251,11 @@ export function ReaderShell({
         </div>
       </header>
 
-      <div className={styles.bottomInfo}>{progressText}</div>
       <div className={styles.progressTrack}>
-        <div className={styles.progressFill} style={{ width: `${Math.max(0, Math.min(100, progress))}%` }} />
+        <div
+          className={styles.progressFill}
+          style={{ width: `${Math.max(0, Math.min(100, progress))}%` }}
+        />
       </div>
     </div>
   );

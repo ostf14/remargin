@@ -843,12 +843,12 @@ export function PdfReader({ book }: Props) {
   const timeLeft = wordCount
     ? formatDuration(readingMinutes(Math.max(0, wordCount * (1 - percentage / 100))))
     : null;
-  const progressText = `${page} / ${totalPages}${timeLeft ? ` · ~${timeLeft} left` : ''}`;
+  const progressText = `${percentage}%${timeLeft ? ` · ~${timeLeft} left` : ''}`;
 
   return (
     <ReaderShell
       title={book.title}
-      subtitle={`Page ${page}`}
+      subtitle={`Page ${page} / ${totalPages}`}
       progress={percentage}
       progressText={progressText}
       onPrev={() => setPage((p) => Math.max(p - 1, 1))}

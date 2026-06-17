@@ -38,9 +38,10 @@
     box-shadow var(--duration-fast) var(--ease-out);
 }
 
-.input:focus {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px var(--accent-muted);
+.input:focus,
+.input:focus-visible {
+  outline: none;
+  box-shadow: none;
 }
 
 .counter {
