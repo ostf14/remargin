@@ -39,7 +39,7 @@
 }
 
 .bookTitle {
-  font-family: var(--font-display);
+  font-family: var(--font-body);
   font-size: var(--text-base);
   font-weight: var(--weight-normal);
   max-width: 50vw;

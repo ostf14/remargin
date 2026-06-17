@@ -2,61 +2,53 @@
   position: relative;
 }
 
-/* Perspective host. No overflow:hidden — the cover tilts, casts a directional shadow,
-   and shows a spine, all of which extend past the flat box. */
 .coverWrap {
   position: relative;
   aspect-ratio: 2 / 3;
+  overflow: hidden;
+  border-radius: var(--radius-md);
+  background: var(--bg-secondary);
+  box-shadow: var(--shadow-md);
+  border: 1px solid var(--border);
   cursor: pointer;
-  perspective: 600px;
+  transition: box-shadow var(--duration-normal) var(--ease-out),
+    transform var(--duration-normal) var(--ease-out);
 }
 
-.bookCover3d {
-  position: relative;
-  width: 100%;
-  height: 100%;
-  transform-style: preserve-3d;
+.coverWrap:hover {
+  box-shadow: var(--shadow-lg);
+  transform: translateY(-3px);
 }
 
-/* Book spine — a thin gradient slab tucked behind the left edge. */
-.bookCover3d::before {
+/* Light film over the art: highlight top-left, shadow bottom-right — as if light
+   falls on a physical book. Just a thin layer; no rotation, no spine. */
+.coverWrap::after {
   content: '';
   position: absolute;
-  top: 0;
-  left: 0;
-  width: 12px;
-  height: 100%;
+  inset: 0;
+  border-radius: inherit;
   background: linear-gradient(
-    to right,
-    rgba(0, 0, 0, 0.15),
-    rgba(0, 0, 0, 0.05) 40%,
-    rgba(255, 255, 255, 0.05) 60%,
-    rgba(0, 0, 0, 0.1)
+    135deg,
+    rgba(255, 255, 255, 0.12) 0%,
+    rgba(255, 255, 255, 0.04) 30%,
+    transparent 50%,
+    rgba(0, 0, 0, 0.06) 80%,
+    rgba(0, 0, 0, 0.15) 100%
   );
-  border-radius: var(--radius-md) 0 0 var(--radius-md);
-  transform: rotateY(-3deg) translateX(-6px) translateZ(-3px);
-  transform-origin: right center;
-}
-
-.cover,
-.placeholder {
-  width: 100%;
-  height: 100%;
-  border-radius: var(--radius-md);
-  box-shadow: 6px 6px 12px rgba(0, 0, 0, 0.3), 0 0 4px rgba(0, 0, 0, 0.1);
-  transform: rotateY(-3deg);
-  transform-origin: center;
-  transition: transform var(--duration-slow) var(--ease-out),
-    box-shadow var(--duration-slow) var(--ease-out);
+  pointer-events: none;
+  z-index: 1;
 }
 
 .cover {
-  display: block;
+  width: 100%;
+  height: 100%;
   object-fit: cover;
-  background: var(--bg-secondary);
+  display: block;
 }
 
 .placeholder {
+  width: 100%;
+  height: 100%;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -66,13 +58,6 @@
   text-align: center;
 }
 
-/* Hover — the book lifts off the desk and turns a little further. */
-.coverWrap:hover .cover,
-.coverWrap:hover .placeholder {
-  transform: rotateY(-6deg) translateY(-4px);
-  box-shadow: 10px 10px 20px rgba(0, 0, 0, 0.35), 0 0 6px rgba(0, 0, 0, 0.1);
-}
-
 .placeholderIcon {
   font-size: 2.5rem;
   margin-bottom: var(--space-2);
@@ -80,9 +65,9 @@
 }
 
 .placeholderTitle {
-  font-family: var(--font-body);
+  font-family: var(--font-display);
   font-size: var(--text-sm);
-  font-weight: var(--weight-medium);
+  font-weight: var(--weight-normal);
   color: var(--text-secondary);
   line-height: var(--leading-tight);
   display: -webkit-box;
@@ -184,7 +169,6 @@
   align-items: center;
   justify-content: center;
   background: rgba(0, 0, 0, 0.35);
-  border-radius: var(--radius-md);
   z-index: 3;
 }
 
@@ -208,9 +192,9 @@
 }
 
 .metaTitle {
-  font-family: var(--font-body);
+  font-family: var(--font-display);
   font-size: 14px;
-  font-weight: var(--weight-medium);
+  font-weight: var(--weight-normal);
   color: var(--text-primary);
   line-height: var(--leading-tight);
   display: -webkit-box;
