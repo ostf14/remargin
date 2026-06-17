@@ -8,7 +8,7 @@
   padding: var(--space-4) var(--space-6);
   background: var(--bg-secondary);
   color: var(--text-primary);
-  border: 1px solid var(--border-subtle);
+  border: 1px solid var(--border);
   border-radius: var(--radius-xl);
   box-shadow: var(--shadow-md);
   transition: transform var(--duration-normal) var(--ease-out),
@@ -56,7 +56,7 @@
 .eyebrow {
   font-size: 11px;
   letter-spacing: 0.5px;
-  color: var(--text-tertiary);
+  color: var(--text-quaternary);
   margin-bottom: var(--space-1);
 }
 
@@ -121,6 +121,8 @@
   font-weight: var(--weight-medium);
   white-space: nowrap;
   border-radius: var(--radius-md);
+  transition: border-color var(--duration-fast) var(--ease-out),
+    color var(--duration-fast) var(--ease-out);
 }
 
 .card:hover .cta {

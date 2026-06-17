@@ -2,41 +2,75 @@
   position: relative;
 }
 
+/* Perspective host. No overflow:hidden — the cover tilts, casts a directional shadow,
+   and shows a spine, all of which extend past the flat box. */
 .coverWrap {
   position: relative;
   aspect-ratio: 2 / 3;
-  border-radius: var(--radius-lg);
-  overflow: hidden;
-  background: var(--bg-secondary);
   cursor: pointer;
-  box-shadow: var(--shadow-md);
-  transform-origin: center;
-  transition: transform var(--duration-normal) var(--ease-out),
-    box-shadow var(--duration-normal) var(--ease-out);
+  perspective: 600px;
 }
 
-.card:hover .coverWrap {
-  transform: scale(1.03);
-  box-shadow: var(--shadow-lg);
-}
-
-.cover {
+.bookCover3d {
+  position: relative;
   width: 100%;
   height: 100%;
-  object-fit: cover;
-  display: block;
+  transform-style: preserve-3d;
 }
 
+/* Book spine — a thin gradient slab tucked behind the left edge. */
+.bookCover3d::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 12px;
+  height: 100%;
+  background: linear-gradient(
+    to right,
+    rgba(0, 0, 0, 0.15),
+    rgba(0, 0, 0, 0.05) 40%,
+    rgba(255, 255, 255, 0.05) 60%,
+    rgba(0, 0, 0, 0.1)
+  );
+  border-radius: var(--radius-md) 0 0 var(--radius-md);
+  transform: rotateY(-3deg) translateX(-6px) translateZ(-3px);
+  transform-origin: right center;
+}
+
+.cover,
 .placeholder {
   width: 100%;
   height: 100%;
+  border-radius: var(--radius-md);
+  box-shadow: 6px 6px 12px rgba(0, 0, 0, 0.3), 0 0 4px rgba(0, 0, 0, 0.1);
+  transform: rotateY(-3deg);
+  transform-origin: center;
+  transition: transform var(--duration-slow) var(--ease-out),
+    box-shadow var(--duration-slow) var(--ease-out);
+}
+
+.cover {
+  display: block;
+  object-fit: cover;
+  background: var(--bg-secondary);
+}
+
+.placeholder {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, var(--bg-tertiary), var(--bg-elevated));
+  background: linear-gradient(135deg, var(--bg-tertiary), var(--bg-hover));
   padding: var(--space-6);
   text-align: center;
+}
+
+/* Hover — the book lifts off the desk and turns a little further. */
+.coverWrap:hover .cover,
+.coverWrap:hover .placeholder {
+  transform: rotateY(-6deg) translateY(-4px);
+  box-shadow: 10px 10px 20px rgba(0, 0, 0, 0.35), 0 0 6px rgba(0, 0, 0, 0.1);
 }
 
 .placeholderIcon {
@@ -72,6 +106,7 @@
   text-transform: uppercase;
   letter-spacing: 0.04em;
   font-weight: var(--weight-medium);
+  z-index: 2;
 }
 
 /* Reading time is secondary metadata — only surfaces on hover. */
@@ -88,6 +123,8 @@
   border-radius: var(--radius-sm);
   font-variant-numeric: tabular-nums;
   opacity: 0;
+  transition: opacity var(--duration-normal) var(--ease-out);
+  z-index: 2;
 }
 
 .coverWrap:hover .timeBadge {
@@ -110,6 +147,9 @@
   justify-content: center;
   font-size: var(--text-sm);
   opacity: 0;
+  transition: opacity var(--duration-normal) var(--ease-out),
+    background var(--duration-fast) var(--ease-out);
+  z-index: 3;
 }
 
 .coverWrap:hover .removeBtn {
@@ -127,6 +167,7 @@
   right: 0;
   height: 3px;
   background: rgba(255, 255, 255, 0.18);
+  z-index: 2;
 }
 
 .progressFill {
@@ -143,6 +184,8 @@
   align-items: center;
   justify-content: center;
   background: rgba(0, 0, 0, 0.35);
+  border-radius: var(--radius-md);
+  z-index: 3;
 }
 
 .spinner {
@@ -175,6 +218,7 @@
   -webkit-box-orient: vertical;
   overflow: hidden;
   cursor: text;
+  transition: color var(--duration-fast) var(--ease-out);
 }
 
 .metaTitle:hover {
@@ -189,6 +233,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   cursor: text;
+  transition: color var(--duration-fast) var(--ease-out);
 }
 
 .metaAuthor:hover {

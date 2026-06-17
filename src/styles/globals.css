@@ -4,9 +4,8 @@
   --font-body: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; /* UI text */
   --font-reading: 'Literata', Georgia, 'Times New Roman', serif; /* EPUB body text */
   --font-mono: 'JetBrains Mono', 'Fira Code', monospace;        /* code, metadata, key hints */
-  /* legacy aliases → new scale (prefer the names above in new code) */
-  --font-sans: var(--font-body);
-  --font-serif: var(--font-reading);
+  --font-sans: var(--font-body);   /* legacy alias */
+  --font-serif: var(--font-reading); /* legacy alias */
 
   --text-xs: 11px;
   --text-sm: 13px;
@@ -35,8 +34,7 @@
   --space-10: 40px;
   --space-12: 48px;
   --space-16: 64px;
-  /* legacy aliases → new scale */
-  --space-xs: var(--space-1);
+  --space-xs: var(--space-1);   /* legacy aliases */
   --space-sm: var(--space-2);
   --space-md: var(--space-4);
   --space-lg: var(--space-6);
@@ -44,117 +42,109 @@
   --space-2xl: var(--space-12);
   --space-3xl: var(--space-16);
 
-  /* ═══════════════════════ RADII ═══════════════════════ */
-  --radius-sm: 4px;
-  --radius-md: 8px;
-  --radius-lg: 12px;
-  --radius-xl: 16px;
+  /* ═══════════════════════ RADII (Linear scale) ═══════════════════════ */
+  --radius-sm: 4px;   /* badges, chips */
+  --radius-md: 6px;   /* blocks, cards */
+  --radius-lg: 8px;   /* inputs, buttons, dropdowns */
+  --radius-xl: 12px;  /* large cards (continue reading) */
   --radius-full: 9999px;
 
   /* ═══════════════════════ TRANSITIONS ═══════════════════════ */
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
   --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
-  --duration-fast: 120ms;
-  --duration-normal: 200ms;
-  --duration-slow: 350ms;
-  /* legacy aliases → duration + easing */
-  --transition-fast: var(--duration-fast) var(--ease-out);
+  --duration-fast: 100ms;
+  --duration-normal: 150ms;
+  --duration-slow: 300ms;
+  --transition-fast: var(--duration-fast) var(--ease-out);   /* legacy aliases */
   --transition-base: var(--duration-normal) var(--ease-out);
   --transition-slow: var(--duration-slow) var(--ease-out);
 
-  /* ═══════════════════════ SHADOWS — Dark (default) ═══════════════════════ */
-  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3);
-  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4);
-  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.5);
-  --shadow-xl: 0 16px 48px rgba(0, 0, 0, 0.55);
-  --shadow-page: 0 2px 16px rgba(0, 0, 0, 0.35);
-  --shadow-cover: 0 4px 16px rgba(0, 0, 0, 0.6);
+  /* ═══════════════════════ COLORS — Dark (default, Linear-inspired) ═══════════════════════ */
+  --bg-primary: #0f0f11;    /* near-black base */
+  --bg-secondary: #161618;  /* cards, surfaces */
+  --bg-tertiary: #1c1e21;   /* hover states */
+  --bg-hover: #252627;      /* active / pressed */
+  --bg-elevated: #1c1e21;   /* modals & popovers (above the base) */
 
-  /* ═══════════════════════ COLORS — Dark (default, integrity.sh palette) ═══════════════════════ */
-  /* Background */
-  --bg-primary: #252525;
-  --bg-secondary: #2e2e2e;
-  --bg-tertiary: #383232;
-  --bg-elevated: #3c3636;
-  --bg-hover: #443d3d;
+  --text-primary: #ffffff;
+  --text-secondary: #e2e3e5;
+  --text-tertiary: #97979a;
+  --text-quaternary: #6b6f76; /* placeholders, quietest text */
+  --text-inverse: #0f0f11;
 
-  /* Text */
-  --text-primary: #e6e6e6;
-  --text-secondary: #c4c4c4;
-  --text-tertiary: #8f8f8f;
-  --text-inverse: #252525;
+  /* Semi-transparent borders — a living, breathing surface (Linear #ffffff22). */
+  --border: rgba(255, 255, 255, 0.13);
+  --border-strong: rgba(255, 255, 255, 0.2);
+  --border-subtle: rgba(255, 255, 255, 0.07);
 
-  /* Accent — purple. Swap these three (+ light override) to re-theme the app. */
   --accent: #9b6be2;
   --accent-hover: #b08ae8;
   --accent-muted: rgba(155, 107, 226, 0.15);
   --accent-text: #ffffff;
 
-  /* Danger — destructive actions (delete) */
   --danger: #d15c55;
   --danger-hover: #e06b62;
 
-  /* Highlight colors */
   --highlight-yellow: rgba(232, 200, 73, 0.35);
   --highlight-green: rgba(100, 200, 130, 0.3);
   --highlight-blue: rgba(100, 160, 230, 0.3);
   --highlight-red: rgba(230, 100, 100, 0.32);
   --highlight-purple: rgba(170, 130, 230, 0.32);
 
-  /* Borders */
-  --border: #3d3d3d;
-  --border-subtle: #333333;
+  /* Nearly-invisible shadows — felt, not seen. */
+  --shadow-sm: 0px 1px 1px rgba(0, 0, 0, 0.08);
+  --shadow-md: 0px 4px 4px -1px rgba(0, 0, 0, 0.04), 0px 1px 1px rgba(0, 0, 0, 0.08);
+  --shadow-lg: 0px 8px 16px -4px rgba(0, 0, 0, 0.12), 0px 2px 4px rgba(0, 0, 0, 0.08);
+  --shadow-xl: 0px 16px 32px -8px rgba(0, 0, 0, 0.2), 0px 4px 8px rgba(0, 0, 0, 0.12);
+  --shadow-cover: var(--shadow-lg);
 
   /* ═══════════════════════ LAYOUT ═══════════════════════ */
   --sidebar-width: 340px;
   --toolbar-height: 56px;
 
-  /* Reader — "desk" surface + neutral light "page" (document metaphor, SPEC §3.2/§6) */
-  --page-max-width: 900px; /* shared by EPUB + PDF page sheets (keep PAGE_MAX in PdfReader in sync) */
-  --reader-desk: #313131;
-  --reader-page: #f5f5f5;
+  /* Reader — the cream page floats over the near-black desk (the void). */
+  --page-max-width: 900px;
+  --reader-desk: #0f0f11;
+  --reader-page: #f5f0eb;
   --reader-ink: #2b2b2b;
   --reader-ink-soft: #6b6b6b;
   --reader-divider: rgba(0, 0, 0, 0.1);
-  --reader-page-shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 8px 24px rgba(0, 0, 0, 0.12);
+  --reader-page-shadow: 0 2px 16px rgba(0, 0, 0, 0.2);
 }
 
 /* ═══════════════════════ COLORS — Light ═══════════════════════ */
-/* Neutral surfaces, slightly darker purple accent for contrast (SPEC §6.1). Lighter
-   shadows so elevation reads correctly on a bright background. */
 [data-theme='light'] {
-  --bg-primary: #fafafa;
-  --bg-secondary: #f2f2f2;
-  --bg-tertiary: #e6e6e6;
+  --bg-primary: #fcfcfd;
+  --bg-secondary: #f5f5f5;
+  --bg-tertiary: #efefef;
+  --bg-hover: #e8e8e8;
   --bg-elevated: #ffffff;
-  --bg-hover: #e6e6e6;
 
-  --text-primary: #313131;
-  --text-secondary: #666666;
-  --text-tertiary: #999999;
-  --text-inverse: #fafafa;
+  --text-primary: #23252a;
+  --text-secondary: #2f2f31;
+  --text-tertiary: #5b5b5d;
+  --text-quaternary: #b0b5c0;
+  --text-inverse: #fcfcfd;
+
+  --border: rgba(0, 0, 0, 0.08);
+  --border-strong: rgba(0, 0, 0, 0.15);
+  --border-subtle: rgba(0, 0, 0, 0.05);
 
   --accent: #8e5cd6;
   --accent-hover: #7a48c2;
   --accent-muted: rgba(142, 92, 214, 0.1);
 
-  --border: #d6d7d7;
-  --border-subtle: #e4e4e4;
+  --shadow-sm: 0px 1px 1px rgba(0, 0, 0, 0.04);
+  --shadow-md: 0px 3px 6px -2px rgba(0, 0, 0, 0.02), 0px 1px 1px rgba(0, 0, 0, 0.04);
+  --shadow-lg: 0px 8px 16px -4px rgba(0, 0, 0, 0.06), 0px 2px 4px rgba(0, 0, 0, 0.04);
+  --shadow-xl: 0px 16px 32px -8px rgba(0, 0, 0, 0.1), 0px 4px 8px rgba(0, 0, 0, 0.06);
 
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
-  --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.08);
-  --shadow-lg: 0 4px 16px rgba(0, 0, 0, 0.12);
-  --shadow-xl: 0 8px 32px rgba(0, 0, 0, 0.16);
-  --shadow-page: 0 2px 16px rgba(0, 0, 0, 0.12);
-  --shadow-cover: 0 4px 16px rgba(0, 0, 0, 0.16);
-
-  --reader-desk: #f2f2f2;
-  --reader-page: #ffffff;
+  --reader-desk: #f0f0f0;
+  --reader-page: #fffdf9;
+  --reader-page-shadow: 0 2px 16px rgba(0, 0, 0, 0.1);
 }
 
-/* Reading surface — page tint while reading, independent of the chrome theme.
-   Declared after the theme blocks so surface wins for --reader-page / --reader-ink.
-   Light surface keeps the theme's neutral page (no override). */
+/* Reading surface — page tint while reading, independent of the chrome theme. */
 [data-surface='sepia'] {
   --reader-page: #f0e6d3;
   --reader-ink: #5b4636;
@@ -173,18 +163,6 @@
   box-sizing: border-box;
   margin: 0;
   padding: 0;
-}
-
-/* Global polish: every colour / elevation / opacity / transform change eases smoothly
-   (SPEC §6.5). Transitions never run on first paint, only on subsequent changes — so
-   theme toggles, hovers and focus all glide. Opt out per-element with `transition: none`
-   where animating would lag (canvas redraws, the readers' zoom transform). */
-*,
-*::before,
-*::after {
-  transition-property: background-color, color, border-color, box-shadow, opacity, transform;
-  transition-duration: var(--duration-normal);
-  transition-timing-function: var(--ease-out);
 }
 
 html {
@@ -231,8 +209,9 @@ select {
   outline: none;
 }
 
-/* Keyboard focus only (not mouse clicks): a double ring — an inner gap the colour of the
-   background, an outer accent ring — so focus reads clearly on any surface. */
+/* Keyboard focus only: a double ring — inner gap the colour of the background, outer
+   accent — so focus reads clearly on any surface. (No global * transition: it would
+   fight canvas redraws, scrolling and layout. Interactive elements transition locally.) */
 a:focus-visible,
 button:focus-visible,
 input:focus-visible,
@@ -244,8 +223,8 @@ select:focus-visible,
 }
 
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 8px;
+  height: 8px;
 }
 
 ::-webkit-scrollbar-track {
@@ -253,12 +232,16 @@ select:focus-visible,
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--text-tertiary);
+  background: var(--text-quaternary);
   border-radius: var(--radius-full);
+  border: 2px solid transparent;
+  background-clip: content-box;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--text-secondary);
+  background: var(--text-tertiary);
+  border: 2px solid transparent;
+  background-clip: content-box;
 }
 
 ::selection {
@@ -267,8 +250,7 @@ select:focus-visible,
 }
 
 /* In-book find: wrap each matched word on the (transparent) PDF text layer in a
-   <mark> so only the word is tinted, not the whole line. Text stays transparent
-   (the canvas shows through); just the background highlights. */
+   <mark> so only the word is tinted, not the whole line. */
 .textLayer mark.highlight-search {
   background: rgba(155, 107, 226, 0.45);
   color: inherit;

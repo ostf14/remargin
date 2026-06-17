@@ -15,6 +15,9 @@
   height: 18px;
   border-radius: var(--radius-full);
   border: 2px solid var(--border);
+  transition: border-color var(--duration-fast) var(--ease-out),
+    box-shadow var(--duration-fast) var(--ease-out),
+    transform var(--duration-fast) var(--ease-out);
 }
 
 .surfaceBtn:hover {
@@ -35,6 +38,8 @@
   border-radius: var(--radius-full);
   color: var(--text-secondary);
   font-size: var(--text-base);
+  transition: background var(--duration-fast) var(--ease-out),
+    color var(--duration-fast) var(--ease-out);
 }
 
 .themeBtn:hover {

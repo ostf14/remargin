@@ -4,9 +4,7 @@
   bottom: 84px;
   transform: translateX(-50%) translateY(8px);
   padding: var(--space-3) var(--space-6);
-  background: color-mix(in srgb, var(--bg-elevated) 88%, transparent);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  background: var(--bg-elevated);
   color: var(--text-primary);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);

@@ -47,16 +47,18 @@ export function BookCard({ book, enriching, onClick, onRemove, onUpdate }: Props
   return (
     <div className={styles.card}>
       <div className={styles.coverWrap} onClick={onClick}>
-        {book.coverUrl ? (
-          <img className={styles.cover} src={book.coverUrl} alt={book.title} />
-        ) : (
-          <div className={styles.placeholder}>
-            <span className={styles.placeholderIcon}>
-              {book.format === 'epub' ? '📖' : '📄'}
-            </span>
-            <span className={styles.placeholderTitle}>{book.title}</span>
-          </div>
-        )}
+        <div className={styles.bookCover3d}>
+          {book.coverUrl ? (
+            <img className={styles.cover} src={book.coverUrl} alt={book.title} />
+          ) : (
+            <div className={styles.placeholder}>
+              <span className={styles.placeholderIcon}>
+                {book.format === 'epub' ? '📖' : '📄'}
+              </span>
+              <span className={styles.placeholderTitle}>{book.title}</span>
+            </div>
+          )}
+        </div>
 
         <span className={styles.badge}>{book.format}</span>
 
