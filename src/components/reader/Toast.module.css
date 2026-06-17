@@ -3,16 +3,19 @@
   left: 50%;
   bottom: 84px;
   transform: translateX(-50%) translateY(8px);
-  padding: var(--space-sm) var(--space-lg);
-  background: var(--bg-elevated);
+  padding: var(--space-3) var(--space-6);
+  background: color-mix(in srgb, var(--bg-elevated) 88%, transparent);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   color: var(--text-primary);
   border: 1px solid var(--border);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-lg);
   font-size: var(--text-sm);
-  box-shadow: var(--shadow-md);
+  box-shadow: var(--shadow-lg);
   opacity: 0;
   pointer-events: none;
-  transition: opacity var(--transition-base), transform var(--transition-base);
+  transition: opacity var(--duration-normal) var(--ease-out),
+    transform var(--duration-normal) var(--ease-out);
   z-index: 300;
 }
 

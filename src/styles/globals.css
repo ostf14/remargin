@@ -1,4 +1,76 @@
 :root {
+  /* ═══════════════════════ TYPOGRAPHY ═══════════════════════ */
+  --font-display: 'DM Serif Display', Georgia, serif;          /* headings, logo, book titles */
+  --font-body: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; /* UI text */
+  --font-reading: 'Literata', Georgia, 'Times New Roman', serif; /* EPUB body text */
+  --font-mono: 'JetBrains Mono', 'Fira Code', monospace;        /* code, metadata, key hints */
+  /* legacy aliases → new scale (prefer the names above in new code) */
+  --font-sans: var(--font-body);
+  --font-serif: var(--font-reading);
+
+  --text-xs: 11px;
+  --text-sm: 13px;
+  --text-base: 15px;
+  --text-lg: 18px;
+  --text-xl: 24px;
+  --text-2xl: 32px;
+  --text-3xl: var(--text-2xl); /* legacy alias */
+
+  --leading-tight: 1.3;
+  --leading-normal: 1.6;
+  --leading-relaxed: 1.8;
+
+  --weight-normal: 400;
+  --weight-medium: 500;
+  --weight-bold: 600;
+
+  /* ═══════════════════════ SPACING (4px grid) ═══════════════════════ */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+  /* legacy aliases → new scale */
+  --space-xs: var(--space-1);
+  --space-sm: var(--space-2);
+  --space-md: var(--space-4);
+  --space-lg: var(--space-6);
+  --space-xl: var(--space-8);
+  --space-2xl: var(--space-12);
+  --space-3xl: var(--space-16);
+
+  /* ═══════════════════════ RADII ═══════════════════════ */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-full: 9999px;
+
+  /* ═══════════════════════ TRANSITIONS ═══════════════════════ */
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --duration-fast: 120ms;
+  --duration-normal: 200ms;
+  --duration-slow: 350ms;
+  /* legacy aliases → duration + easing */
+  --transition-fast: var(--duration-fast) var(--ease-out);
+  --transition-base: var(--duration-normal) var(--ease-out);
+  --transition-slow: var(--duration-slow) var(--ease-out);
+
+  /* ═══════════════════════ SHADOWS — Dark (default) ═══════════════════════ */
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.5);
+  --shadow-xl: 0 16px 48px rgba(0, 0, 0, 0.55);
+  --shadow-page: 0 2px 16px rgba(0, 0, 0, 0.35);
+  --shadow-cover: 0 4px 16px rgba(0, 0, 0, 0.6);
+
+  /* ═══════════════════════ COLORS — Dark (default, integrity.sh palette) ═══════════════════════ */
   /* Background */
   --bg-primary: #252525;
   --bg-secondary: #2e2e2e;
@@ -33,45 +105,7 @@
   --border: #3d3d3d;
   --border-subtle: #333333;
 
-  /* Shadows */
-  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3);
-  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4);
-  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.5);
-  --shadow-cover: 0 4px 16px rgba(0, 0, 0, 0.6);
-
-  /* Spacing */
-  --space-xs: 4px;
-  --space-sm: 8px;
-  --space-md: 16px;
-  --space-lg: 24px;
-  --space-xl: 32px;
-  --space-2xl: 48px;
-  --space-3xl: 64px;
-
-  /* Radius */
-  --radius-sm: 4px;
-  --radius-md: 8px;
-  --radius-lg: 12px;
-
-  /* Typography */
-  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  --font-serif: 'Georgia', 'Times New Roman', serif;
-  --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
-
-  --text-xs: 0.75rem;
-  --text-sm: 0.875rem;
-  --text-base: 1rem;
-  --text-lg: 1.125rem;
-  --text-xl: 1.25rem;
-  --text-2xl: 1.5rem;
-  --text-3xl: 2rem;
-
-  /* Transitions */
-  --transition-fast: 120ms ease;
-  --transition-base: 200ms ease;
-  --transition-slow: 350ms ease;
-
-  /* Layout */
+  /* ═══════════════════════ LAYOUT ═══════════════════════ */
   --sidebar-width: 340px;
   --toolbar-height: 56px;
 
@@ -82,10 +116,12 @@
   --reader-ink: #2b2b2b;
   --reader-ink-soft: #6b6b6b;
   --reader-divider: rgba(0, 0, 0, 0.1);
-  --reader-page-shadow: 0 2px 16px rgba(0, 0, 0, 0.35);
+  --reader-page-shadow: var(--shadow-page);
 }
 
-/* Light theme — neutral surfaces, slightly darker purple accent for contrast (SPEC §6.1) */
+/* ═══════════════════════ COLORS — Light ═══════════════════════ */
+/* Neutral surfaces, slightly darker purple accent for contrast (SPEC §6.1). Lighter
+   shadows so elevation reads correctly on a bright background. */
 [data-theme='light'] {
   --bg-primary: #fafafa;
   --bg-secondary: #f2f2f2;
@@ -105,14 +141,15 @@
   --border: #d6d7d7;
   --border-subtle: #e4e4e4;
 
-  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.06);
-  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.1);
-  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.14);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.08);
+  --shadow-lg: 0 4px 16px rgba(0, 0, 0, 0.12);
+  --shadow-xl: 0 8px 32px rgba(0, 0, 0, 0.16);
+  --shadow-page: 0 2px 16px rgba(0, 0, 0, 0.12);
   --shadow-cover: 0 4px 16px rgba(0, 0, 0, 0.16);
 
   --reader-desk: #f2f2f2;
   --reader-page: #ffffff;
-  --reader-page-shadow: 0 2px 16px rgba(0, 0, 0, 0.12);
 }
 
 /* Reading surface — page tint while reading, independent of the chrome theme.
@@ -138,17 +175,31 @@
   padding: 0;
 }
 
+/* Global polish: every colour / elevation / opacity / transform change eases smoothly
+   (SPEC §6.5). Transitions never run on first paint, only on subsequent changes — so
+   theme toggles, hovers and focus all glide. Opt out per-element with `transition: none`
+   where animating would lag (canvas redraws, the readers' zoom transform). */
+*,
+*::before,
+*::after {
+  transition-property: background-color, color, border-color, box-shadow, opacity, transform;
+  transition-duration: var(--duration-normal);
+  transition-timing-function: var(--ease-out);
+}
+
 html {
   font-size: 16px;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
 }
 
 body {
-  font-family: var(--font-sans);
+  font-family: var(--font-body);
+  font-size: var(--text-base);
   background: var(--bg-primary);
   color: var(--text-primary);
-  line-height: 1.6;
+  line-height: var(--leading-normal);
   min-height: 100vh;
   overflow: hidden;
 }
@@ -170,7 +221,9 @@ button {
   color: inherit;
 }
 
-input, textarea {
+input,
+textarea,
+select {
   font-family: inherit;
   color: inherit;
   background: none;
@@ -178,8 +231,21 @@ input, textarea {
   outline: none;
 }
 
+/* Keyboard focus only (not mouse clicks): a double ring — an inner gap the colour of the
+   background, an outer accent ring — so focus reads clearly on any surface. */
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible,
+[tabindex]:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--bg-primary), 0 0 0 4px var(--accent);
+}
+
 ::-webkit-scrollbar {
   width: 6px;
+  height: 6px;
 }
 
 ::-webkit-scrollbar-track {
@@ -187,12 +253,17 @@ input, textarea {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--bg-hover);
-  border-radius: 3px;
+  background: var(--text-tertiary);
+  border-radius: var(--radius-full);
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--text-tertiary);
+  background: var(--text-secondary);
+}
+
+::selection {
+  background: var(--accent-muted);
+  color: var(--text-primary);
 }
 
 /* In-book find: wrap each matched word on the (transparent) PDF text layer in a

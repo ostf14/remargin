@@ -16,8 +16,9 @@
 }
 
 .title {
-  font-size: var(--text-sm);
-  font-weight: 600;
+  font-family: var(--font-display);
+  font-size: var(--text-base);
+  font-weight: var(--weight-normal);
 }
 
 .count {
@@ -73,7 +74,7 @@
 .chapter {
   font-size: var(--text-xs);
   color: var(--text-tertiary);
-  font-weight: 500;
+  font-weight: var(--weight-medium);
 }
 
 .itemActions {
@@ -116,7 +117,7 @@
 
 .quote {
   font-size: var(--text-sm);
-  line-height: 1.6;
+  line-height: var(--leading-normal);
   border-left: 3px solid var(--accent);
   padding-left: var(--space-sm);
   color: var(--text-secondary);

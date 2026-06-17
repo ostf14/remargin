@@ -11,10 +11,10 @@
   border-radius: var(--radius-sm);
   color: var(--text-primary);
   font-size: var(--text-sm);
-  font-family: var(--font-sans);
+  font-family: var(--font-body);
   resize: vertical;
-  line-height: 1.5;
-  transition: border-color var(--transition-fast);
+  line-height: var(--leading-normal);
+  transition: border-color var(--duration-fast) var(--ease-out);
 }
 
 .textarea:focus {

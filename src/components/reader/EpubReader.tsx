@@ -63,7 +63,7 @@ function surfaceTheme(surface: ReadingSurface): Record<string, Record<string, st
     body: {
       background: 'transparent !important',
       color: `${ink} !important`,
-      'font-family': 'var(--font-serif) !important',
+      'font-family': "'Literata', Georgia, serif !important",
       'line-height': '1.7 !important',
       padding: '0 !important',
       '-webkit-user-select': 'text !important',
@@ -285,6 +285,17 @@ export function EpubReader({ book }: Props) {
         const doc = container.querySelector('iframe')?.contentDocument;
         if (doc && !attachedDocs.has(doc)) {
           doc.addEventListener('wheel', handleZoomWheel, { passive: false });
+          // The rendered content is a separate document, so the parent's Google Fonts
+          // <link> doesn't reach it — load the reading font (Literata) inside the iframe.
+          // Falls back to Georgia (in the theme stack) if the request is blocked.
+          if (doc.head && !doc.getElementById('remargin-reading-font')) {
+            const fontLink = doc.createElement('link');
+            fontLink.id = 'remargin-reading-font';
+            fontLink.rel = 'stylesheet';
+            fontLink.href =
+              'https://fonts.googleapis.com/css2?family=Literata:ital,wght@0,400;0,700;1,400&display=swap';
+            doc.head.appendChild(fontLink);
+          }
           attachedDocs.add(doc);
         }
       });

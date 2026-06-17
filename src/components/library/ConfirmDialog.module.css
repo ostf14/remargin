@@ -3,11 +3,13 @@
   inset: 0;
   z-index: 300;
   background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: var(--space-lg);
-  animation: fadeIn 0.15s ease-out;
+  padding: var(--space-6);
+  animation: fadeIn var(--duration-normal) var(--ease-out);
 }
 
 .dialog {
@@ -15,38 +17,38 @@
   max-width: 360px;
   background: var(--bg-elevated);
   border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  padding: var(--space-xl);
-  box-shadow: var(--shadow-lg);
-  animation: popIn 0.15s ease-out;
+  border-radius: var(--radius-xl);
+  padding: var(--space-8);
+  box-shadow: var(--shadow-xl);
+  animation: popIn var(--duration-normal) var(--ease-out);
 }
 
 .title {
+  font-family: var(--font-display);
   font-size: var(--text-lg);
-  font-weight: 600;
-  margin-bottom: var(--space-sm);
+  font-weight: var(--weight-normal);
+  margin-bottom: var(--space-2);
 }
 
 .message {
   font-size: var(--text-sm);
   color: var(--text-secondary);
-  line-height: 1.5;
-  margin-bottom: var(--space-xl);
+  line-height: var(--leading-normal);
+  margin-bottom: var(--space-8);
 }
 
 .actions {
   display: flex;
   justify-content: flex-end;
-  gap: var(--space-sm);
+  gap: var(--space-2);
 }
 
 .cancel,
 .confirm {
-  padding: var(--space-sm) var(--space-lg);
-  border-radius: var(--radius-sm);
+  padding: var(--space-3) var(--space-6);
+  border-radius: var(--radius-lg);
   font-size: var(--text-sm);
-  font-weight: 500;
-  transition: background var(--transition-fast), color var(--transition-fast);
+  font-weight: var(--weight-medium);
 }
 
 .cancel {
