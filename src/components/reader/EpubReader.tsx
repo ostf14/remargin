@@ -56,6 +56,15 @@ function surfaceInk(surface: ReadingSurface): string {
   return surface === 'sepia' ? '#5b4636' : surface === 'dark' ? '#d4d4d4' : '#313131';
 }
 
+// epub.js find() returns a *range* cfi `epubcfi(parent,start,end)`. display() doesn't
+// reliably reposition to a range, so collapse it to the start point `epubcfi(parent+start)`.
+function rangeCfiToStart(cfi: string): string {
+  const m = /^epubcfi\((.+)\)$/.exec(cfi);
+  if (!m) return cfi;
+  const parts = m[1].split(',');
+  return parts.length === 3 ? `epubcfi(${parts[0]}${parts[1]})` : cfi;
+}
+
 function surfaceTheme(surface: ReadingSurface): Record<string, Record<string, string>> {
   const ink = surfaceInk(surface);
   const link = surface === 'dark' ? '#9b9bff' : '#8e5cd6';
@@ -559,7 +568,7 @@ export function EpubReader({ book }: Props) {
       }
       searchHighlightRef.current = null;
     }
-    rendition.display(cfi).then(() => {
+    rendition.display(rangeCfiToStart(cfi)).then(() => {
       try {
         rendition.annotations.highlight(cfi, {}, () => {}, 'search-hit', {
           fill: 'var(--accent)',
