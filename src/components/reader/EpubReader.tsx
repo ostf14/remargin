@@ -56,13 +56,19 @@ function surfaceInk(surface: ReadingSurface): string {
   return surface === 'sepia' ? '#5b4636' : surface === 'dark' ? '#d4d4d4' : '#313131';
 }
 
-// epub.js find() returns a *range* cfi `epubcfi(parent,start,end)`. display() doesn't
-// reliably reposition to a range, so collapse it to the start point `epubcfi(parent+start)`.
-function rangeCfiToStart(cfi: string): string {
-  const m = /^epubcfi\((.+)\)$/.exec(cfi);
-  if (!m) return cfi;
-  const parts = m[1].split(',');
-  return parts.length === 3 ? `epubcfi(${parts[0]}${parts[1]})` : cfi;
+// Internal epub.js shapes we reach into for paginated column positioning (not in the
+// public type surface). In paginated mode the manager lays the section out as
+// horizontal CSS columns; display(cfi) lands the section but not always the column.
+interface EpubView {
+  locationOf?: (target: string) => { left: number; top: number } | undefined;
+}
+interface EpubManager {
+  current?: () => EpubView | undefined;
+  container?: HTMLElement | null;
+}
+interface RenditionInternal {
+  manager?: EpubManager;
+  currentLocation?: () => unknown;
 }
 
 function surfaceTheme(surface: ReadingSurface): Record<string, Record<string, string>> {
@@ -556,23 +562,66 @@ export function EpubReader({ book }: Props) {
     if (searchOpen) runSearch(debouncedSearch);
   }, [debouncedSearch, searchOpen, runSearch]);
 
-  // Scroll the .desk so the highlighted word sits at the vertical centre of the
-  // viewport. epub.js injects the highlight (.epubjs-hl) into the iframe, possibly
-  // async, so retry briefly if it's not there yet. getBoundingClientRect already
-  // reflects the page's CSS zoom transform, so this works at zoom > 1 too.
-  const centerOnHighlight = useCallback((attempt = 0) => {
-    const desk = deskRef.current;
-    const iframe = viewerRef.current?.querySelector('iframe');
-    const hlEl = iframe?.contentDocument?.querySelector('.epubjs-hl');
-    if (!desk || !iframe || !hlEl) {
-      if (attempt < 6) window.setTimeout(() => centerOnHighlight(attempt + 1), 100);
-      return;
+  // Bring the matched word's COLUMN into view. In paginated mode epub.js lays each
+  // section out as horizontal CSS columns inside the iframe, so display(cfi) lands the
+  // section but not always the column. Try the low-level manager (#3), then a
+  // highlight-geometry fallback (#4). The console.logs are intentional — left in for
+  // the user to read in the browser console while we pin down which path works.
+  const positionMatchColumn = useCallback((cfi: string) => {
+    const rendition = renditionRef.current;
+    if (!rendition) return;
+    const r = rendition as unknown as RenditionInternal;
+
+    let positioned = false;
+    // #3 — scroll the manager's container to the cfi's pixel offset.
+    try {
+      const view = r.manager?.current?.();
+      const offset = view?.locationOf?.(cfi);
+      const container = r.manager?.container;
+      console.log('[epub-search] view.locationOf:', offset, 'container?', !!container);
+      if (container && offset && typeof offset.left === 'number') {
+        container.scrollLeft = offset.left;
+        console.log('[epub-search] manager.container.scrollLeft =', offset.left);
+        positioned = true;
+      }
+    } catch (e) {
+      console.log('[epub-search] locationOf error:', e);
     }
-    const hlRect = hlEl.getBoundingClientRect();
-    const iframeRect = iframe.getBoundingClientRect();
-    const deskRect = desk.getBoundingClientRect();
-    const wordY = iframeRect.top + hlRect.top - deskRect.top; // word's offset from desk top
-    desk.scrollTo({ top: desk.scrollTop + wordY - desk.clientHeight / 2, behavior: 'smooth' });
+
+    // #4 — find the highlight, compute its column, scroll the iframe content. Always
+    // logs diagnostics; only acts if #3 didn't position. Retries for async highlight.
+    const tryHl = (attempt: number) => {
+      const iframe = viewerRef.current?.querySelector('iframe');
+      const doc = iframe?.contentDocument;
+      const hlEl = doc?.querySelector('.epubjs-hl') as HTMLElement | null;
+      console.log(
+        '[epub-search] hlEl found:',
+        !!hlEl,
+        'offsetLeft:',
+        hlEl?.offsetLeft,
+        'iframe.clientWidth:',
+        iframe?.clientWidth,
+      );
+      if (!iframe || !hlEl) {
+        if (attempt < 5) window.setTimeout(() => tryHl(attempt + 1), 100);
+        return;
+      }
+      const columnWidth = iframe.clientWidth || 1;
+      const columnIndex = Math.floor(hlEl.offsetLeft / columnWidth);
+      const wrapper: Element | null =
+        doc?.querySelector('.epub-container') ?? doc?.scrollingElement ?? doc?.documentElement ?? null;
+      console.log(
+        '[epub-search] columnIndex:',
+        columnIndex,
+        'wrapper:',
+        wrapper ? wrapper.className || wrapper.tagName : null,
+      );
+      if (!positioned && wrapper) {
+        wrapper.scrollLeft = columnIndex * columnWidth;
+        console.log('[epub-search] wrapper.scrollLeft =', columnIndex * columnWidth);
+      }
+    };
+    tryHl(0);
   }, []);
 
   // Navigate to + highlight the active match whenever the index or result set changes.
@@ -588,21 +637,27 @@ export function EpubReader({ book }: Props) {
         }
         searchHighlightRef.current = null;
       }
-      // display() resolves once the match's section/column is rendered (after 'relocated').
-      rendition.display(rangeCfiToStart(cfi)).then(() => {
+      console.log('[epub-search] display cfi:', cfi);
+      rendition.display(cfi).then(() => {
         try {
           rendition.annotations.highlight(cfi, {}, () => {}, 'search-hit', {
             fill: 'var(--accent)',
             'fill-opacity': '0.35',
           });
           searchHighlightRef.current = cfi;
+        } catch (e) {
+          console.log('[epub-search] highlight error:', e);
+        }
+        const r = rendition as unknown as RenditionInternal;
+        try {
+          console.log('[epub-search] currentLocation after display:', r.currentLocation?.());
         } catch {
           /* ignore */
         }
-        centerOnHighlight();
+        positionMatchColumn(cfi);
       });
     },
-    [centerOnHighlight],
+    [positionMatchColumn],
   );
 
   useEffect(() => {
