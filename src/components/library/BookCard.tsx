@@ -11,15 +11,10 @@ interface Props {
   enriching?: boolean;
   onClick: () => void;
   onRemove: (e: React.MouseEvent) => void;
-  onUpdate: (book: Book) => void;
 }
 
-type Field = 'title' | 'author';
-
-export function BookCard({ book, view, featured, enriching, onClick, onRemove, onUpdate }: Props) {
+export function BookCard({ book, view, featured, enriching, onClick, onRemove }: Props) {
   const progress = Math.round(book.progress ?? 0);
-  const [editing, setEditing] = useState<Field | null>(null);
-  const [draft, setDraft] = useState('');
   // Track the specific URL that failed so a re-enriched cover gets a fresh attempt.
   const [failedUrl, setFailedUrl] = useState<string | null>(null);
   const cover = book.coverUrl && failedUrl !== book.coverUrl ? book.coverUrl : null;
@@ -28,30 +23,6 @@ export function BookCard({ book, view, featured, enriching, onClick, onRemove, o
   const timeLeft = book.wordCount
     ? formatDuration(readingMinutes(book.wordCount * (1 - progress / 100)))
     : null;
-
-  const startEdit = (field: Field, e: React.MouseEvent) => {
-    e.stopPropagation();
-    setDraft(book[field]);
-    setEditing(field);
-  };
-
-  const commit = () => {
-    if (!editing) return;
-    const value = draft.trim();
-    if (value && value !== book[editing]) {
-      onUpdate(editing === 'title' ? { ...book, title: value } : { ...book, author: value });
-    }
-    setEditing(null);
-  };
-
-  const onKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      commit();
-    } else if (e.key === 'Escape') {
-      setEditing(null);
-    }
-  };
 
   const removeBtn = (
     <button
@@ -128,46 +99,8 @@ export function BookCard({ book, view, featured, enriching, onClick, onRemove, o
       </div>
 
       <div className={styles.meta}>
-        {editing === 'title' ? (
-          <input
-            className={styles.metaInput}
-            value={draft}
-            autoFocus
-            onChange={(e) => setDraft(e.target.value)}
-            onBlur={commit}
-            onKeyDown={onKeyDown}
-            onClick={(e) => e.stopPropagation()}
-          />
-        ) : (
-          <div
-            className={styles.title}
-            title="Click to edit title"
-            onClick={(e) => startEdit('title', e)}
-          >
-            {book.title}
-          </div>
-        )}
-
-        {editing === 'author' ? (
-          <input
-            className={styles.metaInput}
-            value={draft}
-            autoFocus
-            onChange={(e) => setDraft(e.target.value)}
-            onBlur={commit}
-            onKeyDown={onKeyDown}
-            onClick={(e) => e.stopPropagation()}
-          />
-        ) : (
-          <div
-            className={styles.author}
-            title="Click to edit author"
-            onClick={(e) => startEdit('author', e)}
-          >
-            {book.author}
-          </div>
-        )}
-
+        <div className={styles.title}>{book.title}</div>
+        <div className={styles.author}>{book.author}</div>
         <div className={styles.foot}>
           <span className={styles.tag}>{book.format}</span>
           {footProgress && <span className={styles.progress}>{footProgress}</span>}

@@ -111,7 +111,7 @@
 }
 
 .meta {
-  border-top: 0.5px solid var(--border);
+  border-top: 0.5px solid var(--border-strong);
   padding: 12px 14px;
 }
 
@@ -131,7 +131,7 @@
   margin-top: 2px;
   font-size: 11px;
   font-weight: var(--weight-normal);
-  color: var(--text-quaternary);
+  color: var(--text-secondary);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -150,7 +150,7 @@
   flex-shrink: 0;
   font-size: 9px;
   font-weight: var(--weight-normal);
-  color: var(--text-quaternary);
+  color: var(--text-tertiary);
   background: var(--bg-tertiary);
   padding: 1px 6px;
   border-radius: 4px;
@@ -161,19 +161,9 @@
 .progress {
   font-size: 9px;
   font-weight: var(--weight-normal);
-  color: var(--text-quaternary);
+  color: var(--text-tertiary);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
-}
-
-.metaInput {
-  width: 100%;
-  font-size: 13px;
-  color: var(--text-primary);
-  background: var(--bg-tertiary);
-  border: 0.5px solid var(--accent);
-  border-radius: var(--radius-sm);
-  padding: 2px 4px;
 }
 
 /* ═══════════════════════ List row (variant C) ═══════════════════════ */
@@ -233,7 +223,7 @@
   margin-top: 1px;
   font-size: 11px;
   font-weight: var(--weight-normal);
-  color: var(--text-quaternary);
+  color: var(--text-secondary);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -258,7 +248,7 @@
   width: 30px;
   font-size: 9px;
   font-weight: var(--weight-normal);
-  color: var(--text-quaternary);
+  color: var(--text-tertiary);
   text-transform: uppercase;
   letter-spacing: 0.04em;
   text-align: right;
