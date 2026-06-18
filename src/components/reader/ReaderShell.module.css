@@ -49,10 +49,16 @@
   color: var(--text-primary);
 }
 
+/* Centered across the whole bar (not just the gap between ← and the icons), so it reads
+   like a book's running head. Absolute + translate keeps it dead-centre regardless of the
+   side elements' widths; pointer-events off so it never blocks the search/icons beneath. */
 .titleBlock {
-  flex: 1;
-  min-width: 0;
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: 50vw;
   text-align: center;
+  pointer-events: none;
 }
 
 .title {
@@ -104,6 +110,8 @@
 .headerSearch {
   flex-shrink: 0;
   width: 200px;
+  /* Title is absolutely centred, so this anchors the search + icons cluster to the right. */
+  margin-left: auto;
   display: flex;
   align-items: center;
   gap: 4px;

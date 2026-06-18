@@ -175,19 +175,49 @@
   color: var(--text-primary);
 }
 
-/* Grid with a larger first (hero) card. */
+/* Grid / list view toggle — active icon is primary, inactive is quietest. */
+.viewToggle {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.viewBtn {
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-full);
+  background: transparent;
+  color: var(--text-quaternary);
+  transition: color var(--duration-fast) var(--ease-out),
+    background var(--duration-fast) var(--ease-out);
+}
+
+.viewBtn:hover {
+  background: var(--bg-tertiary);
+}
+
+.viewBtnActive {
+  color: var(--text-primary);
+}
+
+/* Uniform Notion-style cards — the continue-reading card is marked with a badge, not size. */
 .grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-  gap: 18px;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 16px;
   padding: 16px 20px;
   align-items: start;
 }
 
-/* Continue-reading hero occupies a 2×2 cell — a big cover that anchors the grid. */
-.grid > *:first-child {
-  grid-column: span 2;
-  grid-row: span 2;
+/* List view (variant C) — compact rows. */
+.list {
+  display: flex;
+  flex-direction: column;
+  padding: 8px 20px 24px;
 }
 
 

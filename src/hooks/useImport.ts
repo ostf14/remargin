@@ -17,10 +17,15 @@ const authorIsBad = (b: Book) => {
   return !a || a === 'Unknown Author';
 };
 
+// Same title + author (case-insensitive) counts as the same book already in the library.
+const sameBook = (a: Book, b: Book) =>
+  a.title.trim().toLowerCase() === b.title.trim().toLowerCase() &&
+  a.author.trim().toLowerCase() === b.author.trim().toLowerCase();
+
 // Shared import pipeline: parse → persist → add to library → enrich metadata async.
 // Used by the header "+" / empty-state buttons and the global drag-and-drop.
 export function useImport() {
-  const { addBook, patchBook, setEnriching } = useLibrary();
+  const { books, addBook, patchBook, setEnriching } = useLibrary();
   const [importing, setImporting] = useState(false);
 
   // Fill missing author/cover from Google Books — never blocks, never throws.
@@ -71,6 +76,10 @@ export function useImport() {
           const ext = file.name.split('.').pop()?.toLowerCase();
           if (ext !== 'epub' && ext !== 'pdf') continue;
           const parsed = ext === 'epub' ? await parseEpub(file) : await parsePdf(file);
+          // Skip if the same title+author is already shelved, unless the user insists.
+          if (books.some((b) => sameBook(b, parsed.book))) {
+            if (!window.confirm('This book already exists. Import anyway?')) continue;
+          }
           await saveBookFile(parsed.book.id, parsed.data);
           addBook(parsed.book);
           // Book is in the library now; enrich metadata + count words in the background.
@@ -85,7 +94,7 @@ export function useImport() {
         setImporting(false);
       }
     },
-    [addBook, enrich, countWords],
+    [books, addBook, enrich, countWords],
   );
 
   return { importFiles, importing };

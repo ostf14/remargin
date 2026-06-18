@@ -66,6 +66,7 @@ const DEFAULT_APP_STATE: AppState = {
   epubFontSizeOffset: 0,
   readingSurface: 'light',
   readerMode: 'pages',
+  libraryView: 'grid',
 };
 
 export function loadAppState(): AppState {

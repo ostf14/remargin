@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Search, Plus, Sun, Moon, BookOpen, ChevronDown } from 'lucide-react';
-import type { Book } from '../../types';
+import { Search, Plus, Sun, Moon, BookOpen, ChevronDown, Grid3x3, List } from 'lucide-react';
+import type { Book, LibraryView } from '../../types';
 import { useLibrary } from '../../hooks/useLibrary';
 import { useReader } from '../../hooks/useReader';
 import { useImport } from '../../hooks/useImport';
+import { loadAppState, saveAppState } from '../../services/storage';
 import { BookCard } from './BookCard';
 import { ConfirmDialog } from './ConfirmDialog';
 import styles from './BookGrid.module.css';
@@ -51,8 +52,14 @@ export function BookGrid() {
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const [sort, setSort] = useState<SortKey>('recent');
   const [sortOpen, setSortOpen] = useState(false);
+  const [view, setView] = useState<LibraryView>(() => loadAppState().libraryView);
   const sortRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const setLibraryView = (v: LibraryView) => {
+    setView(v);
+    saveAppState({ ...loadAppState(), libraryView: v });
+  };
 
   // Debounce the search input so filtering doesn't churn on every keystroke.
   useEffect(() => {
@@ -150,6 +157,26 @@ export function BookGrid() {
               )}
             </div>
           )}
+          {hasBooks && (
+            <div className={styles.viewToggle}>
+              <button
+                className={`${styles.viewBtn} ${view === 'grid' ? styles.viewBtnActive : ''}`}
+                onClick={() => setLibraryView('grid')}
+                title="Grid view"
+                aria-label="Grid view"
+              >
+                <Grid3x3 size={15} />
+              </button>
+              <button
+                className={`${styles.viewBtn} ${view === 'list' ? styles.viewBtnActive : ''}`}
+                onClick={() => setLibraryView('list')}
+                title="List view"
+                aria-label="List view"
+              >
+                <List size={15} />
+              </button>
+            </div>
+          )}
           <button
             className={styles.importBtn}
             onClick={openPicker}
@@ -196,12 +223,13 @@ export function BookGrid() {
           </button>
         </div>
       ) : (
-        <div className={styles.grid}>
+        <div className={view === 'list' ? styles.list : styles.grid}>
           {visibleBooks.map((book, i) => (
             <BookCard
               key={book.id}
               book={book}
-              featured={i === 0 && book.id === heroId}
+              view={view}
+              featured={view === 'grid' && i === 0 && book.id === heroId}
               enriching={enrichingIds.has(book.id)}
               onClick={() => openBook(book)}
               onRemove={() => setPendingDelete(book)}

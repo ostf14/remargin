@@ -1,11 +1,13 @@
 import { useState } from 'react';
-import type { Book } from '../../types';
+import { BookOpen, X } from 'lucide-react';
+import type { Book, LibraryView } from '../../types';
 import { readingMinutes, formatDuration } from '../../services/wordCount';
 import styles from './BookCard.module.css';
 
 interface Props {
   book: Book;
-  featured?: boolean; // the big "Continue reading" hero card (first in the grid)
+  view: LibraryView;
+  featured?: boolean; // the "Continue reading" book (grid only): Continue badge + time-left
   enriching?: boolean;
   onClick: () => void;
   onRemove: (e: React.MouseEvent) => void;
@@ -14,15 +16,15 @@ interface Props {
 
 type Field = 'title' | 'author';
 
-export function BookCard({ book, featured, enriching, onClick, onRemove, onUpdate }: Props) {
+export function BookCard({ book, view, featured, enriching, onClick, onRemove, onUpdate }: Props) {
   const progress = Math.round(book.progress ?? 0);
   const [editing, setEditing] = useState<Field | null>(null);
   const [draft, setDraft] = useState('');
   // Track the specific URL that failed so a re-enriched cover gets a fresh attempt.
   const [failedUrl, setFailedUrl] = useState<string | null>(null);
-  const coverBroken = book.coverUrl != null && failedUrl === book.coverUrl;
+  const cover = book.coverUrl && failedUrl !== book.coverUrl ? book.coverUrl : null;
 
-  // Estimated reading time remaining, for the hero overlay ("22% · ~5h left").
+  // Estimated reading time remaining, for the hero card's foot ("22% · ~5h left").
   const timeLeft = book.wordCount
     ? formatDuration(readingMinutes(book.wordCount * (1 - progress / 100)))
     : null;
@@ -37,9 +39,7 @@ export function BookCard({ book, featured, enriching, onClick, onRemove, onUpdat
     if (!editing) return;
     const value = draft.trim();
     if (value && value !== book[editing]) {
-      const updated: Book =
-        editing === 'title' ? { ...book, title: value } : { ...book, author: value };
-      onUpdate(updated);
+      onUpdate(editing === 'title' ? { ...book, title: value } : { ...book, author: value });
     }
     setEditing(null);
   };
@@ -53,51 +53,73 @@ export function BookCard({ book, featured, enriching, onClick, onRemove, onUpdat
     }
   };
 
+  const removeBtn = (
+    <button
+      className={view === 'list' ? styles.rowRemove : styles.removeBtn}
+      onClick={(e) => {
+        e.stopPropagation();
+        onRemove(e);
+      }}
+      title="Remove"
+      aria-label="Remove book"
+    >
+      <X size={14} />
+    </button>
+  );
+
+  // ─────────────────────────── List view (variant C) ───────────────────────────
+  if (view === 'list') {
+    return (
+      <div className={styles.row} onClick={onClick} role="button" tabIndex={0}>
+        <div className={styles.thumb}>
+          {cover ? (
+            <img
+              className={styles.thumbImg}
+              src={cover}
+              alt={book.title}
+              onError={() => setFailedUrl(book.coverUrl)}
+            />
+          ) : (
+            <BookOpen className={styles.thumbIcon} size={16} aria-hidden="true" />
+          )}
+        </div>
+        <div className={styles.info}>
+          <div className={styles.rowTitle}>{book.title}</div>
+          <div className={styles.sub}>{book.author}</div>
+        </div>
+        <div className={styles.rowBar}>
+          <div className={styles.rowBarFill} style={{ width: `${progress}%` }} />
+        </div>
+        <span className={styles.format}>{book.format}</span>
+        {removeBtn}
+      </div>
+    );
+  }
+
+  // ─────────────────── Grid view (Notion-style card, layout A) ───────────────────
+  const footProgress = featured
+    ? `${progress}%${timeLeft ? ` · ~${timeLeft} left` : ''}`
+    : progress > 0
+      ? `${progress}%`
+      : '';
+
   return (
-    <div className={styles.card}>
-      <div className={styles.coverWrap} onClick={onClick}>
-        {book.coverUrl && !coverBroken ? (
+    <div className={styles.card} onClick={onClick} role="button" tabIndex={0}>
+      <div className={styles.coverZone}>
+        {featured && <span className={styles.continueBadge}>Continue</span>}
+        {cover ? (
           <img
             className={styles.cover}
-            src={book.coverUrl}
+            src={cover}
             alt={book.title}
             onError={() => setFailedUrl(book.coverUrl)}
           />
         ) : (
           <div className={styles.placeholder}>
-            <span className={styles.placeholderIcon}>
-              {book.format === 'epub' ? '📖' : '📄'}
-            </span>
-            <span className={styles.placeholderTitle}>{book.title}</span>
+            <BookOpen className={styles.placeholderIcon} size={28} aria-hidden="true" />
           </div>
         )}
-
-        <span className={styles.badge}>{book.format}</span>
-
-        {featured && <span className={styles.continueBadge}>Continue</span>}
-
-        <button
-          className={styles.removeBtn}
-          onClick={(e) => {
-            e.stopPropagation();
-            onRemove(e);
-          }}
-          title="Remove"
-          aria-label="Remove book"
-        >
-          ×
-        </button>
-
-        {!featured && progress > 0 && (
-          <div className={styles.progressBar}>
-            <div className={styles.progressFill} style={{ width: `${progress}%` }} />
-          </div>
-        )}
-
-        {!featured && book.wordCount ? (
-          <span className={styles.timeBadge}>~{formatDuration(readingMinutes(book.wordCount))}</span>
-        ) : null}
-
+        {removeBtn}
         {enriching && (
           <div className={styles.enriching}>
             <div className={styles.spinner} />
@@ -114,10 +136,11 @@ export function BookCard({ book, featured, enriching, onClick, onRemove, onUpdat
             onChange={(e) => setDraft(e.target.value)}
             onBlur={commit}
             onKeyDown={onKeyDown}
+            onClick={(e) => e.stopPropagation()}
           />
         ) : (
           <div
-            className={styles.metaTitle}
+            className={styles.title}
             title="Click to edit title"
             onClick={(e) => startEdit('title', e)}
           >
@@ -133,10 +156,11 @@ export function BookCard({ book, featured, enriching, onClick, onRemove, onUpdat
             onChange={(e) => setDraft(e.target.value)}
             onBlur={commit}
             onKeyDown={onKeyDown}
+            onClick={(e) => e.stopPropagation()}
           />
         ) : (
           <div
-            className={styles.metaAuthor}
+            className={styles.author}
             title="Click to edit author"
             onClick={(e) => startEdit('author', e)}
           >
@@ -144,16 +168,10 @@ export function BookCard({ book, featured, enriching, onClick, onRemove, onUpdat
           </div>
         )}
 
-        {featured && (
-          <div className={styles.featuredProgress}>
-            <div className={styles.fpBar}>
-              <div className={styles.fpFill} style={{ width: `${progress}%` }} />
-            </div>
-            <div className={styles.fpText}>
-              {progress}%{timeLeft ? ` · ~${timeLeft} left` : ''}
-            </div>
-          </div>
-        )}
+        <div className={styles.foot}>
+          <span className={styles.tag}>{book.format}</span>
+          {footProgress && <span className={styles.progress}>{footProgress}</span>}
+        </div>
       </div>
     </div>
   );
