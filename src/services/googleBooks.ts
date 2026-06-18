@@ -36,7 +36,10 @@ export async function fetchBookMetadata(title: string, author?: string): Promise
     const url = `https://www.googleapis.com/books/v1/volumes?q=${parts.join('+')}&maxResults=1`;
 
     const res = await fetch(url);
-    if (!res.ok) return {};
+    if (!res.ok) {
+      console.log('[gbooks] HTTP error:', res.status, res.statusText);
+      return {};
+    }
     const json = (await res.json()) as GoogleBooksResponse;
     const info = json.items?.[0]?.volumeInfo;
     console.log('[gbooks] items:', json.items?.length ?? 0, 'imageLinks:', info?.imageLinks);

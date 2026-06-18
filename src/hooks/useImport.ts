@@ -3,6 +3,7 @@ import type { Book } from '../types';
 import { parseEpub } from '../services/epubParser';
 import { parsePdf } from '../services/pdfParser';
 import { fetchBookMetadata } from '../services/googleBooks';
+import { fetchOpenLibraryCover } from '../services/openLibrary';
 import { countWordsFromData } from '../services/wordCount';
 import { saveBookFile } from '../services/storage';
 import { useLibrary } from './useLibrary';
@@ -31,7 +32,15 @@ export function useImport() {
         const meta = await fetchBookMetadata(book.title, authorIsBad(book) ? undefined : book.author);
         const updates: Partial<Book> = {};
         if (authorIsBad(book) && meta.author) updates.author = meta.author;
-        if (!book.coverUrl && meta.coverUrl) updates.coverUrl = meta.coverUrl;
+
+        let cover = book.coverUrl ? undefined : meta.coverUrl;
+        // Google's keyless quota 429s easily and not every volume has imageLinks —
+        // fall back to Open Library (keyless, far more lenient) for a cover.
+        if (!book.coverUrl && !cover) {
+          const bestAuthor = authorIsBad(book) ? meta.author : book.author;
+          cover = await fetchOpenLibraryCover(book.title, bestAuthor);
+        }
+        if (cover) updates.coverUrl = cover;
         console.log('[gbooks] enrich', book.title, '→', updates, '(had cover:', !!book.coverUrl, ')');
         if (Object.keys(updates).length) patchBook(book.id, updates);
       } finally {

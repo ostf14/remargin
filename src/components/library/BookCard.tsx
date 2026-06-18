@@ -18,6 +18,9 @@ export function BookCard({ book, featured, enriching, onClick, onRemove, onUpdat
   const progress = Math.round(book.progress ?? 0);
   const [editing, setEditing] = useState<Field | null>(null);
   const [draft, setDraft] = useState('');
+  // Track the specific URL that failed so a re-enriched cover gets a fresh attempt.
+  const [failedUrl, setFailedUrl] = useState<string | null>(null);
+  const coverBroken = book.coverUrl != null && failedUrl === book.coverUrl;
 
   // Estimated reading time remaining, for the hero overlay ("22% · ~5h left").
   const timeLeft = book.wordCount
@@ -53,8 +56,13 @@ export function BookCard({ book, featured, enriching, onClick, onRemove, onUpdat
   return (
     <div className={styles.card}>
       <div className={styles.coverWrap} onClick={onClick}>
-        {book.coverUrl ? (
-          <img className={styles.cover} src={book.coverUrl} alt={book.title} />
+        {book.coverUrl && !coverBroken ? (
+          <img
+            className={styles.cover}
+            src={book.coverUrl}
+            alt={book.title}
+            onError={() => setFailedUrl(book.coverUrl)}
+          />
         ) : (
           <div className={styles.placeholder}>
             <span className={styles.placeholderIcon}>
