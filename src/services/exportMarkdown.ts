@@ -116,3 +116,58 @@ export async function exportAllAnnotations(
   const blob = await zip.generateAsync({ type: 'blob' });
   triggerDownload(blob, `${slugify(book.title) || 'book'}_annotations.zip`);
 }
+
+/** All of a book's annotations as ONE Markdown doc: book frontmatter + each entry. */
+export function bookToMarkdown(book: Book, annotations: Annotation[]): string {
+  const frontmatter = [
+    '---',
+    `book: ${yamlString(book.title)}`,
+    `author: ${yamlString(book.author)}`,
+    `annotations: ${annotations.length}`,
+    'tags: []',
+    '---',
+  ].join('\n');
+
+  const entries = annotations
+    .map((a) => {
+      const loc = a.anchor.kind === 'pdf' ? `p. ${a.anchor.page}` : a.anchor.chapter;
+      const quote = a.highlightedText.replace(/\s*\n\s*/g, ' ').trim();
+      const lines = [`> ${quote}`, '', `— ${loc} · ${dateOnly(a.createdAt)}`];
+      if (a.note.trim()) lines.push('', a.note.trim());
+      return lines.join('\n');
+    })
+    .join('\n\n---\n\n');
+
+  return `${frontmatter}\n\n# ${book.title}\n\n${entries}\n`;
+}
+
+/** Export all of a book's annotations as a single downloaded `.md` file. */
+export function exportBookMarkdown(book: Book, annotations: Annotation[]): void {
+  if (annotations.length === 0) return;
+  const blob = new Blob([bookToMarkdown(book, annotations)], {
+    type: 'text/markdown;charset=utf-8',
+  });
+  triggerDownload(blob, `${slugify(book.title) || 'book'}.md`);
+}
+
+/** Export every book's annotations as a `.zip` — one combined `.md` per book. */
+export async function exportLibraryAnnotations(
+  groups: { book: Book; annotations: Annotation[] }[],
+): Promise<void> {
+  const withAny = groups.filter((g) => g.annotations.length > 0);
+  if (withAny.length === 0) {
+    alert('No annotations to export');
+    return;
+  }
+  const zip = new JSZip();
+  const used = new Map<string, number>();
+  for (const { book, annotations } of withAny) {
+    let name = `${slugify(book.title) || 'book'}.md`;
+    const seen = used.get(name) ?? 0;
+    used.set(name, seen + 1);
+    if (seen > 0) name = name.replace(/\.md$/, `-${seen}.md`);
+    zip.file(name, bookToMarkdown(book, annotations));
+  }
+  const blob = await zip.generateAsync({ type: 'blob' });
+  triggerDownload(blob, 'remargin_annotations.zip');
+}

@@ -1,9 +1,19 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Search, Highlighter } from 'lucide-react';
-import type { Annotation } from '../../types';
+import {
+  Search,
+  Highlighter,
+  ChevronDown,
+  ChevronUp,
+  FileDown,
+  Download,
+  Check,
+} from 'lucide-react';
+import type { Annotation, Book } from '../../types';
 import { loadAnnotations } from '../../services/storage';
 import { useLibrary } from '../../hooks/useLibrary';
 import { useReader } from '../../hooks/useReader';
+import { formatCitation } from '../../services/citation';
+import { exportBookMarkdown, exportLibraryAnnotations } from '../../services/exportMarkdown';
 import styles from './NotesView.module.css';
 
 // Solid highlight colours (same palette as the highlight popover), for the card color bar.
@@ -17,6 +27,10 @@ const COLOR_MAP: Record<string, string> = {
 
 function anchorLabel(a: Annotation): string {
   return a.anchor.kind === 'epub' ? a.anchor.chapter : `Page ${a.anchor.page}`;
+}
+
+function citationLocator(a: Annotation): string {
+  return a.anchor.kind === 'pdf' ? `с. ${a.anchor.page}` : a.anchor.chapter;
 }
 
 function formatDate(iso: string): string {
@@ -38,17 +52,20 @@ function byPosition(a: Annotation, b: Annotation): number {
 }
 
 // Cross-book annotation dashboard. Reads every annotation straight from storage; groups
-// them by book (most-recently-annotated first) and jumps to the highlight on click.
+// them by book (most-recently-annotated first, collapsible) and jumps to the highlight
+// on click. Export at three levels: one citation, one book (.md), the whole library (.zip).
 export function NotesView() {
   const { books } = useLibrary();
   const { openBook } = useReader();
   const [annotations, setAnnotations] = useState<Annotation[] | null>(null);
   const [query, setQuery] = useState('');
+  const [collapsed, setCollapsed] = useState<Set<string>>(() => new Set()); // empty = all open
+  const [copiedId, setCopiedId] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
-    loadAnnotations().then((all) => {
-      if (!cancelled) setAnnotations(all);
+    loadAnnotations().then((list) => {
+      if (!cancelled) setAnnotations(list);
     });
     return () => {
       cancelled = true;
@@ -98,6 +115,39 @@ export function NotesView() {
       .sort((x, y) => (x.lastAt < y.lastAt ? 1 : x.lastAt > y.lastAt ? -1 : 0));
   }, [all, needle, bookMap]);
 
+  const toggleCollapse = (id: string) =>
+    setCollapsed((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+
+  const copyCitation = (a: Annotation, book: Book) => {
+    navigator.clipboard
+      .writeText(formatCitation(a.highlightedText, book, citationLocator(a)))
+      .then(() => {
+        setCopiedId(a.id);
+        window.setTimeout(() => setCopiedId((c) => (c === a.id ? null : c)), 1200);
+      })
+      .catch(() => {});
+  };
+
+  const exportEverything = () => {
+    const byBook = new Map<string, Annotation[]>();
+    for (const a of all) {
+      const arr = byBook.get(a.bookId);
+      if (arr) arr.push(a);
+      else byBook.set(a.bookId, [a]);
+    }
+    void exportLibraryAnnotations(
+      [...byBook.entries()].map(([id, anns]) => ({
+        book: bookMap.get(id)!,
+        annotations: [...anns].sort(byPosition),
+      })),
+    );
+  };
+
   if (annotations === null) return <div className={styles.container} />;
 
   if (all.length === 0) {
@@ -127,6 +177,9 @@ export function NotesView() {
           <div className={styles.statNum}>{stats.books}</div>
           <div className={styles.statLabel}>Books</div>
         </div>
+        <button className={styles.exportAll} onClick={exportEverything}>
+          Export all
+        </button>
       </div>
 
       <div className={styles.searchWrap}>
@@ -143,38 +196,76 @@ export function NotesView() {
       {groups.length === 0 ? (
         <div className={styles.noResults}>Nothing matches “{query.trim()}”.</div>
       ) : (
-        groups.map(({ book, anns }) => (
-          <div key={book.id} className={styles.group}>
-            <div className={styles.bookHeader} onClick={() => openBook(book)} role="button" tabIndex={0}>
-              {book.coverUrl ? (
-                <img className={styles.thumb} src={book.coverUrl} alt="" />
-              ) : (
-                <div className={styles.thumbPlaceholder} />
-              )}
-              <div className={styles.bookTitle}>{book.title}</div>
-              <span className={styles.countBadge}>{anns.length}</span>
-            </div>
-
-            {anns.map((a) => (
+        groups.map(({ book, anns }) => {
+          const isCollapsed = collapsed.has(book.id);
+          return (
+            <div key={book.id} className={styles.group}>
               <div
-                key={a.id}
-                className={styles.card}
-                onClick={() => openBook(book, a.anchor)}
+                className={styles.bookHeader}
+                onClick={() => toggleCollapse(book.id)}
                 role="button"
                 tabIndex={0}
               >
-                <div className={styles.colorBar} style={{ background: COLOR_MAP[a.color] }} />
-                <div className={styles.content}>
-                  <div className={styles.quote}>{a.highlightedText}</div>
-                  {a.note.trim() && <div className={styles.comment}>{a.note}</div>}
-                  <div className={styles.footer}>
-                    {anchorLabel(a)} · {formatDate(a.createdAt)}
-                  </div>
-                </div>
+                {book.coverUrl ? (
+                  <img className={styles.thumb} src={book.coverUrl} alt="" />
+                ) : (
+                  <div className={styles.thumbPlaceholder} />
+                )}
+                <div className={styles.bookTitle}>{book.title}</div>
+                <button
+                  className={styles.bookExport}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    exportBookMarkdown(book, anns);
+                  }}
+                  title="Export this book’s annotations (.md)"
+                  aria-label="Export book annotations"
+                >
+                  <FileDown size={14} />
+                </button>
+                <span className={styles.countBadge}>{anns.length}</span>
+                {isCollapsed ? (
+                  <ChevronDown className={styles.chevron} size={14} />
+                ) : (
+                  <ChevronUp className={styles.chevron} size={14} />
+                )}
               </div>
-            ))}
-          </div>
-        ))
+
+              {!isCollapsed &&
+                anns.map((a) => (
+                  <div
+                    key={a.id}
+                    className={styles.card}
+                    onClick={() => openBook(book, a.anchor)}
+                    role="button"
+                    tabIndex={0}
+                  >
+                    <div className={styles.colorBar} style={{ background: COLOR_MAP[a.color] }} />
+                    <div className={styles.content}>
+                      <div className={styles.quote}>{a.highlightedText}</div>
+                      {a.note.trim() && <div className={styles.comment}>{a.note}</div>}
+                      <div className={styles.footer}>
+                        <span className={styles.footMeta}>
+                          {anchorLabel(a)} · {formatDate(a.createdAt)}
+                        </span>
+                        <button
+                          className={styles.copyBtn}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            copyCitation(a, book);
+                          }}
+                          title="Copy citation"
+                          aria-label="Copy citation"
+                        >
+                          {copiedId === a.id ? <Check size={12} /> : <Download size={12} />}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+            </div>
+          );
+        })
       )}
     </div>
   );

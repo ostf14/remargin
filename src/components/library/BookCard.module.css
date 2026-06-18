@@ -1,6 +1,8 @@
 /* ═══════════════════════ Grid card (Notion-style, layout A) ═══════════════════════ */
 .card {
   position: relative;
+  display: flex;
+  flex-direction: column;
   background: var(--bg-secondary);
   border: 0.5px solid var(--border);
   border-radius: 8px;
@@ -14,9 +16,10 @@
 }
 
 /* Fixed-ratio zone: its height follows the card width, so every same-width card is the
-   same height. position: relative anchors the badge / remove button / enriching overlay. */
+   same height. position: relative anchors the remove button / enriching overlay. */
 .coverZone {
   position: relative;
+  flex-shrink: 0;
   aspect-ratio: 4 / 3;
   display: flex;
   align-items: center;
@@ -47,32 +50,21 @@
   border-radius: 4px;
 }
 
-/* Continue card spans 2 columns, so its zone is ~2× wide — a ~2× wider ratio keeps its
-   HEIGHT equal to the single cards (4/3 here would make it ~2× taller and break the grid). */
-.featuredCard .coverZone {
-  aspect-ratio: 8 / 3;
-}
-
-.featuredCard .cover {
-  max-width: 40%;
-}
-
 .placeholderIcon {
   color: var(--text-quaternary);
 }
 
-/* "Continue" marker — kept top-left so the hover delete button (top-right) never covers it. */
-.continueBadge {
+/* Continue-reading card — same size as the rest, marked only by a thin accent strip
+   across the top (above the cover-zone content, clipped to the card's rounded corners). */
+.featuredCard::before {
+  content: '';
   position: absolute;
-  top: 8px;
-  left: 8px;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
   background: var(--accent);
-  color: #fff;
-  font-size: 9px;
-  font-weight: var(--weight-medium);
-  padding: 2px 8px;
-  border-radius: 4px;
-  z-index: 2;
+  z-index: 5;
 }
 
 .removeBtn {
@@ -127,10 +119,13 @@
 }
 
 .meta {
+  flex-shrink: 0;
   border-top: 0.5px solid var(--border-strong);
   padding: 12px 14px;
 }
 
+/* Reserve 2 lines so every card's meta block is the same height (1-line titles don't
+   shrink the card), keeping the grid uniform. */
 .title {
   font-size: 14px;
   font-weight: var(--weight-medium);
@@ -140,7 +135,7 @@
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
-  cursor: text;
+  min-height: 2.6em;
 }
 
 .author {
@@ -151,7 +146,6 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  cursor: text;
 }
 
 .foot {

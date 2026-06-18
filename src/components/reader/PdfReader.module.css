@@ -22,19 +22,30 @@
   padding: 56px var(--space-8) var(--space-8); /* top clears the 48px bar + progress strip */
 }
 
-/* The "page": one cream sheet holding the rendered PDF and the notes margin. The zoom
-   transform must stay instant (continuous wheel-zoom), so transition only colour/shadow,
-   never transform — overriding the global * transition. */
+/* The "page": one sheet holding the rendered PDF and the notes margin. Its background is
+   the PDF paper colour itself (white on light; sepia / dark to match the tinted / inverted
+   canvas), so the margin — which is transparent — is a seamless extension of the page, not
+   a different-coloured frame. Zoom must stay instant, so transition only colour/shadow. */
 .page {
   display: flex;
   align-items: stretch;
   width: 100%;
   max-width: var(--page-max-width);
-  background: var(--reader-page);
+  background: #fff;
   box-shadow: var(--reader-page-shadow);
   border-radius: var(--radius-sm);
   transition: background var(--duration-normal) var(--ease-out),
     box-shadow var(--duration-normal) var(--ease-out);
+}
+
+/* Paper colour per reading surface: sepia = the canvas multiply target; dark = the
+   inverted-white paper (invert(0.92) of #fff). The margin inherits it and stays flush. */
+:global([data-surface='sepia']) .page {
+  background: #f0e6d3;
+}
+
+:global([data-surface='dark']) .page {
+  background: #141414;
 }
 
 .textZone {

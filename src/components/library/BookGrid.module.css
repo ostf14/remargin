@@ -26,6 +26,22 @@
   font-weight: var(--weight-normal);
   color: var(--text-primary);
   line-height: 1;
+  white-space: nowrap;
+}
+
+/* Small accent "beta" tag, raised next to the wordmark. */
+.beta {
+  margin-left: 6px;
+  padding: 1px 5px;
+  font-family: var(--font-body);
+  font-size: 9px;
+  font-weight: var(--weight-medium);
+  color: var(--accent);
+  background: transparent;
+  border: 1px solid var(--accent);
+  border-radius: 4px;
+  vertical-align: super;
+  letter-spacing: 0.02em;
 }
 
 /* Compact underline search, right-aligned just before the action buttons. */
@@ -175,17 +191,24 @@
   color: var(--text-primary);
 }
 
-/* Grid / list / notes view toggle — three buttons; the active one is filled. */
-.viewToggle {
-  flex-shrink: 0;
+/* Floating grid / list / notes switcher — a pill in the bottom-right corner, over content. */
+.viewPill {
+  position: fixed;
+  bottom: 16px;
+  right: 16px;
+  z-index: 100;
   display: flex;
-  align-items: center;
   gap: 2px;
+  padding: 4px;
+  background: var(--bg-secondary);
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius-full);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
 }
 
-.viewBtn {
-  width: 30px;
-  height: 30px;
+.pillBtn {
+  width: 26px;
+  height: 26px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -196,33 +219,25 @@
     background var(--duration-fast) var(--ease-out);
 }
 
-.viewBtn:hover {
+.pillBtn:hover {
   color: var(--text-secondary);
 }
 
-.viewBtnActive {
+.pillBtnActive,
+.pillBtnActive:hover {
   color: var(--text-primary);
   background: var(--bg-tertiary);
 }
 
-.viewBtnActive:hover {
-  color: var(--text-primary);
-}
-
-/* Fixed columns for consistent card sizes — auto-fill + minmax gave chaotic widths at
-   different window sizes. 5 cols on desktop, stepping down responsively; the continue
-   card spans 2 columns. align-items: start so shorter cards aren't stretched to match it. */
+/* Fixed columns for consistent, uniform card sizes — auto-fill + minmax gave chaotic
+   widths. 5 cols on desktop, stepping down responsively. Every card (incl. the continue
+   card) is the same size; align-items: start keeps rows tidy. */
 .grid {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
   gap: 18px;
   padding: 16px 20px;
   align-items: start;
-}
-
-/* Continue-reading card — span 2 columns (1 row). */
-.grid > :first-child.featured {
-  grid-column: span 2;
 }
 
 @media (max-width: 1200px) {
@@ -242,9 +257,6 @@
     grid-template-columns: repeat(2, 1fr);
     gap: 12px;
     padding: 12px;
-  }
-  .grid > :first-child.featured {
-    grid-column: 1 / -1;
   }
 }
 

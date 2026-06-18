@@ -7,14 +7,13 @@ import styles from './BookCard.module.css';
 interface Props {
   book: Book;
   view: LibraryView;
-  featured?: boolean; // the "Continue reading" book (grid only): Continue badge + time-left
+  featured?: boolean; // the "Continue reading" book (grid only): accent strip on the card
   enriching?: boolean;
-  className?: string; // extra grid class (e.g. the featured span) from the parent grid
   onClick: () => void;
   onRemove: (e: React.MouseEvent) => void;
 }
 
-export function BookCard({ book, view, featured, enriching, className, onClick, onRemove }: Props) {
+export function BookCard({ book, view, featured, enriching, onClick, onRemove }: Props) {
   const progress = Math.round(book.progress ?? 0);
   // Track the specific URL that failed so a re-enriched cover gets a fresh attempt.
   const [failedUrl, setFailedUrl] = useState<string | null>(null);
@@ -42,12 +41,7 @@ export function BookCard({ book, view, featured, enriching, className, onClick, 
   // ─────────────────────────── List view (variant C) ───────────────────────────
   if (view === 'list') {
     return (
-      <div
-        className={className ? `${styles.row} ${className}` : styles.row}
-        onClick={onClick}
-        role="button"
-        tabIndex={0}
-      >
+      <div className={styles.row} onClick={onClick} role="button" tabIndex={0}>
         <div className={styles.thumb}>
           {cover ? (
             <img
@@ -74,21 +68,20 @@ export function BookCard({ book, view, featured, enriching, className, onClick, 
   }
 
   // ─────────────────── Grid view (Notion-style card, layout A) ───────────────────
-  const footProgress = featured
-    ? `${progress}%${timeLeft ? ` · ~${timeLeft} left` : ''}`
-    : progress > 0
-      ? `${progress}%`
+  // Progress + time-left on any started/opened book (not just the continue card).
+  const footProgress =
+    book.lastOpened || progress > 0
+      ? `${progress}%${timeLeft ? ` · ~${timeLeft} left` : ''}`
       : '';
 
   return (
     <div
-      className={[styles.card, featured && styles.featuredCard, className].filter(Boolean).join(' ')}
+      className={featured ? `${styles.card} ${styles.featuredCard}` : styles.card}
       onClick={onClick}
       role="button"
       tabIndex={0}
     >
       <div className={styles.coverZone}>
-        {featured && <span className={styles.continueBadge}>Continue</span>}
         {cover ? (
           <img
             className={styles.cover}

@@ -124,7 +124,9 @@ export function BookGrid() {
   return (
     <div className={styles.container}>
       <header className={styles.header}>
-        <h1 className={styles.logo}>remargin</h1>
+        <h1 className={styles.logo}>
+          remargin<span className={styles.beta}>beta</span>
+        </h1>
 
         <div className={styles.actions}>
           {hasBooks && view !== 'notes' && (
@@ -166,34 +168,6 @@ export function BookGrid() {
                   ))}
                 </div>
               )}
-            </div>
-          )}
-          {hasBooks && (
-            <div className={styles.viewToggle}>
-              <button
-                className={`${styles.viewBtn} ${view === 'grid' ? styles.viewBtnActive : ''}`}
-                onClick={() => setLibraryView('grid')}
-                title="Grid view"
-                aria-label="Grid view"
-              >
-                <LayoutGrid size={16} />
-              </button>
-              <button
-                className={`${styles.viewBtn} ${view === 'list' ? styles.viewBtnActive : ''}`}
-                onClick={() => setLibraryView('list')}
-                title="List view"
-                aria-label="List view"
-              >
-                <List size={16} />
-              </button>
-              <button
-                className={`${styles.viewBtn} ${view === 'notes' ? styles.viewBtnActive : ''}`}
-                onClick={() => setLibraryView('notes')}
-                title="Notes view"
-                aria-label="Notes view"
-              >
-                <MessageSquareText size={16} />
-              </button>
             </div>
           )}
           <button
@@ -253,13 +227,41 @@ export function BookGrid() {
                 book={book}
                 view={view}
                 featured={isFeatured}
-                className={isFeatured ? styles.featured : undefined}
                 enriching={enrichingIds.has(book.id)}
                 onClick={() => openBook(book)}
                 onRemove={() => setPendingDelete(book)}
               />
             );
           })}
+        </div>
+      )}
+
+      {hasBooks && (
+        <div className={styles.viewPill}>
+          <button
+            className={`${styles.pillBtn} ${view === 'grid' ? styles.pillBtnActive : ''}`}
+            onClick={() => setLibraryView('grid')}
+            title="Grid view"
+            aria-label="Grid view"
+          >
+            <LayoutGrid size={16} />
+          </button>
+          <button
+            className={`${styles.pillBtn} ${view === 'list' ? styles.pillBtnActive : ''}`}
+            onClick={() => setLibraryView('list')}
+            title="List view"
+            aria-label="List view"
+          >
+            <List size={16} />
+          </button>
+          <button
+            className={`${styles.pillBtn} ${view === 'notes' ? styles.pillBtnActive : ''}`}
+            onClick={() => setLibraryView('notes')}
+            title="Notes view"
+            aria-label="Notes view"
+          >
+            <MessageSquareText size={16} />
+          </button>
         </div>
       )}
 

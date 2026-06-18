@@ -1,5 +1,5 @@
 .container {
-  max-width: 700px;
+  max-width: 800px;
   margin: 0 auto;
   padding: 16px 20px;
 }
@@ -7,6 +7,7 @@
 /* ─────────────────────────── Stats bar ─────────────────────────── */
 .stats {
   display: flex;
+  align-items: center;
   gap: 24px;
   border-bottom: 0.5px solid var(--border);
   padding-bottom: 12px;
@@ -14,7 +15,7 @@
 }
 
 .statNum {
-  font-size: 18px;
+  font-size: 24px;
   font-weight: var(--weight-medium);
   color: var(--text-primary);
   line-height: 1.2;
@@ -23,10 +24,30 @@
 
 .statLabel {
   margin-top: 2px;
-  font-size: 10px;
+  font-size: 11px;
   color: var(--text-quaternary);
   text-transform: uppercase;
   letter-spacing: 0.5px;
+}
+
+/* Export-all ghost button, right side of the stats bar. */
+.exportAll {
+  margin-left: auto;
+  align-self: center;
+  padding: 6px 12px;
+  font-size: 11px;
+  font-weight: var(--weight-medium);
+  color: var(--text-secondary);
+  background: transparent;
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius-full);
+  transition: border-color var(--duration-fast) var(--ease-out),
+    color var(--duration-fast) var(--ease-out);
+}
+
+.exportAll:hover {
+  border-color: var(--accent);
+  color: var(--accent);
 }
 
 /* ─────────────────────────── Search ─────────────────────────── */
@@ -49,7 +70,7 @@
   appearance: none;
   background: transparent;
   border: none;
-  font-size: 12px;
+  font-size: 13px;
   color: var(--text-primary);
   padding: 6px 0;
 }
@@ -96,7 +117,7 @@
 .bookTitle {
   flex: 1;
   min-width: 0;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: var(--weight-medium);
   color: var(--text-primary);
   white-space: nowrap;
@@ -104,9 +125,28 @@
   text-overflow: ellipsis;
 }
 
+.bookExport {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: var(--radius-full);
+  background: transparent;
+  color: var(--text-quaternary);
+  transition: color var(--duration-fast) var(--ease-out),
+    background var(--duration-fast) var(--ease-out);
+}
+
+.bookExport:hover {
+  color: var(--text-secondary);
+  background: var(--bg-tertiary);
+}
+
 .countBadge {
   flex-shrink: 0;
-  font-size: 9px;
+  font-size: 11px;
   color: var(--text-quaternary);
   background: var(--bg-tertiary);
   padding: 1px 7px;
@@ -114,14 +154,19 @@
   font-variant-numeric: tabular-nums;
 }
 
+.chevron {
+  flex-shrink: 0;
+  color: var(--text-quaternary);
+}
+
 /* ─────────────────────────── Annotation card ─────────────────────────── */
 .card {
   display: flex;
-  gap: 8px;
+  gap: 10px;
   background: var(--bg-secondary);
   border: 0.5px solid var(--border);
   border-radius: 6px;
-  padding: 10px 12px;
+  padding: 14px 16px;
   margin-bottom: 6px;
   cursor: pointer;
   transition: border-color var(--duration-fast) var(--ease-out);
@@ -133,7 +178,7 @@
 
 .colorBar {
   flex-shrink: 0;
-  width: 3px;
+  width: 4px;
   border-radius: 2px;
   align-self: stretch;
 }
@@ -144,7 +189,7 @@
 }
 
 .quote {
-  font-size: 11px;
+  font-size: 13px;
   color: var(--text-secondary);
   line-height: 1.5;
   font-style: italic;
@@ -156,15 +201,43 @@
 
 .comment {
   margin-top: 4px;
-  font-size: 10px;
+  font-size: 12px;
   color: var(--text-tertiary);
   line-height: 1.5;
 }
 
 .footer {
-  margin-top: 4px;
-  font-size: 9px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 6px;
+  font-size: 11px;
   color: var(--text-quaternary);
+}
+
+.footMeta {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.copyBtn {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-quaternary);
+  transition: color var(--duration-fast) var(--ease-out);
+}
+
+.copyBtn:hover {
+  color: var(--text-secondary);
 }
 
 /* ─────────────────────────── Empty / no results ─────────────────────────── */
@@ -197,6 +270,6 @@
 .noResults {
   text-align: center;
   padding: 40px 0;
-  font-size: 12px;
+  font-size: 13px;
   color: var(--text-quaternary);
 }
