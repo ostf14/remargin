@@ -233,6 +233,7 @@ export function PdfReader({ book }: Props) {
   const pdfRef = useRef<PDFDocumentProxy | null>(null);
   const renderedPageRef = useRef(0); // page the canvas has actually finished drawing
   const renderTaskRef = useRef<RenderTask | null>(null);
+  const renderSeqRef = useRef(0); // bumped per render; invalidates earlier in-flight renders
   const currentTextLayerRef = useRef<TextLayerInstance | null>(null);
   const selectionCleanupRef = useRef<(() => void) | null>(null);
   // Fit-width scale (page-point → CSS px at 100% zoom). Changes only with the
@@ -337,11 +338,19 @@ export function PdfReader({ book }: Props) {
   }, []);
 
   const renderPage = useCallback(async (pdf: PDFDocumentProxy, num: number) => {
+    console.log('[pdf] renderPage called, page:', num);
     if (!canvasRef.current) return;
-    // Cancel any in-flight render so rapid zoom/page changes can't collide on the canvas.
+    // One render at a time: this token invalidates any earlier in-flight render at each
+    // async boundary below, so two overlapping calls can never both build a text layer
+    // (the cause of the doubled selection text).
+    const seq = ++renderSeqRef.current;
+    // Cancel any in-flight canvas + text-layer render so rapid zoom/page changes can't collide.
     renderTaskRef.current?.cancel();
+    currentTextLayerRef.current?.cancel();
+    currentTextLayerRef.current = null;
 
     const p = await pdf.getPage(num);
+    if (seq !== renderSeqRef.current) return; // superseded while fetching the page
 
     // Fit-width base scale targets a comfortable text width (the page's text zone),
     // leaving room for the notes margin so the whole sheet stays ~900px at 100%.
@@ -389,8 +398,10 @@ export function PdfReader({ book }: Props) {
       if (e instanceof Error && /cancel/i.test(`${e.name} ${e.message}`)) return;
       throw e;
     }
+    if (seq !== renderSeqRef.current) return; // superseded during canvas rasterisation
 
     requestAnimationFrame(() => {
+      if (seq !== renderSeqRef.current) return; // a newer render started before this frame
       const canvas = canvasRef.current;
       if (!canvas) return;
       canvas.width = offscreen.width;
@@ -422,7 +433,7 @@ export function PdfReader({ book }: Props) {
       currentTextLayerRef.current = tl;
       tl.render()
         .then(() => {
-          if (currentTextLayerRef.current !== tl) return; // superseded by a newer render
+          if (seq !== renderSeqRef.current || currentTextLayerRef.current !== tl) return; // superseded
           selectionCleanupRef.current = bindTextLayerSelection(layerEl);
           selectionLayerRef.current?.replaceChildren();
           highlightSearchInTextLayer(layerEl, searchActiveRef.current);
