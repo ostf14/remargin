@@ -32,6 +32,7 @@ export function useImport() {
         const updates: Partial<Book> = {};
         if (authorIsBad(book) && meta.author) updates.author = meta.author;
         if (!book.coverUrl && meta.coverUrl) updates.coverUrl = meta.coverUrl;
+        console.log('[gbooks] enrich', book.title, '→', updates, '(had cover:', !!book.coverUrl, ')');
         if (Object.keys(updates).length) patchBook(book.id, updates);
       } finally {
         setEnriching(book.id, false);

@@ -178,10 +178,16 @@
 /* Grid with a larger first (hero) card. */
 .grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-  gap: 14px;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 18px;
   padding: 16px 20px;
   align-items: start;
+}
+
+/* Continue-reading hero occupies a 2×2 cell — a big cover that anchors the grid. */
+.grid > *:first-child {
+  grid-column: span 2;
+  grid-row: span 2;
 }
 
 

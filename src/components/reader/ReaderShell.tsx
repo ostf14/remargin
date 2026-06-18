@@ -149,15 +149,8 @@ export function ReaderShell({
     if (searchActive) bump();
   }, [searchActive, bump]);
 
-  const searchCounter = search
-    ? search.searching
-      ? 'Searching…'
-      : search.total > 0
-        ? `${search.current} of ${search.total}`
-        : search.query
-          ? 'No results'
-          : ''
-    : '';
+  // Just the position when there are hits; empty otherwise (no "No results"/"Searching").
+  const searchCounter = search && search.total > 0 ? `${search.current} of ${search.total}` : '';
 
   return (
     <div className={`${styles.shell} ${show ? styles.showChrome : ''}`}>
@@ -218,30 +211,22 @@ export function ReaderShell({
                 }
               }}
             />
-            {search.query && (
+            {search.total > 0 && (
               <>
                 <span className={styles.searchCounter}>{searchCounter}</span>
-                <button
-                  className={styles.searchBtn}
-                  onClick={search.onPrev}
-                  disabled={search.total === 0}
-                  aria-label="Previous match"
-                >
+                <button className={styles.searchBtn} onClick={search.onPrev} aria-label="Previous match">
                   <ChevronUp size={14} />
                 </button>
-                <button
-                  className={styles.searchBtn}
-                  onClick={search.onNext}
-                  disabled={search.total === 0}
-                  aria-label="Next match"
-                >
+                <button className={styles.searchBtn} onClick={search.onNext} aria-label="Next match">
                   <ChevronDown size={14} />
                 </button>
               </>
             )}
-            <button className={styles.searchBtn} onClick={search.onClose} aria-label="Close search">
-              <X size={14} />
-            </button>
+            {search.query && (
+              <button className={styles.searchBtn} onClick={search.onClose} aria-label="Clear search">
+                <X size={14} />
+              </button>
+            )}
           </div>
         )}
 

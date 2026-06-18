@@ -103,10 +103,10 @@
 /* ─────────────────────────── Inline header search ─────────────────────────── */
 .headerSearch {
   flex-shrink: 0;
+  width: 200px;
   display: flex;
   align-items: center;
   gap: 4px;
-  min-width: 180px;
   border-bottom: 0.5px solid var(--border);
 }
 
