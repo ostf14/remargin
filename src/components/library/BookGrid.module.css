@@ -195,13 +195,43 @@
   color: var(--text-primary);
 }
 
-/* Uniform Notion-style cards — the continue-reading card is marked with a badge, not size. */
+/* Fixed columns for consistent card sizes — auto-fill + minmax gave chaotic widths at
+   different window sizes. 5 cols on desktop, stepping down responsively; the continue
+   card spans 2 columns. align-items: start so shorter cards aren't stretched to match it. */
 .grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  gap: 16px;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 18px;
   padding: 16px 20px;
   align-items: start;
+}
+
+/* Continue-reading card — span 2 columns (1 row). */
+.grid > :first-child.featured {
+  grid-column: span 2;
+}
+
+@media (max-width: 1200px) {
+  .grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+@media (max-width: 900px) {
+  .grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 600px) {
+  .grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+    padding: 12px;
+  }
+  .grid > :first-child.featured {
+    grid-column: 1 / -1;
+  }
 }
 
 /* List view (variant C) — compact rows. */

@@ -9,11 +9,12 @@ interface Props {
   view: LibraryView;
   featured?: boolean; // the "Continue reading" book (grid only): Continue badge + time-left
   enriching?: boolean;
+  className?: string; // extra grid class (e.g. the featured span) from the parent grid
   onClick: () => void;
   onRemove: (e: React.MouseEvent) => void;
 }
 
-export function BookCard({ book, view, featured, enriching, onClick, onRemove }: Props) {
+export function BookCard({ book, view, featured, enriching, className, onClick, onRemove }: Props) {
   const progress = Math.round(book.progress ?? 0);
   // Track the specific URL that failed so a re-enriched cover gets a fresh attempt.
   const [failedUrl, setFailedUrl] = useState<string | null>(null);
@@ -41,7 +42,12 @@ export function BookCard({ book, view, featured, enriching, onClick, onRemove }:
   // ─────────────────────────── List view (variant C) ───────────────────────────
   if (view === 'list') {
     return (
-      <div className={styles.row} onClick={onClick} role="button" tabIndex={0}>
+      <div
+        className={className ? `${styles.row} ${className}` : styles.row}
+        onClick={onClick}
+        role="button"
+        tabIndex={0}
+      >
         <div className={styles.thumb}>
           {cover ? (
             <img
@@ -75,7 +81,12 @@ export function BookCard({ book, view, featured, enriching, onClick, onRemove }:
       : '';
 
   return (
-    <div className={styles.card} onClick={onClick} role="button" tabIndex={0}>
+    <div
+      className={className ? `${styles.card} ${className}` : styles.card}
+      onClick={onClick}
+      role="button"
+      tabIndex={0}
+    >
       <div className={styles.coverZone}>
         {featured && <span className={styles.continueBadge}>Continue</span>}
         {cover ? (

@@ -214,17 +214,21 @@ export function BookGrid() {
         </div>
       ) : (
         <div className={view === 'list' ? styles.list : styles.grid}>
-          {visibleBooks.map((book, i) => (
-            <BookCard
-              key={book.id}
-              book={book}
-              view={view}
-              featured={view === 'grid' && i === 0 && book.id === heroId}
-              enriching={enrichingIds.has(book.id)}
-              onClick={() => openBook(book)}
-              onRemove={() => setPendingDelete(book)}
-            />
-          ))}
+          {visibleBooks.map((book, i) => {
+            const isFeatured = view === 'grid' && i === 0 && book.id === heroId;
+            return (
+              <BookCard
+                key={book.id}
+                book={book}
+                view={view}
+                featured={isFeatured}
+                className={isFeatured ? styles.featured : undefined}
+                enriching={enrichingIds.has(book.id)}
+                onClick={() => openBook(book)}
+                onRemove={() => setPendingDelete(book)}
+              />
+            );
+          })}
         </div>
       )}
 
