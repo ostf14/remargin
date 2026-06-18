@@ -1,3 +1,5 @@
+import { normalizeLookupTitle } from './googleBooks';
+
 // Open Library cover lookup — a keyless, lenient fallback for when Google Books
 // returns no cover (its anonymous quota 429s easily and many volumes lack imageLinks).
 // Returns undefined on no match / any error — never throws, so it can't break an import.
@@ -6,7 +8,7 @@ export async function fetchOpenLibraryCover(
   author?: string,
 ): Promise<string | undefined> {
   try {
-    const t = title.trim();
+    const t = normalizeLookupTitle(title);
     if (!t || t.toLowerCase() === 'untitled') return undefined;
 
     const params = new URLSearchParams({ title: t, limit: '1', fields: 'cover_i' });

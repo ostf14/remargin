@@ -21,11 +21,22 @@ interface GoogleBooksResponse {
   items?: { volumeInfo?: GoogleVolumeInfo }[];
 }
 
+// PDF metadata titles often carry a trailing series / edition / subtitle in parens
+// ("Aesthetic Theory (Athlone Contemporary European Thinkers)"), which makes both
+// Google's intitle: and Open Library's title= miss the lookup. Strip it before
+// querying — the parens are noise, not part of the actual book title.
+export function normalizeLookupTitle(title: string): string {
+  return title
+    .replace(/\s*\([^)]*\)\s*$/, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 // Look up a book on the Google Books API. Returns {} on no match / any error —
 // never throws, so it can never break an import.
 export async function fetchBookMetadata(title: string, author?: string): Promise<BookMetadata> {
   try {
-    const t = title.trim();
+    const t = normalizeLookupTitle(title);
     // Both query forms need a real title (intitle:). Nothing to search otherwise.
     if (!t || t.toLowerCase() === 'untitled') return {};
     console.log('[gbooks] query:', { title: t, author });
