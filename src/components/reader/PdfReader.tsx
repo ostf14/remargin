@@ -575,12 +575,25 @@ export function PdfReader({ book }: Props) {
     recomputeNotePositions();
   }, [annotations, autoFocusId, recomputeNotePositions]);
 
+  // Scoped to the text layer (onCopy below), so it only cleans copied PDF text — never
+  // text copied from a note or the annotations panel.
   const handleCopy = useCallback((e: React.ClipboardEvent<HTMLDivElement>) => {
     const raw = window.getSelection()?.toString() ?? '';
     if (!raw) return;
     const cleaned = raw
-      .replace(/(\w)-\n(\w)/g, '$1$2')
-      .replace(/([^\n])\n([^\n])/g, '$1 $2');
+      // Soft hyphens (U+00AD) — invisible hyphenation hints.
+      .replace(/\xAD/g, '')
+      // Word broken by a hyphen + line break: keep the hyphen, drop the break
+      // ("по-\nновому" → "по-новому").
+      .replace(/-\s*\n\s*/g, '-')
+      // Line wrap mid-sentence (letter/comma/semicolon → letter) becomes a space.
+      // Sentence/paragraph-ending punctuation isn't in the class, so those breaks survive.
+      .replace(/([а-яёa-z,;])\s*\n\s*([а-яёa-z])/gi, '$1 $2')
+      // Quote-glyph extraction artifacts.
+      .replace(/´/g, '«')
+      .replace(/ª/g, '»')
+      // Collapse runs of spaces (not newlines — line structure is kept).
+      .replace(/ {2,}/g, ' ');
     e.clipboardData.setData('text/plain', cleaned);
     e.preventDefault();
   }, []);
