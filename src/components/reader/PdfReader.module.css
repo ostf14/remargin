@@ -88,9 +88,24 @@
   z-index: 3;
 }
 
-/* Native selection is hidden — we paint a gap-free highlight into .selectionLayer. */
+/* The text layer exists only to back the browser's Selection; the visible text is the
+   canvas. Its spans must stay fully transparent (pdf.js sets this) — reasserted here so
+   no global colour rule can ever leak in and double the text over the canvas. */
+:global(.textLayer) span,
+:global(.textLayer) br,
+:global(.textLayer) div {
+  color: transparent !important;
+  -webkit-text-fill-color: transparent !important;
+}
+
+/* Native selection is hidden — we paint a gap-free band into .selectionLayer. The text
+   must stay transparent while selected too, else the global
+   `::selection { color: var(--text-primary) }` repaints the selected spans white and
+   doubles them over the canvas. (Background stays transparent — our band is the highlight.) */
 :global(.textLayer) ::selection {
   background: transparent;
+  color: transparent !important;
+  -webkit-text-fill-color: transparent !important;
 }
 
 .loading {
