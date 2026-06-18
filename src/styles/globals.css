@@ -180,6 +180,12 @@ body {
   line-height: var(--leading-normal);
   min-height: 100vh;
   overflow: hidden;
+  /* Respect device safe areas when installed as a PWA (notches, home indicator).
+     Zero on desktop, so no visible effect there. */
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
 }
 
 #root {
