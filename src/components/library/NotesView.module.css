@@ -276,3 +276,13 @@
   font-size: 13px;
   color: var(--text-quaternary);
 }
+
+/* ─────────────────────────── Mobile (≤480px) ─────────────────────────── */
+@media (max-width: 480px) {
+  .container {
+    padding: 12px;
+  }
+  .quote {
+    font-size: 12px;
+  }
+}

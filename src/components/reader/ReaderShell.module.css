@@ -369,3 +369,35 @@
   font-variant-numeric: tabular-nums;
   pointer-events: none;
 }
+
+/* ─────────────────────────── Mobile (≤480px) ─────────────────────────── */
+@media (max-width: 480px) {
+  .topBar {
+    height: 40px;
+    padding: 0 10px;
+  }
+  .title {
+    font-size: 11px;
+  }
+  .subtitle {
+    display: none;
+  }
+  .navLeft,
+  .navRight {
+    width: 36px;
+  }
+  .chevron {
+    width: 18px;
+    height: 18px;
+  }
+  .settings {
+    left: 0;
+    right: 0;
+    width: auto;
+    border-radius: 0;
+  }
+  .progressPill {
+    font-size: 10px;
+    padding: 3px 8px;
+  }
+}

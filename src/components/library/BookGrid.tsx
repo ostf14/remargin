@@ -17,6 +17,7 @@ import { useImport } from '../../hooks/useImport';
 import { loadAppState, saveAppState } from '../../services/storage';
 import { BookCard } from './BookCard';
 import { NotesView } from './NotesView';
+import { BookContextMenu } from './BookContextMenu';
 import { ConfirmDialog } from './ConfirmDialog';
 import styles from './BookGrid.module.css';
 
@@ -59,6 +60,7 @@ export function BookGrid() {
   const { openBook, theme, toggleTheme } = useReader();
   const { importFiles } = useImport();
   const [pendingDelete, setPendingDelete] = useState<Book | null>(null);
+  const [menu, setMenu] = useState<{ book: Book; x: number; y: number } | null>(null);
   const [query, setQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const [sort, setSort] = useState<SortKey>('recent');
@@ -120,7 +122,13 @@ export function BookGrid() {
   return (
     <div className={styles.container}>
       <header className={styles.header}>
-        <h1 className={styles.logo}>
+        <h1
+          className={styles.logo}
+          onClick={() => setLibraryView('grid')}
+          role="button"
+          tabIndex={0}
+          title="Library"
+        >
           remargin<span className={styles.beta}>beta</span>
         </h1>
 
@@ -225,6 +233,10 @@ export function BookGrid() {
                 enriching={enrichingIds.has(book.id)}
                 onClick={() => openBook(book)}
                 onRemove={() => setPendingDelete(book)}
+                onContextMenu={(e, b) => {
+                  e.preventDefault();
+                  setMenu({ book: b, x: e.clientX, y: e.clientY });
+                }}
               />
             );
           })}
@@ -262,6 +274,19 @@ export function BookGrid() {
             <MessageSquareText size={16} />
           </button>
         </div>
+      )}
+
+      {menu && (
+        <BookContextMenu
+          book={menu.book}
+          x={menu.x}
+          y={menu.y}
+          onClose={() => setMenu(null)}
+          onDelete={() => {
+            setPendingDelete(menu.book);
+            setMenu(null);
+          }}
+        />
       )}
 
       {pendingDelete && (

@@ -246,7 +246,7 @@ export function PdfReader({ book }: Props) {
   const baseScaleRef = useRef(1);
   const lastRenderedPageRef = useRef(0);
   const { patchBook } = useLibrary();
-  const { showAnnotations, pendingAnchor } = useReader();
+  const { showAnnotations, pendingAnchor, readerMode } = useReader();
   const { annotations, addAnnotation, updateAnnotation, deleteAnnotation } = useAnnotations(book.id);
   const annotationsRef = useRef(annotations);
   annotationsRef.current = annotations;
@@ -284,6 +284,16 @@ export function PdfReader({ book }: Props) {
   }, []);
   // Keydown handler is registered once but must see fresh state — bridge via a ref.
   const shortcutKeyRef = useRef<(e: KeyboardEvent) => void>(() => {});
+
+  // Scroll / flip reading modes aren't built for PDF yet — toast on an actual change
+  // (not on mount); the reader stays single-page.
+  const prevModeRef = useRef(readerMode);
+  useEffect(() => {
+    if (readerMode === prevModeRef.current) return;
+    prevModeRef.current = readerMode;
+    if (readerMode === 'scroll') showToast('Scroll mode — coming soon');
+    else if (readerMode === 'flip') showToast('Flip mode — coming soon');
+  }, [readerMode, showToast]);
 
   // In-book search — always visible in the header (no open/close toggle).
   const [searchQuery, setSearchQuery] = useState('');

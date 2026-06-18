@@ -11,9 +11,18 @@ interface Props {
   enriching?: boolean;
   onClick: () => void;
   onRemove: (e: React.MouseEvent) => void;
+  onContextMenu?: (e: React.MouseEvent, book: Book) => void;
 }
 
-export function BookCard({ book, view, featured, enriching, onClick, onRemove }: Props) {
+export function BookCard({
+  book,
+  view,
+  featured,
+  enriching,
+  onClick,
+  onRemove,
+  onContextMenu,
+}: Props) {
   const progress = Math.round(book.progress ?? 0);
   // Track the specific URL that failed so a re-enriched cover gets a fresh attempt.
   const [failedUrl, setFailedUrl] = useState<string | null>(null);
@@ -41,7 +50,13 @@ export function BookCard({ book, view, featured, enriching, onClick, onRemove }:
   // ─────────────────────────── List view (variant C) ───────────────────────────
   if (view === 'list') {
     return (
-      <div className={styles.row} onClick={onClick} role="button" tabIndex={0}>
+      <div
+        className={styles.row}
+        onClick={onClick}
+        onContextMenu={(e) => onContextMenu?.(e, book)}
+        role="button"
+        tabIndex={0}
+      >
         <div className={styles.thumb}>
           {cover ? (
             <img
@@ -78,6 +93,7 @@ export function BookCard({ book, view, featured, enriching, onClick, onRemove }:
     <div
       className={featured ? `${styles.card} ${styles.featuredCard}` : styles.card}
       onClick={onClick}
+      onContextMenu={(e) => onContextMenu?.(e, book)}
       role="button"
       tabIndex={0}
     >

@@ -304,3 +304,19 @@
 .rowRemove:hover {
   color: var(--danger);
 }
+
+/* ─────────────────────────── Mobile (≤480px) ─────────────────────────── */
+@media (max-width: 480px) {
+  .coverZone {
+    padding: 10px;
+  }
+  .meta {
+    padding: 8px 10px;
+  }
+  .title {
+    font-size: 12px;
+  }
+  .author {
+    font-size: 10px;
+  }
+}

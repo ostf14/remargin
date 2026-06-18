@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import ePub, { type Rendition, type Book as EpubBook } from 'epubjs';
-import type { Book, EpubAnchor, HighlightColor, ReadingSurface } from '../../types';
+import type { Annotation, Book, EpubAnchor, HighlightColor, ReadingSurface } from '../../types';
 import { useLibrary } from '../../hooks/useLibrary';
 import { useAnnotations } from '../../hooks/useAnnotations';
 import { useReader } from '../../hooks/useReader';
@@ -99,9 +99,11 @@ export function EpubReader({ book }: Props) {
   const epubRef = useRef<EpubBook | null>(null);
   const renditionRef = useRef<Rendition | null>(null);
   const { patchBook } = useLibrary();
-  const { showAnnotations, readingSurface, pendingAnchor } = useReader();
+  const { showAnnotations, readingSurface, pendingAnchor, readerMode } = useReader();
   const readingSurfaceRef = useRef(readingSurface);
   readingSurfaceRef.current = readingSurface;
+  const readerModeRef = useRef(readerMode);
+  readerModeRef.current = readerMode;
   // Opened from the Notes view targeting a highlight → start at its CFI instead of the
   // saved reading position. Captured once at mount (openBook resets pendingAnchor per open).
   const initialCfiRef = useRef(
@@ -120,6 +122,9 @@ export function EpubReader({ book }: Props) {
   const [loading, setLoading] = useState(true);
   const [wordCount, setWordCount] = useState(book.wordCount);
   const [popover, setPopover] = useState<PopoverState | null>(null);
+  const [savedPopover, setSavedPopover] = useState<{ x: number; y: number; id: string } | null>(
+    null,
+  );
   const [notePositions, setNotePositions] = useState<PositionedNote[]>([]);
   const [autoFocusId, setAutoFocusId] = useState<string | null>(null);
   const autoFocusIdRef = useRef<string | null>(null);
@@ -271,7 +276,7 @@ export function EpubReader({ book }: Props) {
         width: '100%',
         height: '100%',
         spread: 'none',
-        flow: 'paginated',
+        flow: readerModeRef.current === 'scroll' ? 'scrolled-doc' : 'paginated',
       });
       renditionRef.current = rendition;
 
@@ -385,6 +390,31 @@ export function EpubReader({ book }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [book.id]);
 
+  // Clicking an existing highlight opens the saved-highlight popover (recolour / edit
+  // note / delete), positioned over the highlight like the create popover.
+  const openSavedHighlight = useCallback((a: Annotation) => {
+    const rendition = renditionRef.current;
+    if (!rendition || a.anchor.kind !== 'epub') return;
+    let range: Range | null = null;
+    try {
+      range = rendition.getRange(a.anchor.cfi);
+    } catch {
+      range = null;
+    }
+    const iframe = viewerRef.current?.querySelector('iframe');
+    const iframeRect = iframe?.getBoundingClientRect() ?? { left: 0, top: 0 };
+    if (range) {
+      const rect = range.getBoundingClientRect();
+      setSavedPopover({
+        x: rect.left + iframeRect.left + rect.width / 2,
+        y: rect.top + iframeRect.top,
+        id: a.id,
+      });
+    } else {
+      setSavedPopover({ x: window.innerWidth / 2, y: window.innerHeight / 2, id: a.id });
+    }
+  }, []);
+
   useEffect(() => {
     const rendition = renditionRef.current;
     if (!rendition) return;
@@ -397,7 +427,7 @@ export function EpubReader({ book }: Props) {
         rendition.annotations.highlight(
           a.anchor.cfi,
           {},
-          () => {},
+          () => openSavedHighlight(a),
           'hl',
           {
             fill: `var(--highlight-${a.color})`,
@@ -407,7 +437,7 @@ export function EpubReader({ book }: Props) {
         );
       }
     });
-  }, [annotations]);
+  }, [annotations, openSavedHighlight]);
 
   // Recompute note positions whenever annotations, focus, or the page changes.
   useEffect(() => {
@@ -464,6 +494,29 @@ export function EpubReader({ book }: Props) {
   const handleSaveNote = (id: string, text: string) => {
     updateAnnotation(id, { note: text });
     if (autoFocusId === id) setAutoFocusId(null);
+  };
+
+  // Saved-highlight popover actions (recolour / edit note / delete the clicked highlight).
+  const recolorSaved = (color: HighlightColor) => {
+    if (savedPopover) updateAnnotation(savedPopover.id, { color });
+    setSavedPopover(null);
+  };
+  const editSavedNote = () => {
+    if (savedPopover) setAutoFocusId(savedPopover.id);
+    setSavedPopover(null);
+  };
+  const deleteSaved = () => {
+    if (!savedPopover) return;
+    const a = annotationsRef.current.find((x) => x.id === savedPopover.id);
+    if (a?.anchor.kind === 'epub') {
+      try {
+        renditionRef.current?.annotations.remove(a.anchor.cfi, 'highlight');
+      } catch {
+        /* already gone */
+      }
+    }
+    deleteAnnotation(savedPopover.id);
+    setSavedPopover(null);
   };
 
   // Keyboard shortcuts over the current selection (ignored while typing in a note
@@ -586,6 +639,24 @@ export function EpubReader({ book }: Props) {
     searchFlowRef.current = false;
   }, [debouncedSearch]);
 
+  // Reading mode: scroll → scrolled-doc, pages → paginated, flip → "coming soon" (no
+  // change). Skips the initial mount, where the flow was already set at render.
+  const prevModeRef = useRef(readerMode);
+  useEffect(() => {
+    if (readerMode === prevModeRef.current) return;
+    prevModeRef.current = readerMode;
+    if (readerMode === 'flip') {
+      showToast('Flip mode — coming soon');
+      return;
+    }
+    const rendition = renditionRef.current;
+    if (!rendition || searchFlowRef.current) return; // don't fight a search-flow switch
+    const cfi = rendition.currentLocation()?.start?.cfi;
+    rendition.flow(readerMode === 'scroll' ? 'scrolled-doc' : 'paginated');
+    if (cfi) rendition.display(cfi);
+    setRelocateTick((t) => t + 1);
+  }, [readerMode, showToast]);
+
   // Centre the active match in the visible reading viewport — the same outcome the PDF
   // reader gives by scrolling its container to the match. In scrolled-doc mode the text
   // lives in an iframe inside epub.js's own scroll container, which itself sits inside
@@ -614,8 +685,9 @@ export function EpubReader({ book }: Props) {
       const rendition = renditionRef.current;
       if (!rendition) return;
       // Lazily switch to scrolled-doc on the first jump (see the flow effect) so the
-      // reflow happens during the jump, not the instant search opened.
-      if (!searchFlowRef.current) {
+      // reflow happens during the jump, not the instant search opened. In scroll reading
+      // mode we're already scrolled-doc, so there's nothing to switch.
+      if (readerModeRef.current !== 'scroll' && !searchFlowRef.current) {
         rendition.flow('scrolled-doc');
         searchFlowRef.current = true;
       }
@@ -680,6 +752,7 @@ export function EpubReader({ book }: Props) {
       subtitle={chapter || 'Chapter'}
       progress={percentage}
       progressText={progressText}
+      showNav={readerMode !== 'scroll'}
       onPrev={() => renditionRef.current?.prev()}
       onNext={() => renditionRef.current?.next()}
       search={{
@@ -699,7 +772,12 @@ export function EpubReader({ book }: Props) {
     >
       <div className={styles.wrapper}>
         <div className={styles.readerArea}>
-          <div ref={deskRef} className={`${styles.desk}${searchQuery ? ` ${styles.searching}` : ''}`}>
+          <div
+            ref={deskRef}
+            className={`${styles.desk}${searchQuery ? ` ${styles.searching}` : ''}${
+              readerMode === 'scroll' ? ` ${styles.scrollMode}` : ''
+            }`}
+          >
             <div
               ref={pageElRef}
               className={styles.page}
@@ -738,6 +816,20 @@ export function EpubReader({ book }: Props) {
           onHighlight={handleHighlight}
           onNote={handleNote}
           onDismiss={() => setPopover(null)}
+        />
+      )}
+
+      {savedPopover && (
+        <HighlightPopover
+          x={savedPopover.x}
+          y={savedPopover.y}
+          onHighlight={recolorSaved}
+          onNote={editSavedNote}
+          onDelete={deleteSaved}
+          noteLabel={
+            annotations.find((a) => a.id === savedPopover.id)?.note.trim() ? 'Edit note' : 'Note'
+          }
+          onDismiss={() => setSavedPopover(null)}
         />
       )}
 

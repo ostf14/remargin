@@ -27,6 +27,7 @@
   color: var(--text-primary);
   line-height: 1;
   white-space: nowrap;
+  cursor: pointer;
 }
 
 /* Small accent "beta" tag, raised next to the wordmark. */
@@ -359,4 +360,33 @@
 .clearBtn:hover {
   border-color: var(--accent);
   color: var(--accent);
+}
+
+/* ─────────────────────────── Mobile (≤480px) ─────────────────────────── */
+@media (max-width: 480px) {
+  .grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+    padding: 10px 12px;
+  }
+  .header {
+    height: 44px;
+    padding: 8px 12px;
+    gap: 8px;
+  }
+  .logo {
+    font-size: 16px;
+  }
+  /* Drop the inline search on narrow screens (limited room); sort + import + theme stay. */
+  .searchWrap {
+    display: none;
+  }
+  .viewPill {
+    bottom: 8px;
+    right: 8px;
+  }
+  .pillBtn {
+    width: 24px;
+    height: 24px;
+  }
 }

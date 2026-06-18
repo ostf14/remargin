@@ -1,0 +1,68 @@
+.menu {
+  position: fixed;
+  z-index: 200;
+  min-width: 184px;
+  display: flex;
+  flex-direction: column;
+  padding: 4px;
+  background: var(--bg-secondary);
+  border: 0.5px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  background: transparent;
+  border-radius: 6px;
+  text-align: left;
+  white-space: nowrap;
+  transition: background var(--duration-fast) var(--ease-out),
+    color var(--duration-fast) var(--ease-out);
+}
+
+.item:hover:not(:disabled) {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
+.item:disabled {
+  cursor: default;
+  color: var(--text-quaternary);
+}
+
+.danger {
+  color: var(--danger);
+}
+
+.danger:hover:not(:disabled) {
+  background: var(--bg-tertiary);
+  color: var(--danger);
+}
+
+.divider {
+  height: 0.5px;
+  margin: 4px 6px;
+  background: var(--border);
+}
+
+.spinner {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  border: 2px solid rgba(150, 150, 150, 0.3);
+  border-top-color: var(--text-secondary);
+  border-radius: var(--radius-full);
+  animation: ctxspin 0.6s linear infinite;
+}
+
+@keyframes ctxspin {
+  to {
+    transform: rotate(360deg);
+  }
+}

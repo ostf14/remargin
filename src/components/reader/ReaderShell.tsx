@@ -49,6 +49,7 @@ interface Props {
   search?: SearchControls; // in-book find, always shown inline in the header
   zoom?: ZoomControls; // PDF only
   font?: FontControls; // EPUB only
+  showNav?: boolean; // page-turn side zones; false in EPUB scroll mode
   children: ReactNode;
 }
 
@@ -84,6 +85,7 @@ export function ReaderShell({
   search,
   zoom,
   font,
+  showNav = true,
   children,
 }: Props) {
   const {
@@ -156,8 +158,8 @@ export function ReaderShell({
     <div className={`${styles.shell} ${show ? styles.showChrome : ''}`}>
       <div className={styles.content}>{children}</div>
 
-      {/* Side page-turn zones (hidden while the notes panel is open). */}
-      {!showAnnotations && (
+      {/* Side page-turn zones (hidden while the notes panel is open, or in scroll mode). */}
+      {showNav && !showAnnotations && (
         <>
           <div
             className={styles.navLeft}
