@@ -200,15 +200,19 @@ function paintSelectionHighlight(
   textLayer: HTMLElement,
   pageContainer: HTMLElement,
   selectionLayer: HTMLElement,
+  zoom: number,
 ) {
   selectionLayer.replaceChildren();
   for (const line of computeSelectionLineRects(textLayer, pageContainer)) {
     const div = document.createElement('div');
     div.style.position = 'absolute';
-    div.style.left = `${line.left}px`;
-    div.style.top = `${line.top}px`;
-    div.style.width = `${line.right - line.left}px`;
-    div.style.height = `${line.bottom - line.top}px`;
+    // computeSelectionLineRects returns post-transform (screen) px, but this layer lives
+    // inside the zoom-scaled .page — divide by zoom to get its local coords, else the band
+    // is scaled twice and drifts away from the text at any zoom ≠ 1.
+    div.style.left = `${line.left / zoom}px`;
+    div.style.top = `${line.top / zoom}px`;
+    div.style.width = `${(line.right - line.left) / zoom}px`;
+    div.style.height = `${(line.bottom - line.top) / zoom}px`;
     div.style.background = 'rgba(252, 211, 77, 0.35)';
     div.style.borderRadius = '2px';
     selectionLayer.append(div);
@@ -530,7 +534,7 @@ export function PdfReader({ book }: Props) {
     const selectionLayer = selectionLayerRef.current;
     if (!layer || !pageContainer || !selectionLayer) return;
 
-    const paint = () => paintSelectionHighlight(layer, pageContainer, selectionLayer);
+    const paint = () => paintSelectionHighlight(layer, pageContainer, selectionLayer, zoomRef.current);
     const onMouseDown = () => {
       selectionLayer.replaceChildren();
       setSelPopover(null);

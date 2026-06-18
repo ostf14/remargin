@@ -58,13 +58,14 @@
 }
 
 /* Reading surface. Sepia: multiply the canvas onto the cream page sheet so the white
-   PDF background takes the tint (filter: sepia barely touches white). Dark: invert the
-   whole page (canvas + highlights together) so it goes dark and stays hue-correct. */
+   PDF background takes the tint (filter: sepia barely touches white). Dark: invert only
+   the canvas (not the whole container) so the page goes dark with light text, while the
+   highlight / selection / search overlays keep their true colours and stay readable. */
 :global([data-surface='sepia']) .pageContainer canvas {
   mix-blend-mode: multiply;
 }
 
-:global([data-surface='dark']) .pageContainer {
+:global([data-surface='dark']) .pageContainer canvas {
   filter: invert(0.92) hue-rotate(180deg);
 }
 
