@@ -109,10 +109,6 @@ export function BookGrid() {
   // (true by default — 'recent' sort puts it first — and suppressed while searching).
   const heroId = !searching && continueBook ? continueBook.id : null;
 
-  const countLabel = searching
-    ? `${visibleBooks.length} of ${books.length}`
-    : `${books.length} ${books.length === 1 ? 'book' : 'books'}`;
-
   const openPicker = () => fileInputRef.current?.click();
   const onFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files?.length) importFiles(e.target.files);
@@ -141,7 +137,6 @@ export function BookGrid() {
               />
             </div>
           )}
-          {hasBooks && view !== 'notes' && <span className={styles.count}>{countLabel}</span>}
           {hasBooks && view !== 'notes' && (
             <div className={styles.sortWrap} ref={sortRef}>
               <button
@@ -238,6 +233,10 @@ export function BookGrid() {
 
       {hasBooks && (
         <div className={styles.viewPill}>
+          <span className={styles.pillCount}>
+            {books.length} {books.length === 1 ? 'book' : 'books'}
+          </span>
+          <span className={styles.pillDivider} />
           <button
             className={`${styles.pillBtn} ${view === 'grid' ? styles.pillBtnActive : ''}`}
             onClick={() => setLibraryView('grid')}

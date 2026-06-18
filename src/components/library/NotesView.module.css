@@ -188,15 +188,15 @@
   min-width: 0;
 }
 
+/* Full text, no clamp — long notes just make the card taller. break-word stops
+   long unbroken strings (URLs etc.) from spilling past the card edge. */
 .quote {
   font-size: 13px;
   color: var(--text-secondary);
   line-height: 1.5;
   font-style: italic;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
+  overflow-wrap: break-word;
+  word-break: break-word;
 }
 
 .comment {
@@ -204,6 +204,9 @@
   font-size: 12px;
   color: var(--text-tertiary);
   line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  word-break: break-word;
 }
 
 .footer {
@@ -223,7 +226,7 @@
   white-space: nowrap;
 }
 
-.copyBtn {
+.noteExport {
   flex-shrink: 0;
   display: flex;
   align-items: center;
@@ -236,7 +239,7 @@
   transition: color var(--duration-fast) var(--ease-out);
 }
 
-.copyBtn:hover {
+.noteExport:hover {
   color: var(--text-secondary);
 }
 

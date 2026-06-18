@@ -90,14 +90,6 @@
   gap: 6px;
 }
 
-.count {
-  font-size: 12px;
-  font-weight: var(--weight-normal);
-  color: var(--text-quaternary);
-  white-space: nowrap;
-  font-variant-numeric: tabular-nums;
-}
-
 .sortWrap {
   position: relative;
   flex-shrink: 0;
@@ -198,12 +190,29 @@
   right: 16px;
   z-index: 100;
   display: flex;
+  align-items: center;
   gap: 2px;
   padding: 4px;
   background: var(--bg-secondary);
   border: 0.5px solid var(--border);
   border-radius: var(--radius-full);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+/* "N books", to the left of the view buttons inside the pill. */
+.pillCount {
+  padding: 0 4px 0 8px;
+  font-size: 11px;
+  color: var(--text-quaternary);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.pillDivider {
+  width: 1px;
+  height: 18px;
+  margin-right: 2px;
+  background: var(--border);
 }
 
 .pillBtn {

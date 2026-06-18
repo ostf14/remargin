@@ -82,6 +82,7 @@ export function BookCard({ book, view, featured, enriching, onClick, onRemove }:
       tabIndex={0}
     >
       <div className={styles.coverZone}>
+        {featured && <span className={styles.continueBadge}>Continue</span>}
         {cover ? (
           <img
             className={styles.cover}

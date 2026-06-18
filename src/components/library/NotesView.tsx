@@ -1,19 +1,14 @@
 import { useEffect, useMemo, useState } from 'react';
-import {
-  Search,
-  Highlighter,
-  ChevronDown,
-  ChevronUp,
-  FileDown,
-  Download,
-  Check,
-} from 'lucide-react';
-import type { Annotation, Book } from '../../types';
+import { Search, Highlighter, ChevronDown, ChevronUp, FileDown, Download } from 'lucide-react';
+import type { Annotation } from '../../types';
 import { loadAnnotations } from '../../services/storage';
 import { useLibrary } from '../../hooks/useLibrary';
 import { useReader } from '../../hooks/useReader';
-import { formatCitation } from '../../services/citation';
-import { exportBookMarkdown, exportLibraryAnnotations } from '../../services/exportMarkdown';
+import {
+  exportSingleAnnotation,
+  exportAllAnnotations,
+  exportAllBooks,
+} from '../../services/exportMarkdown';
 import styles from './NotesView.module.css';
 
 // Solid highlight colours (same palette as the highlight popover), for the card color bar.
@@ -27,10 +22,6 @@ const COLOR_MAP: Record<string, string> = {
 
 function anchorLabel(a: Annotation): string {
   return a.anchor.kind === 'epub' ? a.anchor.chapter : `Page ${a.anchor.page}`;
-}
-
-function citationLocator(a: Annotation): string {
-  return a.anchor.kind === 'pdf' ? `с. ${a.anchor.page}` : a.anchor.chapter;
 }
 
 function formatDate(iso: string): string {
@@ -52,15 +43,14 @@ function byPosition(a: Annotation, b: Annotation): number {
 }
 
 // Cross-book annotation dashboard. Reads every annotation straight from storage; groups
-// them by book (most-recently-annotated first, collapsible) and jumps to the highlight
-// on click. Export at three levels: one citation, one book (.md), the whole library (.zip).
+// them by book (most-recently-annotated first, collapsible) and jumps to the highlight on
+// click. Export at three levels: one note (.md), one book (.zip), the whole library (.zip).
 export function NotesView() {
   const { books } = useLibrary();
   const { openBook } = useReader();
   const [annotations, setAnnotations] = useState<Annotation[] | null>(null);
   const [query, setQuery] = useState('');
   const [collapsed, setCollapsed] = useState<Set<string>>(() => new Set()); // empty = all open
-  const [copiedId, setCopiedId] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -123,16 +113,6 @@ export function NotesView() {
       return next;
     });
 
-  const copyCitation = (a: Annotation, book: Book) => {
-    navigator.clipboard
-      .writeText(formatCitation(a.highlightedText, book, citationLocator(a)))
-      .then(() => {
-        setCopiedId(a.id);
-        window.setTimeout(() => setCopiedId((c) => (c === a.id ? null : c)), 1200);
-      })
-      .catch(() => {});
-  };
-
   const exportEverything = () => {
     const byBook = new Map<string, Annotation[]>();
     for (const a of all) {
@@ -140,7 +120,7 @@ export function NotesView() {
       if (arr) arr.push(a);
       else byBook.set(a.bookId, [a]);
     }
-    void exportLibraryAnnotations(
+    void exportAllBooks(
       [...byBook.entries()].map(([id, anns]) => ({
         book: bookMap.get(id)!,
         annotations: [...anns].sort(byPosition),
@@ -206,6 +186,11 @@ export function NotesView() {
                 role="button"
                 tabIndex={0}
               >
+                {isCollapsed ? (
+                  <ChevronDown className={styles.chevron} size={14} aria-hidden="true" />
+                ) : (
+                  <ChevronUp className={styles.chevron} size={14} aria-hidden="true" />
+                )}
                 {book.coverUrl ? (
                   <img className={styles.thumb} src={book.coverUrl} alt="" />
                 ) : (
@@ -216,19 +201,14 @@ export function NotesView() {
                   className={styles.bookExport}
                   onClick={(e) => {
                     e.stopPropagation();
-                    exportBookMarkdown(book, anns);
+                    void exportAllAnnotations(book, anns);
                   }}
-                  title="Export this book’s annotations (.md)"
+                  title="Export this book’s annotations (.zip)"
                   aria-label="Export book annotations"
                 >
                   <FileDown size={14} />
                 </button>
                 <span className={styles.countBadge}>{anns.length}</span>
-                {isCollapsed ? (
-                  <ChevronDown className={styles.chevron} size={14} />
-                ) : (
-                  <ChevronUp className={styles.chevron} size={14} />
-                )}
               </div>
 
               {!isCollapsed &&
@@ -249,15 +229,15 @@ export function NotesView() {
                           {anchorLabel(a)} · {formatDate(a.createdAt)}
                         </span>
                         <button
-                          className={styles.copyBtn}
+                          className={styles.noteExport}
                           onClick={(e) => {
                             e.stopPropagation();
-                            copyCitation(a, book);
+                            exportSingleAnnotation(book, a);
                           }}
-                          title="Copy citation"
-                          aria-label="Copy citation"
+                          title="Export note (.md)"
+                          aria-label="Export note"
                         >
-                          {copiedId === a.id ? <Check size={12} /> : <Download size={12} />}
+                          <Download size={12} />
                         </button>
                       </div>
                     </div>
