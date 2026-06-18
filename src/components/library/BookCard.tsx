@@ -82,7 +82,7 @@ export function BookCard({ book, view, featured, enriching, className, onClick, 
 
   return (
     <div
-      className={className ? `${styles.card} ${className}` : styles.card}
+      className={[styles.card, featured && styles.featuredCard, className].filter(Boolean).join(' ')}
       onClick={onClick}
       role="button"
       tabIndex={0}
