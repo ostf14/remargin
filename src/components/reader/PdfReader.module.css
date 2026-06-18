@@ -128,3 +128,18 @@
   color: var(--text-tertiary);
   font-size: var(--text-sm);
 }
+
+/* ─────────────────────────── Mobile (≤600px): edge-to-edge ─────────────────────────── */
+@media (max-width: 600px) {
+  .canvasWrap {
+    padding: 44px 0 0;
+  }
+  .page {
+    max-width: 100%;
+    border-radius: 0;
+    box-shadow: none;
+  }
+  .textZone {
+    padding: 12px;
+  }
+}

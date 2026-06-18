@@ -277,9 +277,10 @@
   color: var(--text-quaternary);
 }
 
-/* ─────────────────────────── Mobile (≤480px) ─────────────────────────── */
-@media (max-width: 480px) {
+/* ─────────────────────────── Mobile (≤600px) ─────────────────────────── */
+@media (max-width: 600px) {
   .container {
+    max-width: 100%;
     padding: 12px;
   }
   .quote {

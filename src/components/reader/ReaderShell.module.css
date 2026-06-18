@@ -370,25 +370,33 @@
   pointer-events: none;
 }
 
-/* ─────────────────────────── Mobile (≤480px) ─────────────────────────── */
-@media (max-width: 480px) {
+/* ─────────────────────────── Mobile (≤600px) ─────────────────────────── */
+@media (max-width: 600px) {
+  /* The auto-hide chrome's fade-in/out is unfriendly on touch — pin the header and the
+     progress strip on permanently. Beats the .topBar / .progressTrack opacity:0 above
+     (same specificity, later rule wins). */
+  .topBar,
+  .progressTrack {
+    opacity: 1 !important;
+    pointer-events: auto !important;
+    transition: none;
+  }
+
   .topBar {
-    height: 40px;
+    height: 44px;
     padding: 0 10px;
   }
   .title {
-    font-size: 11px;
+    font-size: 12px;
   }
   .subtitle {
+    font-size: 10px;
     display: none;
   }
+  /* Side page-turn zones aren't useful on a phone (swipe will replace them later). */
   .navLeft,
   .navRight {
-    width: 36px;
-  }
-  .chevron {
-    width: 18px;
-    height: 18px;
+    display: none;
   }
   .settings {
     left: 0;
@@ -397,6 +405,7 @@
     border-radius: 0;
   }
   .progressPill {
+    bottom: calc(env(safe-area-inset-bottom) + 8px);
     font-size: 10px;
     padding: 3px 8px;
   }

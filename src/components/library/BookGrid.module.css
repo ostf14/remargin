@@ -362,13 +362,21 @@
   color: var(--accent);
 }
 
-/* ─────────────────────────── Mobile (≤480px) ─────────────────────────── */
-@media (max-width: 480px) {
+/* ─────────────────────────── Mobile (≤600px) ─────────────────────────── */
+@media (max-width: 600px) {
+  /* Single column, no gap — cards are full-width horizontal strips separated by their
+     own border-bottom (defined in BookCard.module.css). */
   .grid {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 10px;
-    padding: 10px 12px;
+    grid-template-columns: 1fr;
+    gap: 0;
+    padding: 0;
   }
+
+  /* List view keeps its compact 36×52 thumb at this width too, just edge-to-edge. */
+  .list {
+    padding: 0;
+  }
+
   .header {
     height: 44px;
     padding: 8px 12px;
@@ -377,7 +385,7 @@
   .logo {
     font-size: 16px;
   }
-  /* Drop the inline search on narrow screens (limited room); sort + import + theme stay. */
+  /* Drop the inline search on narrow screens — limited room. Sort + import + theme stay. */
   .searchWrap {
     display: none;
   }

@@ -111,3 +111,25 @@
 .scrollMode .viewer :global(.epub-container)::-webkit-scrollbar {
   display: block;
 }
+
+/* ─────────────────────────── Mobile (≤600px): edge-to-edge ─────────────────────────── */
+@media (max-width: 600px) {
+  .desk {
+    padding: 44px 0 0;
+  }
+  .page {
+    aspect-ratio: auto;
+    height: 100%;
+    width: 100%;
+    max-width: 100%;
+    border-radius: 0;
+    box-shadow: none;
+  }
+  .textZone {
+    padding: 16px 12px;
+  }
+  .scrollMode .page {
+    height: auto;
+    min-height: 100%;
+  }
+}

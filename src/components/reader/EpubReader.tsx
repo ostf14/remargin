@@ -130,6 +130,10 @@ export function EpubReader({ book }: Props) {
   const autoFocusIdRef = useRef<string | null>(null);
   autoFocusIdRef.current = autoFocusId;
   const [relocateTick, setRelocateTick] = useState(0);
+  // Bumped on every rendition recreate (mode switch) so the annotations effect re-paints.
+  const [renditionEpoch, setRenditionEpoch] = useState(0);
+  // The mode-switch effect calls into the main useEffect's closure via this ref.
+  const recreateRenditionRef = useRef<((mode: 'pages' | 'scroll') => void) | null>(null);
   const [fontOffset, setFontOffset] = useState(() => clampFontOffset(loadAppState().epubFontSizeOffset));
   const fontOffsetRef = useRef(fontOffset);
   fontOffsetRef.current = fontOffset;
@@ -272,18 +276,115 @@ export function EpubReader({ book }: Props) {
         }
       })();
 
-      rendition = epub.renderTo(container, {
-        width: '100%',
-        height: '100%',
-        spread: 'none',
-        flow: readerModeRef.current === 'scroll' ? 'scrolled-doc' : 'paginated',
-      });
-      renditionRef.current = rendition;
+      const epubInstance = epub;
 
-      // Reading surface (light/sepia/dark). themes.default reliably applies on render
-      // (CSS custom properties don't cross the iframe, so colours are literals).
-      rendition.themes.default(surfaceTheme(readingSurfaceRef.current));
-      rendition.themes.fontSize(`${100 + fontOffsetRef.current}%`);
+      // Creates a rendition + wires every handler. Called once at mount with the saved
+      // mode, again from the mode-switch effect after destroying the previous rendition.
+      // Continuous scroll uses epub.js's "continuous" view manager, which streams every
+      // spine item into one scroll container (vs the default manager that swaps sections).
+      const createRendition = (mode: 'pages' | 'scroll'): Rendition => {
+        // The `manager` option is real (ContinuousViewManager — see epub.js dist) but the
+        // shipped .d.ts doesn't declare it; cast around the typing without losing checks
+        // on the known fields.
+        const r = epubInstance.renderTo(container, {
+          width: '100%',
+          height: '100%',
+          spread: 'none',
+          flow: mode === 'scroll' ? 'scrolled-doc' : 'paginated',
+          ...({ manager: mode === 'scroll' ? 'continuous' : 'default' } as Record<string, string>),
+        });
+        renditionRef.current = r;
+
+        // Reading surface (light/sepia/dark). themes.default reliably applies on render
+        // (CSS custom properties don't cross the iframe, so colours are literals).
+        r.themes.default(surfaceTheme(readingSurfaceRef.current));
+        r.themes.fontSize(`${100 + fontOffsetRef.current}%`);
+
+        r.on('displayed', () => setLoading(false));
+
+        // Wheel events fire inside the content iframe — attach the Ctrl+wheel font
+        // handler to each rendered document so the gesture is caught over the text.
+        const attachedDocs = new Set<Document>();
+        r.on('rendered', () => {
+          const doc = container.querySelector('iframe')?.contentDocument;
+          if (doc && !attachedDocs.has(doc)) {
+            doc.addEventListener('wheel', handleZoomWheel, { passive: false });
+            // Forward pointer activity inside the iframe so the chrome auto-hide timer
+            // (which lives in the parent document) keeps resetting while reading EPUB.
+            const ping = () => window.dispatchEvent(new Event('reader-activity'));
+            doc.addEventListener('mousemove', ping);
+            doc.addEventListener('mousedown', ping);
+            // The rendered content is a separate document, so the parent's Google Fonts
+            // <link> doesn't reach it — load the reading font (Literata) inside the iframe.
+            // Falls back to Georgia (in the theme stack) if the request is blocked.
+            if (doc.head && !doc.getElementById('remargin-reading-font')) {
+              const fontLink = doc.createElement('link');
+              fontLink.id = 'remargin-reading-font';
+              fontLink.rel = 'stylesheet';
+              fontLink.href =
+                'https://fonts.googleapis.com/css2?family=Literata:ital,wght@0,400;0,700;1,400&display=swap';
+              doc.head.appendChild(fontLink);
+            }
+            attachedDocs.add(doc);
+          }
+        });
+
+        r.on('relocated', (location: unknown) => {
+          const loc = location as { start: { cfi: string; href: string; percentage: number } };
+          lastCfiRef.current = loc.start.cfi;
+          const side = sideRef.current;
+          let pct = Math.round((loc.start.percentage || 0) * 100);
+          if (side) {
+            const p = side.locations.percentageFromCfi(loc.start.cfi);
+            if (Number.isFinite(p)) pct = Math.round(p * 100);
+          }
+          pct = Math.max(0, Math.min(100, pct));
+          setPercentage(pct);
+
+          patchBook(book.id, {
+            lastOpened: new Date().toISOString(),
+            progress: pct,
+            lastPosition: loc.start.cfi,
+          });
+
+          getCurrentChapter(epubInstance, loc.start.href).then((ch) => {
+            if (ch) setChapter(ch);
+          });
+
+          // Page turned — margin-note anchors moved; recompute after layout settles.
+          setRelocateTick((t) => t + 1);
+        });
+
+        r.on('selected', (cfiRange: unknown) => {
+          const cfi = cfiRange as string;
+          const range = r.getRange(cfi);
+          if (!range) return;
+          const text = range.toString().trim();
+          if (!text) return;
+
+          const rect = range.getBoundingClientRect();
+          const iframe = container.querySelector('iframe');
+          const iframeRect = iframe?.getBoundingClientRect() || { left: 0, top: 0 };
+
+          setPopover({
+            x: rect.left + iframeRect.left + rect.width / 2,
+            y: rect.top + iframeRect.top,
+            text,
+            cfiRange: cfi,
+            chapter: chapter || 'Unknown',
+          });
+        });
+
+        // Iframe-level keys (Page Up/Down etc.). Document-level arrow keys are handled
+        // by the standalone keydown effect below so they survive rendition recreation.
+        r.on('keydown', ((e: KeyboardEvent) => shortcutKeyRef.current(e)) as (
+          ...args: unknown[]
+        ) => void);
+
+        return r;
+      };
+
+      rendition = createRendition(readerModeRef.current === 'scroll' ? 'scroll' : 'pages');
 
       const startCfi = initialCfiRef.current;
       if (startCfi) {
@@ -292,99 +393,45 @@ export function EpubReader({ book }: Props) {
         rendition.display();
       }
 
-      rendition.on('displayed', () => setLoading(false));
-
-      // Wheel events fire inside the content iframe — attach the Ctrl+wheel font
-      // handler to each rendered document so the gesture is caught over the text.
-      const attachedDocs = new Set<Document>();
-      rendition.on('rendered', () => {
-        const doc = container.querySelector('iframe')?.contentDocument;
-        if (doc && !attachedDocs.has(doc)) {
-          doc.addEventListener('wheel', handleZoomWheel, { passive: false });
-          // Forward pointer activity inside the iframe so the chrome auto-hide timer
-          // (which lives in the parent document) keeps resetting while reading EPUB.
-          const ping = () => window.dispatchEvent(new Event('reader-activity'));
-          doc.addEventListener('mousemove', ping);
-          doc.addEventListener('mousedown', ping);
-          // The rendered content is a separate document, so the parent's Google Fonts
-          // <link> doesn't reach it — load the reading font (Literata) inside the iframe.
-          // Falls back to Georgia (in the theme stack) if the request is blocked.
-          if (doc.head && !doc.getElementById('remargin-reading-font')) {
-            const fontLink = doc.createElement('link');
-            fontLink.id = 'remargin-reading-font';
-            fontLink.rel = 'stylesheet';
-            fontLink.href =
-              'https://fonts.googleapis.com/css2?family=Literata:ital,wght@0,400;0,700;1,400&display=swap';
-            doc.head.appendChild(fontLink);
-          }
-          attachedDocs.add(doc);
+      // Expose the factory so the mode-switch effect can destroy + recreate.
+      recreateRenditionRef.current = (mode) => {
+        const cfi = renditionRef.current?.currentLocation()?.start?.cfi ?? lastCfiRef.current;
+        try {
+          renditionRef.current?.destroy();
+        } catch {
+          /* ignore — already gone */
         }
-      });
+        container.innerHTML = '';
+        const next = createRendition(mode);
+        if (cfi) next.display(cfi);
+        else next.display();
+        setRenditionEpoch((e) => e + 1); // tells the annotations effect to re-paint
+      };
 
-      const epubInstance = epub;
-      rendition.on('relocated', (location: unknown) => {
-        const loc = location as { start: { cfi: string; href: string; percentage: number } };
-        lastCfiRef.current = loc.start.cfi;
-        const side = sideRef.current;
-        let pct = Math.round((loc.start.percentage || 0) * 100);
-        if (side) {
-          const p = side.locations.percentageFromCfi(loc.start.cfi);
-          if (Number.isFinite(p)) pct = Math.round(p * 100);
-        }
-        pct = Math.max(0, Math.min(100, pct));
-        setPercentage(pct);
-
-        patchBook(book.id, {
-          lastOpened: new Date().toISOString(),
-          progress: pct,
-          lastPosition: loc.start.cfi,
-        });
-
-        getCurrentChapter(epubInstance, loc.start.href).then((ch) => {
-          if (ch) setChapter(ch);
-        });
-
-        // Page turned — margin-note anchors moved; recompute after layout settles.
-        setRelocateTick((t) => t + 1);
-      });
-
-      const renditionInstance = rendition;
-      rendition.on('selected', (cfiRange: unknown) => {
-        const cfi = cfiRange as string;
-        const range = renditionInstance.getRange(cfi);
-        if (!range) return;
-        const text = range.toString().trim();
-        if (!text) return;
-
-        const rect = range.getBoundingClientRect();
-        const iframe = container.querySelector('iframe');
-        const iframeRect = iframe?.getBoundingClientRect() || { left: 0, top: 0 };
-
-        setPopover({
-          x: rect.left + iframeRect.left + rect.width / 2,
-          y: rect.top + iframeRect.top,
-          text,
-          cfiRange: cfi,
-          chapter: chapter || 'Unknown',
-        });
-      });
-
+      // Document-level arrow keys for page turning — independent of rendition lifecycle.
       handleKey = (e: KeyboardEvent) => {
-        if (e.key === 'ArrowRight' || e.key === 'ArrowDown') renditionInstance.next();
-        if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') renditionInstance.prev();
+        if (e.key === 'ArrowRight' || e.key === 'ArrowDown') renditionRef.current?.next();
+        if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') renditionRef.current?.prev();
         shortcutKeyRef.current(e);
       };
       document.addEventListener('keydown', handleKey);
-      rendition.on('keydown', handleKey as (...args: unknown[]) => void);
     })();
 
     return () => {
       cancelled = true;
+      recreateRenditionRef.current = null;
       if (handleKey) document.removeEventListener('keydown', handleKey);
       if (toastTimerRef.current) window.clearTimeout(toastTimerRef.current);
       sideRef.current?.destroy();
       sideRef.current = null;
-      rendition?.destroy();
+      // The most recent rendition lives in the ref (after any mode-switch recreate),
+      // so destroy that one, not the stale `rendition` captured at mount.
+      try {
+        renditionRef.current?.destroy();
+      } catch {
+        /* already destroyed */
+      }
+      renditionRef.current = null;
       epub?.destroy();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -437,7 +484,9 @@ export function EpubReader({ book }: Props) {
         );
       }
     });
-  }, [annotations, openSavedHighlight]);
+    // renditionEpoch is part of the deps — after a mode-switch recreate the new
+    // rendition has no highlights yet, so re-running this paints them onto it.
+  }, [annotations, openSavedHighlight, renditionEpoch]);
 
   // Recompute note positions whenever annotations, focus, or the page changes.
   useEffect(() => {
@@ -489,6 +538,26 @@ export function EpubReader({ book }: Props) {
     setPopover(null);
     drawHighlight(popover.cfiRange, 'yellow');
     if (ann) setAutoFocusId(ann.id);
+  };
+
+  // Mobile bottom sheet: create the highlight and save the note text inline.
+  const handleSaveNoteFromPopover = (text: string) => {
+    if (!popover) return;
+    const anchor: EpubAnchor = { kind: 'epub', cfi: popover.cfiRange, chapter: popover.chapter };
+    const ann = addAnnotation(popover.text, anchor, 'yellow');
+    setPopover(null);
+    drawHighlight(popover.cfiRange, 'yellow');
+    if (ann && text.trim()) updateAnnotation(ann.id, { note: text.trim() });
+  };
+
+  // Copy a formatted citation from the popover (used by the mobile bottom sheet).
+  const handleCopyCitationFromPopover = () => {
+    if (!popover) return;
+    const citation = formatCitation(popover.text, book, popover.chapter || chapter || 'Chapter');
+    navigator.clipboard
+      .writeText(citation)
+      .then(() => showToast('Copied citation'))
+      .catch(() => {});
   };
 
   const handleSaveNote = (id: string, text: string) => {
@@ -639,8 +708,9 @@ export function EpubReader({ book }: Props) {
     searchFlowRef.current = false;
   }, [debouncedSearch]);
 
-  // Reading mode: scroll → scrolled-doc, pages → paginated, flip → "coming soon" (no
-  // change). Skips the initial mount, where the flow was already set at render.
+  // Reading mode: scroll → scrolled-doc (continuous manager, whole book in one scroll),
+  // pages → paginated (default manager), flip → "coming soon" (no change). Skips the
+  // initial mount; recreating the rendition wires the new manager and the destination CFI.
   const prevModeRef = useRef(readerMode);
   useEffect(() => {
     if (readerMode === prevModeRef.current) return;
@@ -649,11 +719,11 @@ export function EpubReader({ book }: Props) {
       showToast('Flip mode — coming soon');
       return;
     }
-    const rendition = renditionRef.current;
-    if (!rendition || searchFlowRef.current) return; // don't fight a search-flow switch
-    const cfi = rendition.currentLocation()?.start?.cfi;
-    rendition.flow(readerMode === 'scroll' ? 'scrolled-doc' : 'paginated');
-    if (cfi) rendition.display(cfi);
+    if (!recreateRenditionRef.current) return;
+    // A search-flow toggle (paginated→scrolled-doc-temp) doesn't apply to the new
+    // rendition; reset the flag so search's "restore paginated" effect doesn't undo us.
+    searchFlowRef.current = false;
+    recreateRenditionRef.current(readerMode === 'scroll' ? 'scroll' : 'pages');
     setRelocateTick((t) => t + 1);
   }, [readerMode, showToast]);
 
@@ -815,6 +885,8 @@ export function EpubReader({ book }: Props) {
           y={popover.y}
           onHighlight={handleHighlight}
           onNote={handleNote}
+          onSaveNote={handleSaveNoteFromPopover}
+          onCopyCitation={handleCopyCitationFromPopover}
           onDismiss={() => setPopover(null)}
         />
       )}
@@ -825,6 +897,20 @@ export function EpubReader({ book }: Props) {
           y={savedPopover.y}
           onHighlight={recolorSaved}
           onNote={editSavedNote}
+          onSaveNote={(text) => {
+            updateAnnotation(savedPopover.id, { note: text });
+            setSavedPopover(null);
+          }}
+          onCopyCitation={() => {
+            const a = annotations.find((x) => x.id === savedPopover.id);
+            if (!a || a.anchor.kind !== 'epub') return;
+            const citation = formatCitation(a.highlightedText, book, a.anchor.chapter || chapter);
+            navigator.clipboard
+              .writeText(citation)
+              .then(() => showToast('Copied citation'))
+              .catch(() => {});
+          }}
+          initialNote={annotations.find((a) => a.id === savedPopover.id)?.note ?? ''}
           onDelete={deleteSaved}
           noteLabel={
             annotations.find((a) => a.id === savedPopover.id)?.note.trim() ? 'Edit note' : 'Note'

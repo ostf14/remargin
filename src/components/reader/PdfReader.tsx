@@ -246,7 +246,7 @@ export function PdfReader({ book }: Props) {
   const baseScaleRef = useRef(1);
   const lastRenderedPageRef = useRef(0);
   const { patchBook } = useLibrary();
-  const { showAnnotations, pendingAnchor, readerMode } = useReader();
+  const { showAnnotations, pendingAnchor, readerMode, setReaderMode } = useReader();
   const { annotations, addAnnotation, updateAnnotation, deleteAnnotation } = useAnnotations(book.id);
   const annotationsRef = useRef(annotations);
   annotationsRef.current = annotations;
@@ -257,7 +257,14 @@ export function PdfReader({ book }: Props) {
   const [totalPages, setTotalPages] = useState(book.totalPages || 0);
   const [loading, setLoading] = useState(true);
   const [wordCount, setWordCount] = useState(book.wordCount);
-  const [selPopover, setSelPopover] = useState<{ x: number; y: number } | null>(null);
+  // Snapshot the live selection's text + page-coord rects when the popover opens, so the
+  // mobile "Add note" flow (textarea focus clears the document selection) can still save.
+  const [selPopover, setSelPopover] = useState<{
+    x: number;
+    y: number;
+    text: string;
+    rects: { x: number; y: number; width: number; height: number }[];
+  } | null>(null);
   const [savedPopover, setSavedPopover] = useState<{ x: number; y: number; id: string } | null>(
     null,
   );
@@ -285,15 +292,20 @@ export function PdfReader({ book }: Props) {
   // Keydown handler is registered once but must see fresh state — bridge via a ref.
   const shortcutKeyRef = useRef<(e: KeyboardEvent) => void>(() => {});
 
-  // Scroll / flip reading modes aren't built for PDF yet — toast on an actual change
-  // (not on mount); the reader stays single-page.
+  // Scroll / flip aren't built for PDF — toast and snap the mode back to 'pages' so
+  // the settings drawer's active state reflects what's actually rendered.
   const prevModeRef = useRef(readerMode);
   useEffect(() => {
     if (readerMode === prevModeRef.current) return;
     prevModeRef.current = readerMode;
-    if (readerMode === 'scroll') showToast('Scroll mode — coming soon');
-    else if (readerMode === 'flip') showToast('Flip mode — coming soon');
-  }, [readerMode, showToast]);
+    if (readerMode === 'scroll') {
+      showToast('Scroll mode coming soon for PDF');
+      setReaderMode('pages');
+    } else if (readerMode === 'flip') {
+      showToast('Flip mode — coming soon');
+      setReaderMode('pages');
+    }
+  }, [readerMode, showToast, setReaderMode]);
 
   // In-book search — always visible in the header (no open/close toggle).
   const [searchQuery, setSearchQuery] = useState('');
@@ -556,13 +568,22 @@ export function PdfReader({ book }: Props) {
     const onMouseUp = () => {
       paint();
       const sel = document.getSelection();
-      if (sel && !sel.isCollapsed && sel.rangeCount > 0 && sel.toString().trim()) {
-        const range = sel.getRangeAt(0);
-        if (range.intersectsNode(layer)) {
-          const r = range.getBoundingClientRect();
-          setSelPopover({ x: r.left + r.width / 2, y: r.top });
-        }
-      }
+      if (!sel || sel.isCollapsed || sel.rangeCount === 0) return;
+      const text = sel.toString().trim();
+      if (!text) return;
+      const range = sel.getRangeAt(0);
+      if (!range.intersectsNode(layer)) return;
+      const lines = computeSelectionLineRects(layer, pageContainer);
+      const scale = baseScaleRef.current * zoomRef.current || 1;
+      const rects = lines.map((l) => ({
+        x: l.left / scale,
+        y: l.top / scale,
+        width: (l.right - l.left) / scale,
+        height: (l.bottom - l.top) / scale,
+      }));
+      if (!rects.length) return;
+      const r = range.getBoundingClientRect();
+      setSelPopover({ x: r.left + r.width / 2, y: r.top, text, rects });
     };
 
     layer.addEventListener('mousedown', onMouseDown);
@@ -611,30 +632,23 @@ export function PdfReader({ book }: Props) {
     e.preventDefault();
   }, []);
 
-  // Persist the current selection as a highlight. Rects are stored in page
-  // coordinates (relative px ÷ current scale) so they survive zoom/re-render.
-  const handleCreateHighlight = (color: HighlightColor) => {
-    const layer = textLayerRef.current;
-    const pageContainer = pageContainerRef.current;
-    const text = document.getSelection()?.toString().trim() ?? '';
-    if (!layer || !pageContainer || !text) {
-      setSelPopover(null);
-      return;
-    }
-    const lines = computeSelectionLineRects(layer, pageContainer);
-    const scale = baseScaleRef.current * zoomRef.current || 1;
-    const rects = lines.map((l) => ({
-      x: l.left / scale,
-      y: l.top / scale,
-      width: (l.right - l.left) / scale,
-      height: (l.bottom - l.top) / scale,
-    }));
-    if (rects.length) {
-      addAnnotation(text, { kind: 'pdf', page: pageRef.current, rects }, color);
-    }
+  // All three popover actions (color, "Add note", citation) use the rects + text snapshot
+  // taken when the popover opened, not the live document selection (mobile's textarea
+  // autofocus clears it). Rects are already in page coordinates, so they survive zoom.
+  const clearSelectionAndPopover = () => {
     document.getSelection()?.removeAllRanges();
     selectionLayerRef.current?.replaceChildren();
     setSelPopover(null);
+  };
+
+  const handleCreateHighlight = (color: HighlightColor) => {
+    if (!selPopover) return;
+    addAnnotation(
+      selPopover.text,
+      { kind: 'pdf', page: pageRef.current, rects: selPopover.rects },
+      color,
+    );
+    clearSelectionAndPopover();
   };
 
   // Clicking (not dragging) over a saved highlight opens its options popover.
@@ -660,32 +674,36 @@ export function PdfReader({ book }: Props) {
     }
   };
 
-  // "Note" in the create popover: persist a highlight and open its margin card.
+  // "Note" in the create popover: persist a highlight and open its margin card (desktop).
   const handleCreateNote = () => {
-    const layer = textLayerRef.current;
-    const pageContainer = pageContainerRef.current;
-    const text = document.getSelection()?.toString().trim() ?? '';
-    if (!layer || !pageContainer || !text) {
-      setSelPopover(null);
-      return;
-    }
-    const lines = computeSelectionLineRects(layer, pageContainer);
-    const scale = baseScaleRef.current * zoomRef.current || 1;
-    const rects = lines.map((l) => ({
-      x: l.left / scale,
-      y: l.top / scale,
-      width: (l.right - l.left) / scale,
-      height: (l.bottom - l.top) / scale,
-    }));
-    if (!rects.length) {
-      setSelPopover(null);
-      return;
-    }
-    const ann = addAnnotation(text, { kind: 'pdf', page: pageRef.current, rects }, 'yellow');
-    document.getSelection()?.removeAllRanges();
-    selectionLayerRef.current?.replaceChildren();
-    setSelPopover(null);
+    if (!selPopover) return;
+    const ann = addAnnotation(
+      selPopover.text,
+      { kind: 'pdf', page: pageRef.current, rects: selPopover.rects },
+      'yellow',
+    );
+    clearSelectionAndPopover();
     if (ann) setAutoFocusId(ann.id);
+  };
+
+  // Mobile bottom sheet: create the highlight and save the note text inline (no margin card).
+  const handleSaveNoteFromPopover = (text: string) => {
+    if (!selPopover) return;
+    const ann = addAnnotation(
+      selPopover.text,
+      { kind: 'pdf', page: pageRef.current, rects: selPopover.rects },
+      'yellow',
+    );
+    if (ann && text.trim()) updateAnnotation(ann.id, { note: text.trim() });
+    clearSelectionAndPopover();
+  };
+
+  // Copy a formatted citation from the snapshotted selection — used by the mobile sheet
+  // (the keyboard shortcut still works on desktop via shortcutKeyRef).
+  const handleCopyCitationFromPopover = () => {
+    if (!selPopover) return;
+    const citation = formatCitation(selPopover.text, book, `с. ${pageRef.current}`);
+    navigator.clipboard.writeText(citation).then(() => showToast('Copied citation')).catch(() => {});
   };
 
   const handleSaveNote = (id: string, text: string) => {
@@ -957,6 +975,8 @@ export function PdfReader({ book }: Props) {
           y={selPopover.y}
           onHighlight={handleCreateHighlight}
           onNote={handleCreateNote}
+          onSaveNote={handleSaveNoteFromPopover}
+          onCopyCitation={handleCopyCitationFromPopover}
           onDismiss={() => setSelPopover(null)}
         />
       )}
@@ -973,6 +993,20 @@ export function PdfReader({ book }: Props) {
             setAutoFocusId(savedPopover.id);
             setSavedPopover(null);
           }}
+          onSaveNote={(text) => {
+            updateAnnotation(savedPopover.id, { note: text });
+            setSavedPopover(null);
+          }}
+          onCopyCitation={() => {
+            const a = annotations.find((x) => x.id === savedPopover.id);
+            if (!a || a.anchor.kind !== 'pdf') return;
+            const citation = formatCitation(a.highlightedText, book, `с. ${a.anchor.page}`);
+            navigator.clipboard
+              .writeText(citation)
+              .then(() => showToast('Copied citation'))
+              .catch(() => {});
+          }}
+          initialNote={annotations.find((a) => a.id === savedPopover.id)?.note ?? ''}
           noteLabel={
             annotations.find((a) => a.id === savedPopover.id)?.note.trim()
               ? 'Edit note'
