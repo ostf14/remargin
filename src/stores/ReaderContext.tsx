@@ -1,5 +1,5 @@
 import { createContext, useEffect, useState, type ReactNode } from 'react';
-import type { Book, ReaderMode, ReadingSurface, ViewMode } from '../types';
+import type { AnchorData, Book, ReaderMode, ReadingSurface, ViewMode } from '../types';
 import { useLibrary } from '../hooks/useLibrary';
 import { loadAppState, saveAppState } from '../services/storage';
 
@@ -8,7 +8,10 @@ type Theme = 'dark' | 'light';
 interface ReaderState {
   currentBook: Book | null;
   viewMode: ViewMode;
-  openBook: (book: Book) => void;
+  // Optional anchor jumps straight to a highlight (from the Notes view); omit to open
+  // at the saved reading position. Consumed once by the reader at mount.
+  openBook: (book: Book, anchor?: AnchorData) => void;
+  pendingAnchor: AnchorData | null;
   closeBook: () => void;
   showAnnotations: boolean;
   setShowAnnotations: (v: boolean) => void;
@@ -24,6 +27,7 @@ export const ReaderContext = createContext<ReaderState>({
   currentBook: null,
   viewMode: 'library',
   openBook: () => {},
+  pendingAnchor: null,
   closeBook: () => {},
   showAnnotations: false,
   setShowAnnotations: () => {},
@@ -55,6 +59,7 @@ export function ReaderProvider({ children }: { children: ReactNode }) {
     () => loadAppState().readingSurface,
   );
   const [readerMode, setReaderModeState] = useState<ReaderMode>(() => loadAppState().readerMode);
+  const [pendingAnchor, setPendingAnchor] = useState<AnchorData | null>(null);
 
   // Reflect the theme onto <html> so CSS custom properties switch app-wide.
   useEffect(() => {
@@ -89,10 +94,11 @@ export function ReaderProvider({ children }: { children: ReactNode }) {
     saveAppState({ ...loadAppState(), readerMode: m });
   };
 
-  const openBook = (book: Book) => {
+  const openBook = (book: Book, anchor?: AnchorData) => {
     setCurrentBook(book);
     setViewMode('reader');
     setShowAnnotations(false);
+    setPendingAnchor(anchor ?? null); // reset every open; the reader reads it once at mount
     persistView('reader', book.id);
   };
 
@@ -109,6 +115,7 @@ export function ReaderProvider({ children }: { children: ReactNode }) {
         currentBook,
         viewMode,
         openBook,
+        pendingAnchor,
         closeBook,
         showAnnotations,
         setShowAnnotations,

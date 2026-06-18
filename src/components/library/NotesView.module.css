@@ -1,0 +1,202 @@
+.container {
+  max-width: 700px;
+  margin: 0 auto;
+  padding: 16px 20px;
+}
+
+/* ─────────────────────────── Stats bar ─────────────────────────── */
+.stats {
+  display: flex;
+  gap: 24px;
+  border-bottom: 0.5px solid var(--border);
+  padding-bottom: 12px;
+  margin-bottom: 16px;
+}
+
+.statNum {
+  font-size: 18px;
+  font-weight: var(--weight-medium);
+  color: var(--text-primary);
+  line-height: 1.2;
+  font-variant-numeric: tabular-nums;
+}
+
+.statLabel {
+  margin-top: 2px;
+  font-size: 10px;
+  color: var(--text-quaternary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* ─────────────────────────── Search ─────────────────────────── */
+.searchWrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border-bottom: 0.5px solid var(--border);
+  margin-bottom: 16px;
+}
+
+.searchIcon {
+  flex-shrink: 0;
+  color: var(--text-quaternary);
+}
+
+.search {
+  flex: 1;
+  min-width: 0;
+  appearance: none;
+  background: transparent;
+  border: none;
+  font-size: 12px;
+  color: var(--text-primary);
+  padding: 6px 0;
+}
+
+.search::placeholder {
+  color: var(--text-quaternary);
+}
+
+.search:focus,
+.search:focus-visible {
+  outline: none;
+  box-shadow: none;
+}
+
+/* ─────────────────────────── Book group ─────────────────────────── */
+.group {
+  margin-bottom: 20px;
+}
+
+.bookHeader {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  cursor: pointer;
+}
+
+.thumb,
+.thumbPlaceholder {
+  flex-shrink: 0;
+  width: 24px;
+  height: 34px;
+  border-radius: 2px;
+}
+
+.thumb {
+  object-fit: cover;
+}
+
+.thumbPlaceholder {
+  background: var(--bg-tertiary);
+}
+
+.bookTitle {
+  flex: 1;
+  min-width: 0;
+  font-size: 12px;
+  font-weight: var(--weight-medium);
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.countBadge {
+  flex-shrink: 0;
+  font-size: 9px;
+  color: var(--text-quaternary);
+  background: var(--bg-tertiary);
+  padding: 1px 7px;
+  border-radius: var(--radius-full);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ─────────────────────────── Annotation card ─────────────────────────── */
+.card {
+  display: flex;
+  gap: 8px;
+  background: var(--bg-secondary);
+  border: 0.5px solid var(--border);
+  border-radius: 6px;
+  padding: 10px 12px;
+  margin-bottom: 6px;
+  cursor: pointer;
+  transition: border-color var(--duration-fast) var(--ease-out);
+}
+
+.card:hover {
+  border-color: var(--border-strong);
+}
+
+.colorBar {
+  flex-shrink: 0;
+  width: 3px;
+  border-radius: 2px;
+  align-self: stretch;
+}
+
+.content {
+  flex: 1;
+  min-width: 0;
+}
+
+.quote {
+  font-size: 11px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  font-style: italic;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.comment {
+  margin-top: 4px;
+  font-size: 10px;
+  color: var(--text-tertiary);
+  line-height: 1.5;
+}
+
+.footer {
+  margin-top: 4px;
+  font-size: 9px;
+  color: var(--text-quaternary);
+}
+
+/* ─────────────────────────── Empty / no results ─────────────────────────── */
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 6px;
+  padding: 80px 20px;
+}
+
+.emptyIcon {
+  color: var(--text-quaternary);
+  margin-bottom: 6px;
+}
+
+.emptyTitle {
+  font-size: 14px;
+  font-weight: var(--weight-medium);
+  color: var(--text-primary);
+}
+
+.emptyHint {
+  font-size: 12px;
+  color: var(--text-quaternary);
+}
+
+.noResults {
+  text-align: center;
+  padding: 40px 0;
+  font-size: 12px;
+  color: var(--text-quaternary);
+}

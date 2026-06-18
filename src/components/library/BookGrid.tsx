@@ -1,11 +1,22 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Search, Plus, Sun, Moon, BookOpen, ChevronDown, Grid3x3, List } from 'lucide-react';
+import {
+  Search,
+  Plus,
+  Sun,
+  Moon,
+  BookOpen,
+  ChevronDown,
+  LayoutGrid,
+  List,
+  MessageSquareText,
+} from 'lucide-react';
 import type { Book, LibraryView } from '../../types';
 import { useLibrary } from '../../hooks/useLibrary';
 import { useReader } from '../../hooks/useReader';
 import { useImport } from '../../hooks/useImport';
 import { loadAppState, saveAppState } from '../../services/storage';
 import { BookCard } from './BookCard';
+import { NotesView } from './NotesView';
 import { ConfirmDialog } from './ConfirmDialog';
 import styles from './BookGrid.module.css';
 
@@ -116,7 +127,7 @@ export function BookGrid() {
         <h1 className={styles.logo}>remargin</h1>
 
         <div className={styles.actions}>
-          {hasBooks && (
+          {hasBooks && view !== 'notes' && (
             <div className={styles.searchWrap}>
               <Search className={styles.searchIcon} size={16} aria-hidden="true" />
               <input
@@ -128,8 +139,8 @@ export function BookGrid() {
               />
             </div>
           )}
-          {hasBooks && <span className={styles.count}>{countLabel}</span>}
-          {hasBooks && (
+          {hasBooks && view !== 'notes' && <span className={styles.count}>{countLabel}</span>}
+          {hasBooks && view !== 'notes' && (
             <div className={styles.sortWrap} ref={sortRef}>
               <button
                 className={styles.sortBtn}
@@ -158,14 +169,32 @@ export function BookGrid() {
             </div>
           )}
           {hasBooks && (
-            <button
-              className={styles.viewToggleBtn}
-              onClick={() => setLibraryView(view === 'grid' ? 'list' : 'grid')}
-              title={view === 'grid' ? 'Switch to list view' : 'Switch to grid view'}
-              aria-label={view === 'grid' ? 'Switch to list view' : 'Switch to grid view'}
-            >
-              {view === 'grid' ? <List size={16} /> : <Grid3x3 size={16} />}
-            </button>
+            <div className={styles.viewToggle}>
+              <button
+                className={`${styles.viewBtn} ${view === 'grid' ? styles.viewBtnActive : ''}`}
+                onClick={() => setLibraryView('grid')}
+                title="Grid view"
+                aria-label="Grid view"
+              >
+                <LayoutGrid size={16} />
+              </button>
+              <button
+                className={`${styles.viewBtn} ${view === 'list' ? styles.viewBtnActive : ''}`}
+                onClick={() => setLibraryView('list')}
+                title="List view"
+                aria-label="List view"
+              >
+                <List size={16} />
+              </button>
+              <button
+                className={`${styles.viewBtn} ${view === 'notes' ? styles.viewBtnActive : ''}`}
+                onClick={() => setLibraryView('notes')}
+                title="Notes view"
+                aria-label="Notes view"
+              >
+                <MessageSquareText size={16} />
+              </button>
+            </div>
           )}
           <button
             className={styles.importBtn}
@@ -204,6 +233,8 @@ export function BookGrid() {
             Import
           </button>
         </div>
+      ) : view === 'notes' ? (
+        <NotesView />
       ) : visibleBooks.length === 0 ? (
         <div className={styles.noResults}>
           <div className={styles.noResultsTitle}>No books found</div>

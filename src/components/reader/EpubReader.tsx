@@ -99,10 +99,15 @@ export function EpubReader({ book }: Props) {
   const epubRef = useRef<EpubBook | null>(null);
   const renditionRef = useRef<Rendition | null>(null);
   const { patchBook } = useLibrary();
-  const { showAnnotations, readingSurface } = useReader();
+  const { showAnnotations, readingSurface, pendingAnchor } = useReader();
   const readingSurfaceRef = useRef(readingSurface);
   readingSurfaceRef.current = readingSurface;
-  const lastCfiRef = useRef<string | null>(book.lastPosition);
+  // Opened from the Notes view targeting a highlight → start at its CFI instead of the
+  // saved reading position. Captured once at mount (openBook resets pendingAnchor per open).
+  const initialCfiRef = useRef(
+    pendingAnchor?.kind === 'epub' ? pendingAnchor.cfi : book.lastPosition,
+  );
+  const lastCfiRef = useRef<string | null>(initialCfiRef.current);
   // A side EPUB instance (never rendered) that owns the generated locations index —
   // kept off the rendition's book so generating it can't disturb live rendering.
   const sideRef = useRef<EpubBook | null>(null);
@@ -275,7 +280,7 @@ export function EpubReader({ book }: Props) {
       rendition.themes.default(surfaceTheme(readingSurfaceRef.current));
       rendition.themes.fontSize(`${100 + fontOffsetRef.current}%`);
 
-      const startCfi = book.lastPosition;
+      const startCfi = initialCfiRef.current;
       if (startCfi) {
         rendition.display(startCfi);
       } else {

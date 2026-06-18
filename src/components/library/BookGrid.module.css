@@ -175,9 +175,15 @@
   color: var(--text-primary);
 }
 
-/* Grid / list view toggle — one button showing the icon of the OTHER mode. */
-.viewToggleBtn {
+/* Grid / list / notes view toggle — three buttons; the active one is filled. */
+.viewToggle {
   flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.viewBtn {
   width: 30px;
   height: 30px;
   display: flex;
@@ -185,13 +191,21 @@
   justify-content: center;
   border-radius: var(--radius-full);
   background: transparent;
-  color: var(--text-secondary);
+  color: var(--text-quaternary);
   transition: color var(--duration-fast) var(--ease-out),
     background var(--duration-fast) var(--ease-out);
 }
 
-.viewToggleBtn:hover {
+.viewBtn:hover {
+  color: var(--text-secondary);
+}
+
+.viewBtnActive {
+  color: var(--text-primary);
   background: var(--bg-tertiary);
+}
+
+.viewBtnActive:hover {
   color: var(--text-primary);
 }
 

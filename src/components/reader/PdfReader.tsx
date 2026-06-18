@@ -246,11 +246,14 @@ export function PdfReader({ book }: Props) {
   const baseScaleRef = useRef(1);
   const lastRenderedPageRef = useRef(0);
   const { patchBook } = useLibrary();
-  const { showAnnotations } = useReader();
+  const { showAnnotations, pendingAnchor } = useReader();
   const { annotations, addAnnotation, updateAnnotation, deleteAnnotation } = useAnnotations(book.id);
   const annotationsRef = useRef(annotations);
   annotationsRef.current = annotations;
-  const [page, setPage] = useState(Number(book.lastPosition) || 1);
+  // Opened from the Notes view targeting a highlight → start on its page (captured once).
+  const [page, setPage] = useState(
+    pendingAnchor?.kind === 'pdf' ? pendingAnchor.page : Number(book.lastPosition) || 1,
+  );
   const [totalPages, setTotalPages] = useState(book.totalPages || 0);
   const [loading, setLoading] = useState(true);
   const [wordCount, setWordCount] = useState(book.wordCount);

@@ -8,7 +8,7 @@ export type ReadingSurface = 'light' | 'sepia' | 'dark';
 
 export type ReaderMode = 'pages' | 'scroll' | 'flip';
 
-export type LibraryView = 'grid' | 'list';
+export type LibraryView = 'grid' | 'list' | 'notes';
 
 export interface EpubAnchor {
   kind: 'epub';
