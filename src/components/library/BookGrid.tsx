@@ -118,7 +118,7 @@ export function BookGrid() {
         <div className={styles.actions}>
           {hasBooks && (
             <div className={styles.searchWrap}>
-              <Search className={styles.searchIcon} size={14} aria-hidden="true" />
+              <Search className={styles.searchIcon} size={16} aria-hidden="true" />
               <input
                 className={styles.search}
                 type="text"
@@ -158,24 +158,14 @@ export function BookGrid() {
             </div>
           )}
           {hasBooks && (
-            <div className={styles.viewToggle}>
-              <button
-                className={`${styles.viewBtn} ${view === 'grid' ? styles.viewBtnActive : ''}`}
-                onClick={() => setLibraryView('grid')}
-                title="Grid view"
-                aria-label="Grid view"
-              >
-                <Grid3x3 size={15} />
-              </button>
-              <button
-                className={`${styles.viewBtn} ${view === 'list' ? styles.viewBtnActive : ''}`}
-                onClick={() => setLibraryView('list')}
-                title="List view"
-                aria-label="List view"
-              >
-                <List size={15} />
-              </button>
-            </div>
+            <button
+              className={styles.viewToggleBtn}
+              onClick={() => setLibraryView(view === 'grid' ? 'list' : 'grid')}
+              title={view === 'grid' ? 'Switch to list view' : 'Switch to grid view'}
+              aria-label={view === 'grid' ? 'Switch to list view' : 'Switch to grid view'}
+            >
+              {view === 'grid' ? <List size={16} /> : <Grid3x3 size={16} />}
+            </button>
           )}
           <button
             className={styles.importBtn}

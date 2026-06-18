@@ -17,7 +17,7 @@
   top: 0;
   left: 0;
   right: 0;
-  height: 48px;
+  height: 52px;
   display: flex;
   align-items: center;
   gap: 12px;
@@ -62,7 +62,7 @@
 }
 
 .title {
-  font-size: 14px;
+  font-size: 15px;
   font-weight: var(--weight-medium);
   color: var(--text-secondary);
   white-space: nowrap;
@@ -71,7 +71,7 @@
 }
 
 .subtitle {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: var(--weight-normal);
   color: var(--text-tertiary);
   white-space: nowrap;
@@ -178,7 +178,7 @@
 /* ─────────────────────────── Settings dropdown ─────────────────────────── */
 .settings {
   position: absolute;
-  top: 50px;
+  top: 54px;
   right: 0;
   background: var(--bg-secondary);
   border: 0.5px solid var(--border);
@@ -210,14 +210,14 @@
 .label {
   flex-shrink: 0;
   min-width: 42px;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: var(--weight-normal);
   color: var(--text-quaternary);
 }
 
 .sBtn {
-  width: 26px;
-  height: 26px;
+  width: 28px;
+  height: 28px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -266,7 +266,7 @@
 }
 
 .modeBtn {
-  height: 26px;
+  height: 28px;
   padding: 0 10px;
   display: flex;
   align-items: center;
@@ -294,7 +294,7 @@
 .navLeft,
 .navRight {
   position: absolute;
-  top: 52px;
+  top: 56px;
   bottom: 4px;
   width: 60px;
   display: flex;
@@ -333,7 +333,7 @@
    so it fades in and out together with everything else. */
 .progressTrack {
   position: absolute;
-  top: 48px;
+  top: 52px;
   left: 0;
   right: 0;
   height: 2px;
@@ -363,7 +363,7 @@
   background: var(--bg-secondary);
   border: 0.5px solid var(--border);
   border-radius: 6px;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: var(--weight-normal);
   color: var(--text-tertiary);
   font-variant-numeric: tabular-nums;

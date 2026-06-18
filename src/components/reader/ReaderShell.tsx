@@ -166,7 +166,7 @@ export function ReaderShell({
             role="button"
             aria-label="Previous page"
           >
-            <ChevronLeft className={styles.chevron} size={22} />
+            <ChevronLeft className={styles.chevron} size={24} />
           </div>
           <div
             className={styles.navRight}
@@ -175,7 +175,7 @@ export function ReaderShell({
             role="button"
             aria-label="Next page"
           >
-            <ChevronRight className={styles.chevron} size={22} />
+            <ChevronRight className={styles.chevron} size={24} />
           </div>
         </>
       )}

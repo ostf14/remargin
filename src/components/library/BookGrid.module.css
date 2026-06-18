@@ -10,7 +10,7 @@
   position: sticky;
   top: 0;
   z-index: 10;
-  height: 48px;
+  height: 52px;
   display: flex;
   align-items: center;
   gap: 14px;
@@ -22,7 +22,7 @@
 .logo {
   flex-shrink: 0;
   font-family: var(--font-display);
-  font-size: 20px;
+  font-size: 22px;
   font-weight: var(--weight-normal);
   color: var(--text-primary);
   line-height: 1;
@@ -50,7 +50,7 @@
   appearance: none;
   background: transparent;
   border: none;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: var(--weight-normal);
   color: var(--text-primary);
   padding: 4px 0;
@@ -75,7 +75,7 @@
 }
 
 .count {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: var(--weight-normal);
   color: var(--text-quaternary);
   white-space: nowrap;
@@ -93,7 +93,7 @@
   gap: 3px;
   height: 24px;
   padding: 0 8px;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: var(--weight-normal);
   color: var(--text-secondary);
   background: transparent;
@@ -124,7 +124,7 @@
 .sortOption {
   text-align: left;
   padding: 6px 12px;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: var(--weight-normal);
   color: var(--text-secondary);
   background: transparent;
@@ -143,8 +143,8 @@
 
 .importBtn {
   flex-shrink: 0;
-  width: 28px;
-  height: 28px;
+  width: 30px;
+  height: 30px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -160,8 +160,8 @@
 
 .themeToggle {
   flex-shrink: 0;
-  width: 28px;
-  height: 28px;
+  width: 30px;
+  height: 30px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -175,32 +175,23 @@
   color: var(--text-primary);
 }
 
-/* Grid / list view toggle — active icon is primary, inactive is quietest. */
-.viewToggle {
+/* Grid / list view toggle — one button showing the icon of the OTHER mode. */
+.viewToggleBtn {
   flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  gap: 2px;
-}
-
-.viewBtn {
-  width: 26px;
-  height: 26px;
+  width: 30px;
+  height: 30px;
   display: flex;
   align-items: center;
   justify-content: center;
   border-radius: var(--radius-full);
   background: transparent;
-  color: var(--text-quaternary);
+  color: var(--text-secondary);
   transition: color var(--duration-fast) var(--ease-out),
     background var(--duration-fast) var(--ease-out);
 }
 
-.viewBtn:hover {
+.viewToggleBtn:hover {
   background: var(--bg-tertiary);
-}
-
-.viewBtnActive {
   color: var(--text-primary);
 }
 
@@ -223,7 +214,7 @@
 
 /* Empty library. */
 .empty {
-  min-height: calc(100vh - 48px);
+  min-height: calc(100vh - 52px);
   display: flex;
   flex-direction: column;
   align-items: center;

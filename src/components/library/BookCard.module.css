@@ -116,7 +116,7 @@
 }
 
 .title {
-  font-size: 13px;
+  font-size: 14px;
   font-weight: var(--weight-medium);
   color: var(--text-primary);
   line-height: var(--leading-tight);
@@ -129,7 +129,7 @@
 
 .author {
   margin-top: 2px;
-  font-size: 11px;
+  font-size: 13px;
   font-weight: var(--weight-normal);
   color: var(--text-secondary);
   white-space: nowrap;
@@ -148,7 +148,7 @@
 
 .tag {
   flex-shrink: 0;
-  font-size: 9px;
+  font-size: 10px;
   font-weight: var(--weight-normal);
   color: var(--text-tertiary);
   background: var(--bg-tertiary);
@@ -159,7 +159,7 @@
 }
 
 .progress {
-  font-size: 9px;
+  font-size: 10px;
   font-weight: var(--weight-normal);
   color: var(--text-tertiary);
   font-variant-numeric: tabular-nums;
@@ -211,7 +211,7 @@
 }
 
 .rowTitle {
-  font-size: 13px;
+  font-size: 14px;
   font-weight: var(--weight-medium);
   color: var(--text-primary);
   white-space: nowrap;
@@ -221,7 +221,7 @@
 
 .sub {
   margin-top: 1px;
-  font-size: 11px;
+  font-size: 13px;
   font-weight: var(--weight-normal);
   color: var(--text-secondary);
   white-space: nowrap;
@@ -245,8 +245,8 @@
 
 .format {
   flex-shrink: 0;
-  width: 30px;
-  font-size: 9px;
+  width: 34px;
+  font-size: 10px;
   font-weight: var(--weight-normal);
   color: var(--text-tertiary);
   text-transform: uppercase;
