@@ -4,6 +4,7 @@ import type { Annotation, Book, EpubAnchor, HighlightColor, ReadingSurface } fro
 import { useLibrary } from '../../hooks/useLibrary';
 import { useAnnotations } from '../../hooks/useAnnotations';
 import { useReader } from '../../hooks/useReader';
+import { usePinchZoom } from '../../hooks/usePinchZoom';
 import { getBookFile, loadAppState, saveAppState } from '../../services/storage';
 import { ReaderShell } from './ReaderShell';
 import { AnnotationPanel } from '../annotations/AnnotationPanel';
@@ -462,6 +463,59 @@ export function EpubReader({ book }: Props) {
     }
   }, []);
 
+  // Fallback for highlight clicks: epub.js's per-annotation callback can miss on touch
+  // or when the SVG overlay is masked by content. Listen on every rendered iframe doc
+  // for clicks, then hit-test the click point against each annotation's range rects.
+  // First hit wins. Only fires when no active text selection exists — otherwise a
+  // drag-select that ends inside an old highlight would steal the popover.
+  useEffect(() => {
+    const rendition = renditionRef.current;
+    if (!rendition) return;
+    const wired = new Map<Document, (e: MouseEvent) => void>();
+    const hitTest = (doc: Document, ev: MouseEvent) => {
+      const winSel = doc.defaultView?.getSelection();
+      if (winSel && !winSel.isCollapsed) return; // user is selecting text
+      const x = ev.clientX;
+      const y = ev.clientY;
+      for (const a of annotationsRef.current) {
+        if (a.anchor.kind !== 'epub') continue;
+        let range: Range | null = null;
+        try {
+          range = rendition.getRange(a.anchor.cfi);
+        } catch {
+          range = null;
+        }
+        if (!range) continue;
+        const rects = range.getClientRects();
+        for (let i = 0; i < rects.length; i++) {
+          const r = rects[i];
+          if (x >= r.left && x <= r.right && y >= r.top && y <= r.bottom) {
+            openSavedHighlight(a);
+            return;
+          }
+        }
+      }
+    };
+    const attach = () => {
+      const doc = viewerRef.current?.querySelector('iframe')?.contentDocument;
+      if (!doc || wired.has(doc)) return;
+      const onClick = (e: MouseEvent) => hitTest(doc, e);
+      doc.addEventListener('click', onClick);
+      wired.set(doc, onClick);
+    };
+    rendition.on('rendered', attach);
+    rendition.on('relocated', attach);
+    attach();
+    return () => {
+      for (const [doc, fn] of wired) {
+        try {
+          doc.removeEventListener('click', fn);
+        } catch { /* doc may already be gone */ }
+      }
+      wired.clear();
+    };
+  }, [openSavedHighlight, renditionEpoch]);
+
   useEffect(() => {
     const rendition = renditionRef.current;
     if (!rendition) return;
@@ -514,6 +568,14 @@ export function EpubReader({ book }: Props) {
     desk.addEventListener('wheel', handleZoomWheel, { passive: false });
     return () => desk.removeEventListener('wheel', handleZoomWheel);
   }, [handleZoomWheel]);
+
+  // Two-finger pinch zoom on touch screens.
+  const zoomRef = useRef(zoom);
+  zoomRef.current = zoom;
+  usePinchZoom(deskRef, () => zoomRef.current, (z) => setZoom(clampZoom(z)), {
+    min: ZOOM_MIN,
+    max: ZOOM_MAX,
+  });
 
   const drawHighlight = (cfi: string, color: HighlightColor) => {
     renditionRef.current?.annotations.highlight(cfi, {}, () => {}, 'hl', {
@@ -709,23 +771,19 @@ export function EpubReader({ book }: Props) {
   }, [debouncedSearch]);
 
   // Reading mode: scroll → scrolled-doc (continuous manager, whole book in one scroll),
-  // pages → paginated (default manager), flip → "coming soon" (no change). Skips the
-  // initial mount; recreating the rendition wires the new manager and the destination CFI.
+  // pages → paginated (default manager). Skips the initial mount; recreating the
+  // rendition wires the new manager and the destination CFI.
   const prevModeRef = useRef(readerMode);
   useEffect(() => {
     if (readerMode === prevModeRef.current) return;
     prevModeRef.current = readerMode;
-    if (readerMode === 'flip') {
-      showToast('Flip mode — coming soon');
-      return;
-    }
     if (!recreateRenditionRef.current) return;
     // A search-flow toggle (paginated→scrolled-doc-temp) doesn't apply to the new
     // rendition; reset the flag so search's "restore paginated" effect doesn't undo us.
     searchFlowRef.current = false;
     recreateRenditionRef.current(readerMode === 'scroll' ? 'scroll' : 'pages');
     setRelocateTick((t) => t + 1);
-  }, [readerMode, showToast]);
+  }, [readerMode]);
 
   // Centre the active match in the visible reading viewport — the same outcome the PDF
   // reader gives by scrolling its container to the match. In scrolled-doc mode the text

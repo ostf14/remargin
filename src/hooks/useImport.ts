@@ -54,15 +54,6 @@ export function useImport() {
           cover = await fetchOpenLibraryCover(book.title, bestAuthor);
         }
         if (cover) updates.coverUrl = cover;
-        console.log(
-          '[gbooks] enrich',
-          book.title,
-          '→',
-          updates,
-          '(placeholder:',
-          isPlaceholderCover(book),
-          ')',
-        );
         if (Object.keys(updates).length) patchBook(book.id, updates);
       } finally {
         setEnriching(book.id, false);

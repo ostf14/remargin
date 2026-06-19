@@ -13,7 +13,6 @@ import {
   Moon,
   BookOpen,
   Scroll,
-  FlipHorizontal,
 } from 'lucide-react';
 import type { ReadingSurface, ReaderMode } from '../../types';
 import { useReader } from '../../hooks/useReader';
@@ -68,7 +67,6 @@ const SURFACES: { key: ReadingSurface; bg: string }[] = [
 const MODES: { key: ReaderMode; label: string; Icon: typeof BookOpen }[] = [
   { key: 'pages', label: 'Pages', Icon: BookOpen },
   { key: 'scroll', label: 'Scroll', Icon: Scroll },
-  { key: 'flip', label: 'Flip', Icon: FlipHorizontal },
 ];
 
 const HIDE_DELAY = 3000;

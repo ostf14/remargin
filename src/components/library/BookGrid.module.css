@@ -112,7 +112,7 @@
   color: var(--text-secondary);
   align-items: center;
   justify-content: center;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  box-shadow: var(--shadow-lg);
   transition: transform var(--duration-fast) var(--ease-out),
     color var(--duration-fast) var(--ease-out),
     background var(--duration-fast) var(--ease-out);
@@ -305,7 +305,7 @@
   background: var(--bg-secondary);
   border: 0.5px solid var(--border);
   border-radius: var(--radius-full);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  box-shadow: var(--shadow-lg);
 }
 
 /* "N books", to the left of the view buttons inside the pill. */

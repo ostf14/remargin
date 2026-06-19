@@ -11,13 +11,19 @@
   flex-direction: column;
 }
 
-/* The scroll container: every page lives here as a sibling, stacked vertically. */
+/* The scroll container: every page lives here as a sibling, stacked vertically.
+   overflow-x is normally hidden (no sideways scroll at fit-width); when the parent
+   sets the .zoomed class it flips to auto so zoom>1 pages can be scrolled sideways. */
 .scrollContainer {
   flex: 1;
   overflow-y: auto;
   overflow-x: hidden;
   background: var(--reader-desk);
   padding: 56px var(--space-8) var(--space-8);
+}
+
+.scrollContainer.zoomed {
+  overflow-x: auto;
 }
 
 .stack {
@@ -29,6 +35,12 @@
   margin: 0 auto;
 }
 
+/* When zoomed past fit-width the canvas grows beyond the stack's max-width — let the
+   stack grow with it (max-content) so the wrapper isn't visually clipped. */
+.stack.zoomed {
+  max-width: max-content;
+}
+
 /* Each page wrapper: fixed-aspect placeholder until the canvas renders. */
 .pageWrapper {
   position: relative;
@@ -37,6 +49,11 @@
   box-shadow: var(--reader-page-shadow);
   border-radius: var(--radius-sm);
   overflow: hidden;
+}
+
+/* Zoomed wrappers shed the width:100% rule — their natural (canvas-driven) width grows. */
+.pageWrapper.zoomed {
+  width: auto;
 }
 
 :global([data-surface='sepia']) .pageWrapper {

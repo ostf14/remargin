@@ -7,6 +7,7 @@ import type { Book, HighlightColor } from '../../types';
 import { useLibrary } from '../../hooks/useLibrary';
 import { useAnnotations } from '../../hooks/useAnnotations';
 import { useReader } from '../../hooks/useReader';
+import { usePinchZoom } from '../../hooks/usePinchZoom';
 import { getBookFile } from '../../services/storage';
 import { ReaderShell } from './ReaderShell';
 import { AnnotationPanel } from '../annotations/AnnotationPanel';
@@ -257,8 +258,7 @@ function PdfPaginatedReader({ book }: Props) {
   const baseScaleRef = useRef(1);
   const lastRenderedPageRef = useRef(0);
   const { patchBook } = useLibrary();
-  const { showAnnotations, pendingAnchor, readerMode, setReaderMode, trimMargins, setTrimMargins } =
-    useReader();
+  const { showAnnotations, pendingAnchor, trimMargins, setTrimMargins } = useReader();
   // Normalised content bounds per page — once computed at any scale, the 0..1 rectangle
   // is reusable when the canvas re-renders at a different zoom/base scale.
   const trimNormsRef = useRef<Map<number, ContentBoundsNorm>>(new Map());
@@ -311,18 +311,6 @@ function PdfPaginatedReader({ book }: Props) {
   }, []);
   // Keydown handler is registered once but must see fresh state — bridge via a ref.
   const shortcutKeyRef = useRef<(e: KeyboardEvent) => void>(() => {});
-
-  // Flip mode isn't built — toast and snap back to 'pages'. Scroll mode is handled at the
-  // wrapper, so it never reaches this paginated path.
-  const prevModeRef = useRef(readerMode);
-  useEffect(() => {
-    if (readerMode === prevModeRef.current) return;
-    prevModeRef.current = readerMode;
-    if (readerMode === 'flip') {
-      showToast('Flip mode — coming soon');
-      setReaderMode('pages');
-    }
-  }, [readerMode, showToast, setReaderMode]);
 
   // In-book search — always visible in the header (no open/close toggle).
   const [searchQuery, setSearchQuery] = useState('');
@@ -389,7 +377,6 @@ function PdfPaginatedReader({ book }: Props) {
   }, []);
 
   const renderPage = useCallback(async (pdf: PDFDocumentProxy, num: number) => {
-    console.log('[pdf] renderPage called, page:', num);
     if (!canvasRef.current) return;
     // One render at a time: this token invalidates any earlier in-flight render at each
     // async boundary below, so two overlapping calls can never both build a text layer
@@ -664,7 +651,9 @@ function PdfPaginatedReader({ book }: Props) {
       setSelPopover(null);
       setSavedPopover(null);
     };
-    const onMouseUp = () => {
+    // Promote a settled selection to the popover. Shared between desktop mouseup and
+    // mobile touchend (the latter delayed slightly so the selection finalizes).
+    const promoteSelection = () => {
       paint();
       const sel = document.getSelection();
       if (!sel || sel.isCollapsed || sel.rangeCount === 0) return;
@@ -688,13 +677,16 @@ function PdfPaginatedReader({ book }: Props) {
       const r = range.getBoundingClientRect();
       setSelPopover({ x: r.left + r.width / 2, y: r.top, text, rects });
     };
+    const onTouchEnd = () => window.setTimeout(promoteSelection, 50);
 
     layer.addEventListener('mousedown', onMouseDown);
-    layer.addEventListener('mouseup', onMouseUp);
+    layer.addEventListener('mouseup', promoteSelection);
+    layer.addEventListener('touchend', onTouchEnd);
     document.addEventListener('selectionchange', paint);
     return () => {
       layer.removeEventListener('mousedown', onMouseDown);
-      layer.removeEventListener('mouseup', onMouseUp);
+      layer.removeEventListener('mouseup', promoteSelection);
+      layer.removeEventListener('touchend', onTouchEnd);
       document.removeEventListener('selectionchange', paint);
     };
   }, []);
@@ -974,6 +966,9 @@ function PdfPaginatedReader({ book }: Props) {
     return () => wrap.removeEventListener('wheel', onWheel);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Two-finger pinch on touch screens — mirrors the Ctrl+wheel zoom for mobile.
+  usePinchZoom(canvasWrapRef, () => zoomRef.current, setZoom, { min: ZOOM_MIN, max: ZOOM_MAX });
 
   // Re-rasterise the bitmap sharper 250ms after zooming stops. The canvas CSS size
   // and the page transform don't change — only a crisper image swaps in, no jump.

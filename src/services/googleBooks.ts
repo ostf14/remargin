@@ -43,7 +43,6 @@ export async function fetchBookMetadata(title: string, author?: string): Promise
     const t = normalizeLookupTitle(title);
     // Both query forms need a real title (intitle:). Nothing to search otherwise.
     if (!t || t.toLowerCase() === 'untitled') return {};
-    console.log('[gbooks] query:', { title: t, author });
 
     const parts = [`intitle:${encodeURIComponent(t)}`];
     const a = author?.trim();
@@ -51,13 +50,9 @@ export async function fetchBookMetadata(title: string, author?: string): Promise
     const url = `https://www.googleapis.com/books/v1/volumes?q=${parts.join('+')}&maxResults=1`;
 
     const res = await fetch(url);
-    if (!res.ok) {
-      console.log('[gbooks] HTTP error:', res.status, res.statusText);
-      return {};
-    }
+    if (!res.ok) return {};
     const json = (await res.json()) as GoogleBooksResponse;
     const info = json.items?.[0]?.volumeInfo;
-    console.log('[gbooks] items:', json.items?.length ?? 0, 'imageLinks:', info?.imageLinks);
     if (!info) return {};
 
     // Prefer the largest image available; otherwise fall back to the thumbnail with its
@@ -73,11 +68,8 @@ export async function fetchBookMetadata(title: string, author?: string): Promise
         .replace(/&zoom=\d+/, '&zoom=3');
     }
 
-    const result = { title: info.title, author: info.authors?.[0], coverUrl };
-    console.log('[gbooks] result:', result);
-    return result;
-  } catch (e) {
-    console.log('[gbooks] error:', e);
+    return { title: info.title, author: info.authors?.[0], coverUrl };
+  } catch {
     return {};
   }
 }

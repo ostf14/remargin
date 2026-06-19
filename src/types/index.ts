@@ -6,7 +6,7 @@ export type ViewMode = 'library' | 'reader';
 
 export type ReadingSurface = 'light' | 'sepia' | 'dark';
 
-export type ReaderMode = 'pages' | 'scroll' | 'flip';
+export type ReaderMode = 'pages' | 'scroll';
 
 export type LibraryView = 'grid' | 'notes';
 
@@ -57,7 +57,7 @@ export interface AppState {
   theme: 'dark' | 'light';
   epubFontSizeOffset: number; // default 0, range -4 to +8
   readingSurface: ReadingSurface; // page tint while reading, separate from app theme
-  readerMode: ReaderMode; // pages | scroll | flip (UI only for now; default 'pages')
+  readerMode: ReaderMode; // pages | scroll (default 'pages')
   libraryView: LibraryView; // grid | notes (library layout; default 'grid')
   trimMargins: boolean; // PDF only — auto-crop the empty page margins
 }

@@ -34,28 +34,20 @@ export async function fetchOpenLibraryCover(
 
     try {
       const res = await fetch(buildUrl(tryTitle, author));
-      if (!res.ok) {
-        // HTTP errors (4xx/5xx) usually indicate an API-side problem — log and move on
-        // (don't return: a shorter title might still hit a different endpoint mood).
-        console.log('[gbooks] openlibrary HTTP', res.status, 'for', tryTitle);
-        continue;
-      }
+      // 4xx/5xx are usually API-side; a shorter title might still hit the API in a
+      // different mood — keep trying instead of bailing.
+      if (!res.ok) continue;
       const json = (await res.json()) as { docs?: { cover_i?: number }[] };
       const doc = json.docs?.find((d) => typeof d.cover_i === 'number' && d.cover_i > 0);
       if (doc?.cover_i) {
-        console.log('[gbooks] openlibrary matched:', tryTitle, '→ cover_i', doc.cover_i);
         // -L = large (~up to 1000px); default=false → 404 (not a blank placeholder) if missing.
         return `https://covers.openlibrary.org/b/id/${doc.cover_i}-L.jpg?default=false`;
       }
-    } catch (e) {
+    } catch {
       // Network throw (DNS, connection reset, transient first-call failure). Don't bail
-      // — try the next shorter title; subsequent calls usually succeed once the
-      // connection warms up.
-      console.log('[gbooks] openlibrary error on', tryTitle, ':', e);
+      // — subsequent calls usually succeed once the connection warms up.
       continue;
     }
   }
-
-  console.log('[gbooks] openlibrary: no cover for any title variant of', base);
   return undefined;
 }

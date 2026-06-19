@@ -6,6 +6,7 @@ import type { Book, HighlightColor } from '../../types';
 import { useLibrary } from '../../hooks/useLibrary';
 import { useAnnotations } from '../../hooks/useAnnotations';
 import { useReader } from '../../hooks/useReader';
+import { usePinchZoom } from '../../hooks/usePinchZoom';
 import { getBookFile } from '../../services/storage';
 import { ReaderShell } from './ReaderShell';
 import { AnnotationPanel } from '../annotations/AnnotationPanel';
@@ -393,6 +394,9 @@ export function PdfScrollReader({ book }: Props) {
   const zoomIn = () => setZoom((z) => Math.min(3, +(z + 0.25).toFixed(2)));
   const zoomOut = () => setZoom((z) => Math.max(0.5, +(z - 0.25).toFixed(2)));
 
+  // Two-finger pinch zoom on touch screens.
+  usePinchZoom(containerRef, () => zoomRef.current, setZoom, { min: 0.5, max: 3 });
+
   // Saved highlight click → open popover near it.
   const onSavedHighlightClick = (id: string, x: number, y: number) => {
     setSelPopover(null);
@@ -436,8 +440,11 @@ export function PdfScrollReader({ book }: Props) {
     >
       <div className={styles.wrapper}>
         <div className={styles.readerArea}>
-          <div ref={containerRef} className={styles.scrollContainer}>
-            <div className={styles.stack} style={{ width: '100%' }}>
+          <div
+            ref={containerRef}
+            className={`${styles.scrollContainer}${zoom > 1 ? ` ${styles.zoomed}` : ''}`}
+          >
+            <div className={`${styles.stack}${zoom > 1 ? ` ${styles.zoomed}` : ''}`}>
               {Array.from({ length: totalPages }, (_, i) => {
                 const num = i + 1;
                 const dims = pageDims.get(num);
@@ -793,7 +800,10 @@ function PdfScrollPage({
     const onMouseDown = () => {
       selectionLayer.replaceChildren();
     };
-    const onMouseUp = () => {
+    // Settled selection → snapshot + raise the create-popover. Used by both mouseup
+    // (desktop) and touchend (mobile, where the system callout is suppressed and our
+    // bottom-sheet popover is the only handler).
+    const promoteSelection = () => {
       paint();
       const sel = document.getSelection();
       if (!sel || sel.isCollapsed || sel.rangeCount === 0) return;
@@ -814,13 +824,19 @@ function PdfScrollPage({
       const r = range.getBoundingClientRect();
       onSelected(pageNum, r.left + r.width / 2, r.top, text, rects);
     };
+    // Mobile: a brief delay lets the browser finalize the selection range after the
+    // user lifts their finger (touchend fires before the selection settles in some
+    // engines).
+    const onTouchEnd = () => window.setTimeout(promoteSelection, 50);
 
     layer.addEventListener('mousedown', onMouseDown);
-    layer.addEventListener('mouseup', onMouseUp);
+    layer.addEventListener('mouseup', promoteSelection);
+    layer.addEventListener('touchend', onTouchEnd);
     document.addEventListener('selectionchange', paint);
     return () => {
       layer.removeEventListener('mousedown', onMouseDown);
-      layer.removeEventListener('mouseup', onMouseUp);
+      layer.removeEventListener('mouseup', promoteSelection);
+      layer.removeEventListener('touchend', onTouchEnd);
       document.removeEventListener('selectionchange', paint);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -841,7 +857,7 @@ function PdfScrollPage({
   return (
     <div
       ref={wrapperRef}
-      className={styles.pageWrapper}
+      className={`${styles.pageWrapper}${zoom > 1 ? ` ${styles.zoomed}` : ''}`}
       data-page-num={pageNum}
       // Aspect-ratio drives the placeholder height before the canvas paints; the canvas
       // itself dictates the wrapper's real size once it's rendered.
