@@ -395,7 +395,7 @@ export function PdfScrollReader({ book }: Props) {
   const zoomOut = () => setZoom((z) => Math.max(0.5, +(z - 0.25).toFixed(2)));
 
   // Two-finger pinch zoom on touch screens.
-  usePinchZoom(containerRef, () => zoomRef.current, setZoom, { min: 0.5, max: 3 });
+  usePinchZoom(containerRef, setZoom, { min: 0.5, max: 3 });
 
   // Saved highlight click → open popover near it.
   const onSavedHighlightClick = (id: string, x: number, y: number) => {
@@ -800,9 +800,9 @@ function PdfScrollPage({
     const onMouseDown = () => {
       selectionLayer.replaceChildren();
     };
-    // Settled selection → snapshot + raise the create-popover. Used by both mouseup
-    // (desktop) and touchend (mobile, where the system callout is suppressed and our
-    // bottom-sheet popover is the only handler).
+    // Settled selection → snapshot + raise the create-popover. Bails out if this page's
+    // textLayer isn't the one the user is selecting in, so the other pages' identical
+    // listeners stay quiet.
     const promoteSelection = () => {
       paint();
       const sel = document.getSelection();
@@ -824,20 +824,28 @@ function PdfScrollPage({
       const r = range.getBoundingClientRect();
       onSelected(pageNum, r.left + r.width / 2, r.top, text, rects);
     };
-    // Mobile: a brief delay lets the browser finalize the selection range after the
-    // user lifts their finger (touchend fires before the selection settles in some
-    // engines).
     const onTouchEnd = () => window.setTimeout(promoteSelection, 50);
+
+    // Debounced "selection settled" — Android Chrome often fires touchend before the
+    // selection has finalised, so we wait for a 300 ms quiet window on selectionchange
+    // and then promote. paint() still runs on every change so the band tracks the drag.
+    let settleTimer: number | null = null;
+    const onSelectionChange = () => {
+      paint();
+      if (settleTimer) window.clearTimeout(settleTimer);
+      settleTimer = window.setTimeout(promoteSelection, 300);
+    };
 
     layer.addEventListener('mousedown', onMouseDown);
     layer.addEventListener('mouseup', promoteSelection);
     layer.addEventListener('touchend', onTouchEnd);
-    document.addEventListener('selectionchange', paint);
+    document.addEventListener('selectionchange', onSelectionChange);
     return () => {
       layer.removeEventListener('mousedown', onMouseDown);
       layer.removeEventListener('mouseup', promoteSelection);
       layer.removeEventListener('touchend', onTouchEnd);
-      document.removeEventListener('selectionchange', paint);
+      document.removeEventListener('selectionchange', onSelectionChange);
+      if (settleTimer) window.clearTimeout(settleTimer);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [render, pageNum]);

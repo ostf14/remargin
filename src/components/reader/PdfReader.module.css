@@ -97,9 +97,10 @@
 
 :global(.textLayer) {
   z-index: 3;
-  -webkit-touch-callout: none;
-  -webkit-user-select: text;
-  user-select: text;
+  -webkit-touch-callout: none !important;
+  -webkit-tap-highlight-color: transparent !important;
+  -webkit-user-select: text !important;
+  user-select: text !important;
 }
 
 /* The text layer exists only to back the browser's Selection; the visible text is the

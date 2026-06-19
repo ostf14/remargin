@@ -77,9 +77,17 @@
 .viewer {
   width: 100%;
   height: 100%;
-  -webkit-touch-callout: none;
-  -webkit-user-select: text;
-  user-select: text;
+  -webkit-touch-callout: none !important;
+  -webkit-tap-highlight-color: transparent !important;
+  -webkit-user-select: text !important;
+  user-select: text !important;
+}
+
+/* EPUB content lives inside an iframe; CSS doesn't cross that boundary. The same
+   directives are injected into the iframe body via surfaceTheme() in EpubReader.tsx. */
+.viewer iframe {
+  -webkit-touch-callout: none !important;
+  -webkit-tap-highlight-color: transparent !important;
 }
 
 .loading {

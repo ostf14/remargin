@@ -3,10 +3,12 @@
   inset: 0;
   background: var(--bg-primary);
   overflow: hidden;
-  /* Mobile WebKit: block the long-press text-selection callout (system "Copy/Share" menu)
-     across the whole reader shell, while still permitting the user to select text — that's
-     how the HighlightPopover gets a chance to appear instead. */
-  -webkit-touch-callout: none;
+  /* Mobile WebKit / Chrome Android: block the long-press text-selection callout (system
+     "Copy/Share" / Google search bubble) across the whole reader shell, while still
+     permitting the user to select text — that's how the HighlightPopover gets a chance
+     to appear instead. Tap-highlight off so the brief grey flash on text tap is gone. */
+  -webkit-touch-callout: none !important;
+  -webkit-tap-highlight-color: transparent !important;
   -webkit-user-select: text;
   user-select: text;
 }

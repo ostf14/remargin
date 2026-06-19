@@ -159,9 +159,21 @@ export function ReaderShell({
     if (!window.matchMedia('(max-width: 600px)').matches) return;
     const root = shellRootRef.current;
     if (!root) return;
-    const block = (e: Event) => e.preventDefault();
-    root.addEventListener('contextmenu', block);
-    return () => root.removeEventListener('contextmenu', block);
+    const blockContext = (e: Event) => {
+      e.preventDefault();
+      e.stopPropagation();
+    };
+    // selectstart fires when a selection begins. Letting it bubble out lets browsers
+    // (especially Chrome Android in a PWA) hand the gesture off to system handlers,
+    // which then surface the Google search bubble. Stopping propagation keeps the
+    // gesture inside our shell where HighlightPopover handles it.
+    const blockSelectStart = (e: Event) => e.stopPropagation();
+    root.addEventListener('contextmenu', blockContext);
+    root.addEventListener('selectstart', blockSelectStart);
+    return () => {
+      root.removeEventListener('contextmenu', blockContext);
+      root.removeEventListener('selectstart', blockSelectStart);
+    };
   }, []);
 
   // Opening settings / search keeps the chrome up.

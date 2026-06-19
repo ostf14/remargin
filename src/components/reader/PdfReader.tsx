@@ -285,6 +285,8 @@ function PdfPaginatedReader({ book }: Props) {
     text: string;
     rects: { x: number; y: number; width: number; height: number }[];
   } | null>(null);
+  const selPopoverRef = useRef(selPopover);
+  selPopoverRef.current = selPopover;
   const [savedPopover, setSavedPopover] = useState<{ x: number; y: number; id: string } | null>(
     null,
   );
@@ -637,8 +639,11 @@ function PdfPaginatedReader({ book }: Props) {
     };
   }, []);
 
-  // Paint our own selection highlight (native ::selection leaves word gaps),
-  // and raise the create-highlight popover once a selection settles.
+  // Paint our own selection highlight (native ::selection leaves word gaps), and raise
+  // the create-highlight popover once a selection settles. Three paths into
+  // promoteSelection: desktop mouseup, mobile touchend, and a 300 ms debounce on
+  // selectionchange — the latter the most robust on Android Chrome where touchend
+  // sometimes fires before the selection has settled.
   useEffect(() => {
     const layer = textLayerRef.current;
     const pageContainer = pageContainerRef.current;
@@ -651,8 +656,6 @@ function PdfPaginatedReader({ book }: Props) {
       setSelPopover(null);
       setSavedPopover(null);
     };
-    // Promote a settled selection to the popover. Shared between desktop mouseup and
-    // mobile touchend (the latter delayed slightly so the selection finalizes).
     const promoteSelection = () => {
       paint();
       const sel = document.getSelection();
@@ -679,15 +682,30 @@ function PdfPaginatedReader({ book }: Props) {
     };
     const onTouchEnd = () => window.setTimeout(promoteSelection, 50);
 
+    // Debounced "selection settled" path. selectionchange fires throughout a drag;
+    // wait for a 300 ms quiet window and only then promote. Bails out if the popover
+    // is already up so we don't churn it.
+    let settleTimer: number | null = null;
+    const onSelectionChange = () => {
+      paint();
+      if (settleTimer) window.clearTimeout(settleTimer);
+      settleTimer = window.setTimeout(() => {
+        // mouseup/touchend may have already opened the popover — only fill the gap.
+        if (selPopoverRef.current) return;
+        promoteSelection();
+      }, 300);
+    };
+
     layer.addEventListener('mousedown', onMouseDown);
     layer.addEventListener('mouseup', promoteSelection);
     layer.addEventListener('touchend', onTouchEnd);
-    document.addEventListener('selectionchange', paint);
+    document.addEventListener('selectionchange', onSelectionChange);
     return () => {
       layer.removeEventListener('mousedown', onMouseDown);
       layer.removeEventListener('mouseup', promoteSelection);
       layer.removeEventListener('touchend', onTouchEnd);
-      document.removeEventListener('selectionchange', paint);
+      document.removeEventListener('selectionchange', onSelectionChange);
+      if (settleTimer) window.clearTimeout(settleTimer);
     };
   }, []);
 
@@ -968,7 +986,7 @@ function PdfPaginatedReader({ book }: Props) {
   }, []);
 
   // Two-finger pinch on touch screens — mirrors the Ctrl+wheel zoom for mobile.
-  usePinchZoom(canvasWrapRef, () => zoomRef.current, setZoom, { min: ZOOM_MIN, max: ZOOM_MAX });
+  usePinchZoom(canvasWrapRef, setZoom, { min: ZOOM_MIN, max: ZOOM_MAX });
 
   // Re-rasterise the bitmap sharper 250ms after zooming stops. The canvas CSS size
   // and the page transform don't change — only a crisper image swaps in, no jump.

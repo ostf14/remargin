@@ -65,6 +65,11 @@ function surfaceTheme(surface: ReadingSurface): Record<string, Record<string, st
       padding: '0 !important',
       '-webkit-user-select': 'text !important',
       'user-select': 'text !important',
+      // Block the Chrome Android long-press "Google search" callout while preserving
+      // the user's ability to select text. CSS variables don't cross the iframe so we
+      // inject literals here too.
+      '-webkit-touch-callout': 'none !important',
+      '-webkit-tap-highlight-color': 'transparent !important',
     },
     a: { color: `${link} !important` },
     // Keep media within the column/page so it can't get cropped or bleed onto the next page.
@@ -516,30 +521,62 @@ export function EpubReader({ book }: Props) {
     };
   }, [openSavedHighlight, renditionEpoch]);
 
+  // Tracks which CFIs we've drawn on the current rendition, with their colour. Resetting
+  // on renditionEpoch (mode switch) is handled by re-running this effect — we also wipe
+  // the map there.
+  const drawnHighlightsRef = useRef<Map<string, string>>(new Map());
+  const drawnEpochRef = useRef(-1);
   useEffect(() => {
     const rendition = renditionRef.current;
     if (!rendition) return;
 
-    annotations.forEach((a) => {
-      if (a.anchor.kind === 'epub') {
+    // Wipe the tracking map on a rendition recreate — the new rendition has no SVG
+    // overlays yet, so anything we "remembered drawing" needs to be re-added.
+    if (renditionEpoch !== drawnEpochRef.current) {
+      drawnHighlightsRef.current.clear();
+      drawnEpochRef.current = renditionEpoch;
+    }
+
+    const want = new Map<string, { color: string; ann: Annotation }>();
+    for (const a of annotations) {
+      if (a.anchor.kind === 'epub') want.set(a.anchor.cfi, { color: a.color, ann: a });
+    }
+
+    // Remove highlights for annotations that no longer exist (deletions).
+    for (const cfi of Array.from(drawnHighlightsRef.current.keys())) {
+      if (!want.has(cfi)) {
         try {
-          rendition.annotations.remove(a.anchor.cfi, 'highlight');
-        } catch { /* ignore */ }
-        rendition.annotations.highlight(
-          a.anchor.cfi,
-          {},
-          () => openSavedHighlight(a),
-          'hl',
-          {
-            fill: `var(--highlight-${a.color})`,
-            'fill-opacity': '1',
-            'mix-blend-mode': 'multiply',
-          },
-        );
+          rendition.annotations.remove(cfi, 'highlight');
+        } catch { /* already gone */ }
+        drawnHighlightsRef.current.delete(cfi);
       }
-    });
-    // renditionEpoch is part of the deps — after a mode-switch recreate the new
-    // rendition has no highlights yet, so re-running this paints them onto it.
+    }
+
+    // Add new highlights; update colour when an existing one changed (remove + re-add).
+    // Critically, untouched highlights are skipped — re-painting them all on every
+    // annotation change caused epub.js to nudge the rendition's scroll position back
+    // toward the start when a new annotation was created mid-book.
+    for (const [cfi, { color, ann }] of want) {
+      const prevColor = drawnHighlightsRef.current.get(cfi);
+      if (prevColor === color) continue;
+      if (prevColor !== undefined) {
+        try {
+          rendition.annotations.remove(cfi, 'highlight');
+        } catch { /* fine */ }
+      }
+      rendition.annotations.highlight(
+        cfi,
+        {},
+        () => openSavedHighlight(ann),
+        'hl',
+        {
+          fill: `var(--highlight-${color})`,
+          'fill-opacity': '1',
+          'mix-blend-mode': 'multiply',
+        },
+      );
+      drawnHighlightsRef.current.set(cfi, color);
+    }
   }, [annotations, openSavedHighlight, renditionEpoch]);
 
   // Recompute note positions whenever annotations, focus, or the page changes.
@@ -569,13 +606,8 @@ export function EpubReader({ book }: Props) {
     return () => desk.removeEventListener('wheel', handleZoomWheel);
   }, [handleZoomWheel]);
 
-  // Two-finger pinch zoom on touch screens.
-  const zoomRef = useRef(zoom);
-  zoomRef.current = zoom;
-  usePinchZoom(deskRef, () => zoomRef.current, (z) => setZoom(clampZoom(z)), {
-    min: ZOOM_MIN,
-    max: ZOOM_MAX,
-  });
+  // Two-finger pinch zoom on touch screens. The hook clamps internally.
+  usePinchZoom(deskRef, setZoom, { min: ZOOM_MIN, max: ZOOM_MAX });
 
   const drawHighlight = (cfi: string, color: HighlightColor) => {
     renditionRef.current?.annotations.highlight(cfi, {}, () => {}, 'hl', {
