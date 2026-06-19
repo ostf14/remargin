@@ -170,6 +170,7 @@ html {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
+  overflow-x: hidden;
 }
 
 body {
@@ -180,6 +181,7 @@ body {
   line-height: var(--leading-normal);
   min-height: 100vh;
   overflow: hidden;
+  overflow-x: hidden;
   /* Respect device safe areas when installed as a PWA (notches, home indicator).
      Zero on desktop, so no visible effect there. */
   padding-top: env(safe-area-inset-top);

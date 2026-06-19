@@ -6,6 +6,8 @@ import {
   Moon,
   BookOpen,
   ChevronDown,
+  ArrowUpDown,
+  X,
   LayoutGrid,
   MessageSquareText,
 } from 'lucide-react';
@@ -65,8 +67,11 @@ export function BookGrid() {
   const [sort, setSort] = useState<SortKey>('recent');
   const [sortOpen, setSortOpen] = useState(false);
   const [view, setView] = useState<LibraryView>(() => loadAppState().libraryView);
+  // Mobile-only: search input slides down from under the header when the icon is tapped.
+  const [searchOpen, setSearchOpen] = useState(false);
   const sortRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const mobileSearchInputRef = useRef<HTMLInputElement>(null);
 
   const setLibraryView = (v: LibraryView) => {
     setView(v);
@@ -132,6 +137,7 @@ export function BookGrid() {
         </h1>
 
         <div className={styles.actions}>
+          {/* Desktop inline search (hidden on ≤600px via CSS). */}
           {hasBooks && view !== 'notes' && (
             <div className={styles.searchWrap}>
               <Search className={styles.searchIcon} size={16} aria-hidden="true" />
@@ -144,6 +150,20 @@ export function BookGrid() {
               />
             </div>
           )}
+          {/* Mobile-only search icon button (hidden on desktop via CSS). */}
+          {hasBooks && view !== 'notes' && (
+            <button
+              className={styles.iconBtn}
+              onClick={() => {
+                setSearchOpen((o) => !o);
+                window.setTimeout(() => mobileSearchInputRef.current?.focus(), 0);
+              }}
+              title="Search"
+              aria-label="Open search"
+            >
+              <Search size={20} />
+            </button>
+          )}
           {hasBooks && view !== 'notes' && (
             <div className={styles.sortWrap} ref={sortRef}>
               <button
@@ -151,8 +171,12 @@ export function BookGrid() {
                 onClick={() => setSortOpen((o) => !o)}
                 aria-label="Sort books"
               >
-                {SORT_OPTIONS.find((o) => o.value === sort)?.label}
-                <ChevronDown size={12} />
+                {/* Desktop: label + chevron. Mobile (CSS): just the arrows icon. */}
+                <span className={styles.sortLabel}>
+                  {SORT_OPTIONS.find((o) => o.value === sort)?.label}
+                  <ChevronDown size={12} />
+                </span>
+                <ArrowUpDown className={styles.sortIcon} size={20} />
               </button>
               {sortOpen && (
                 <div className={styles.sortMenu}>
@@ -172,6 +196,7 @@ export function BookGrid() {
               )}
             </div>
           )}
+          {/* Header import button — hidden on mobile via CSS (FAB replaces it). */}
           <button
             className={styles.importBtn}
             onClick={openPicker}
@@ -189,6 +214,39 @@ export function BookGrid() {
             {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
           </button>
         </div>
+
+        {/* Mobile-only slide-down search panel (hidden on desktop). Lives in the header
+            so it inherits sticky positioning; transform slides it in from above. */}
+        {hasBooks && view !== 'notes' && (
+          <div className={`${styles.mobileSearchBar} ${searchOpen ? styles.mobileSearchOpen : ''}`}>
+            <Search size={16} aria-hidden="true" className={styles.searchIcon} />
+            <input
+              ref={mobileSearchInputRef}
+              className={styles.search}
+              type="text"
+              placeholder="Search books…"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Escape') {
+                  e.preventDefault();
+                  setQuery('');
+                  setSearchOpen(false);
+                }
+              }}
+            />
+            <button
+              className={styles.mobileSearchClose}
+              onClick={() => {
+                setQuery('');
+                setSearchOpen(false);
+              }}
+              aria-label="Close search"
+            >
+              <X size={18} />
+            </button>
+          </div>
+        )}
       </header>
 
       <input
@@ -240,6 +298,16 @@ export function BookGrid() {
           })}
         </div>
       )}
+
+      {/* Mobile-only FAB import — hidden on desktop, replaces the header "+" button. */}
+      <button
+        className={styles.fab}
+        onClick={openPicker}
+        title="Import book"
+        aria-label="Import book"
+      >
+        <Plus size={24} />
+      </button>
 
       {hasBooks && (
         <div className={styles.viewPill}>

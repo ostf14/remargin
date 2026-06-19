@@ -1,8 +1,10 @@
 .container {
   height: 100vh;
   overflow-y: auto;
+  overflow-x: hidden;
   max-width: 1400px;
   margin: 0 auto;
+  position: relative;
 }
 
 /* Single-line top bar. */
@@ -17,6 +19,107 @@
   padding: 10px 20px;
   background: var(--bg-primary);
   border-bottom: 0.5px solid var(--border);
+}
+
+/* Mobile-only icon button (search, etc.). Hidden on desktop. */
+.iconBtn {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-full);
+  background: transparent;
+  color: var(--text-secondary);
+}
+
+.iconBtn:hover {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
+/* Sort button shows label + chevron on desktop, ArrowUpDown icon on mobile. */
+.sortLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.sortIcon {
+  display: none;
+}
+
+/* Mobile slide-down search bar — sits under the header strip and translates in/out. */
+.mobileSearchBar {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  display: none; /* desktop hides it via display; mobile media flips to flex */
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background: var(--bg-secondary);
+  border-bottom: 0.5px solid var(--border);
+  transform: translateY(-100%);
+  transition: transform 0.2s var(--ease-out);
+  z-index: -1; /* slides up BEHIND the header until opened */
+}
+
+.mobileSearchBar .search {
+  flex: 1;
+  font-size: 14px;
+  border-bottom: 0.5px solid var(--border);
+  padding: 8px 0;
+}
+
+.mobileSearchOpen {
+  transform: translateY(0);
+}
+
+.mobileSearchClose {
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-full);
+  color: var(--text-tertiary);
+  background: transparent;
+}
+
+.mobileSearchClose:hover {
+  color: var(--text-primary);
+  background: var(--bg-tertiary);
+}
+
+/* Floating-action import button — mobile only (CSS-gated). */
+.fab {
+  display: none; /* desktop hides; mobile media query flips to flex */
+  position: fixed;
+  bottom: calc(16px + env(safe-area-inset-bottom));
+  left: 16px;
+  z-index: 100;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #fff;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 12px rgba(155, 107, 226, 0.4);
+  transition: transform var(--duration-fast) var(--ease-out),
+    box-shadow var(--duration-fast) var(--ease-out);
+}
+
+.fab:hover {
+  background: var(--accent-hover);
+  box-shadow: 0 6px 16px rgba(155, 107, 226, 0.5);
+}
+
+.fab:active {
+  transform: scale(0.95);
 }
 
 .logo {
@@ -363,29 +466,64 @@
     grid-template-columns: 1fr;
     gap: 0;
     padding: 0;
+    overflow-x: hidden;
   }
 
   .header {
     height: 56px;
     padding: 8px 12px;
-    gap: 8px;
+    gap: 4px;
   }
   .logo {
     font-size: 18px;
   }
-  /* Apple HIG touch target — header action buttons grow to 44×44. */
-  .importBtn,
+
+  /* Pack only icons in the header. Hide: inline search, sort text label, header "+". */
+  .searchWrap,
+  .importBtn {
+    display: none;
+  }
+  .sortLabel {
+    display: none;
+  }
+  .sortIcon {
+    display: inline-flex;
+  }
+  /* Sort button becomes an icon-only 44×44 chip, same as the other icon buttons. */
+  .sortBtn {
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    font-size: 0;
+    color: var(--text-secondary);
+  }
+  .iconBtn {
+    display: flex;
+  }
+  /* Theme toggle is already a 44×44 icon button; keep it that way. */
   .themeToggle {
     width: 44px;
     height: 44px;
   }
-  /* Sort dropdown trigger goes pill-shaped and taller for fingers. */
-  .sortBtn {
-    height: 40px;
-    font-size: 13px;
+
+  /* Slide-down panel comes alive on mobile. Background opaque, sits below the header. */
+  .mobileSearchBar {
+    display: flex;
   }
+
+  /* FAB import — bottom-left, circular, accent. */
+  .fab {
+    display: flex;
+  }
+
+  /* Hide the book count + divider in the floating pill; not critical on mobile. */
+  .pillCount,
+  .pillDivider {
+    display: none;
+  }
+
   .viewPill {
-    bottom: 12px;
+    bottom: calc(12px + env(safe-area-inset-bottom));
     right: 12px;
     padding: 6px;
     gap: 4px;
@@ -394,8 +532,9 @@
     width: 40px;
     height: 40px;
   }
-  .pillCount {
-    font-size: 12px;
-    padding: 0 6px 0 10px;
+
+  /* The sort menu opens from the icon — right-align it just under the button. */
+  .sortMenu {
+    right: 0;
   }
 }
