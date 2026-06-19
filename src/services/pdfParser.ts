@@ -26,12 +26,26 @@ export async function parsePdf(file: File): Promise<{ book: Book; data: ArrayBuf
     // metadata unavailable
   }
 
-  // No cover from the PDF itself: the first page rendered as a thumbnail is almost
-  // always a pale, near-blank page that doesn't look like a book cover — but it would
-  // pass the !coverUrl check and stop the metadata enrich from ever fetching a real
-  // one from Google / Open Library. Leave it null; enrich fills it in. If nothing
-  // matches, the card placeholder is honest, and right-click → Find cover is manual.
-  const coverUrl: string | null = null;
+  // Last-resort placeholder: render the first page at low res as a data: URL. It's
+  // usually a pale title page, but it's better than the empty BookOpen icon when both
+  // Google Books and Open Library miss (which happens for non-English / niche titles).
+  // useImport's enrich routes still run because they treat a data: cover as upgradeable
+  // — when a real publisher cover is found later it replaces this fallback.
+  let coverUrl: string | null = null;
+  try {
+    const page = await pdf.getPage(1);
+    const viewport = page.getViewport({ scale: 0.5 });
+    const canvas = document.createElement('canvas');
+    canvas.width = viewport.width;
+    canvas.height = viewport.height;
+    const ctx = canvas.getContext('2d');
+    if (ctx) {
+      await page.render({ canvasContext: ctx, viewport }).promise;
+      coverUrl = canvas.toDataURL('image/jpeg', 0.8);
+    }
+  } catch {
+    /* first-page render failed — leave null, the card placeholder shows */
+  }
 
   const totalPages = pdf.numPages;
   await pdf.cleanup();

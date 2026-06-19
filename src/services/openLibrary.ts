@@ -35,8 +35,10 @@ export async function fetchOpenLibraryCover(
     try {
       const res = await fetch(buildUrl(tryTitle, author));
       if (!res.ok) {
-        console.log('[gbooks] openlibrary HTTP error:', res.status, res.statusText);
-        return undefined;
+        // HTTP errors (4xx/5xx) usually indicate an API-side problem — log and move on
+        // (don't return: a shorter title might still hit a different endpoint mood).
+        console.log('[gbooks] openlibrary HTTP', res.status, 'for', tryTitle);
+        continue;
       }
       const json = (await res.json()) as { docs?: { cover_i?: number }[] };
       const doc = json.docs?.find((d) => typeof d.cover_i === 'number' && d.cover_i > 0);
@@ -46,8 +48,11 @@ export async function fetchOpenLibraryCover(
         return `https://covers.openlibrary.org/b/id/${doc.cover_i}-L.jpg?default=false`;
       }
     } catch (e) {
-      console.log('[gbooks] openlibrary error:', e);
-      return undefined;
+      // Network throw (DNS, connection reset, transient first-call failure). Don't bail
+      // — try the next shorter title; subsequent calls usually succeed once the
+      // connection warms up.
+      console.log('[gbooks] openlibrary error on', tryTitle, ':', e);
+      continue;
     }
   }
 
