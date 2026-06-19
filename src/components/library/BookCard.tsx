@@ -52,23 +52,26 @@ export function BookCard({ book, featured, enriching, onClick, onRemove, onConte
             <BookOpen className={styles.placeholderIcon} size={28} aria-hidden="true" />
           </div>
         )}
-        <button
-          className={styles.removeBtn}
-          onClick={(e) => {
-            e.stopPropagation();
-            onRemove(e);
-          }}
-          title="Remove"
-          aria-label="Remove book"
-        >
-          <X size={14} />
-        </button>
         {enriching && (
           <div className={styles.enriching}>
             <div className={styles.spinner} />
           </div>
         )}
       </div>
+      {/* Remove button is a direct child of the card so it can sit at the card's true
+          top-right corner — on mobile the cover-zone only occupies a 4/3 strip at the
+          top, and the X anchored to coverZone looked detached. */}
+      <button
+        className={styles.removeBtn}
+        onClick={(e) => {
+          e.stopPropagation();
+          onRemove(e);
+        }}
+        title="Remove"
+        aria-label="Remove book"
+      >
+        <X size={14} />
+      </button>
 
       <div className={styles.meta}>
         <div className={styles.title}>{book.title}</div>

@@ -194,90 +194,31 @@
   white-space: nowrap;
 }
 
-/* ─────────────────────────── Mobile (≤600px): horizontal cards ─────────────────────────── */
+/* ─────────────────────────── Mobile (≤600px): smaller vertical cards ─────────────────────────── */
 @media (max-width: 600px) {
-  .card {
-    flex-direction: row;
-    align-items: stretch;
-    padding: 12px;
-    gap: 12px;
-    border-radius: 0;
-    border: 0;
-    border-bottom: 0.5px solid var(--border);
-  }
-
-  /* Override the gradient + purple border the desktop featured card uses; on mobile
-     the accent is a left bar, per spec. */
-  .featuredCard {
-    background-image: none;
-    border-left: 2px solid var(--accent);
-    border-color: var(--border);
-  }
-  .featuredCard .continueBadge {
-    display: none;
-  }
-
-  .coverZone {
-    flex: 0 0 60px;
-    width: 60px;
-    aspect-ratio: auto;
-    height: 90px;
-    padding: 0;
-    border-radius: 4px;
-    overflow: hidden;
-  }
-
-  .cover {
-    width: 100%;
-    height: 100%;
-    max-width: none;
-    max-height: none;
-    object-fit: cover;
-    box-shadow: none;
-  }
-
-  .placeholder {
-    width: 100%;
-    height: 100%;
-  }
-
+  /* Vertical layout kept — only meta sizes shrink. Cover-zone aspect ratio inherits the
+     desktop 4/3 so two cards per row stay visually balanced. */
   .meta {
-    flex: 1;
-    min-width: 0;
-    padding: 0;
-    border-top: 0;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    gap: 4px;
+    padding: 10px 10px 12px;
   }
 
   .title {
-    font-size: 14px;
-    min-height: 0;
-    -webkit-line-clamp: 1;
-    line-clamp: 1;
+    font-size: 13px;
   }
 
   .author {
-    font-size: 12px;
-  }
-
-  .foot {
-    margin-top: 4px;
+    font-size: 11px;
   }
 
   .tag,
   .progress {
-    font-size: 11px;
+    font-size: 10px;
   }
 
-  /* Remove button stays visible without hover (no hover on touch). */
+  /* Remove button is always visible (no hover on touch). */
   .removeBtn {
     opacity: 1;
-    top: 4px;
-    right: 4px;
-    width: 32px;
-    height: 32px;
+    top: 6px;
+    right: 6px;
   }
 }

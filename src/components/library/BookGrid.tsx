@@ -215,39 +215,41 @@ export function BookGrid() {
           </button>
         </div>
 
-        {/* Mobile-only slide-down search panel (hidden on desktop). Lives in the header
-            so it inherits sticky positioning; transform slides it in from above. */}
-        {hasBooks && view !== 'notes' && (
-          <div className={`${styles.mobileSearchBar} ${searchOpen ? styles.mobileSearchOpen : ''}`}>
-            <Search size={16} aria-hidden="true" className={styles.searchIcon} />
-            <input
-              ref={mobileSearchInputRef}
-              className={styles.search}
-              type="text"
-              placeholder="Search books…"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Escape') {
-                  e.preventDefault();
-                  setQuery('');
-                  setSearchOpen(false);
-                }
-              }}
-            />
-            <button
-              className={styles.mobileSearchClose}
-              onClick={() => {
+      </header>
+
+      {/* Mobile-only slide-down search panel — sibling of header (not inside it) so the
+          header's solid background sits above and the panel slides down cleanly when
+          opened, not visible behind the header at rest. */}
+      {hasBooks && view !== 'notes' && (
+        <div className={`${styles.mobileSearchBar} ${searchOpen ? styles.mobileSearchOpen : ''}`}>
+          <Search size={16} aria-hidden="true" className={styles.searchIcon} />
+          <input
+            ref={mobileSearchInputRef}
+            className={styles.search}
+            type="text"
+            placeholder="Search books…"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Escape') {
+                e.preventDefault();
                 setQuery('');
                 setSearchOpen(false);
-              }}
-              aria-label="Close search"
-            >
-              <X size={18} />
-            </button>
-          </div>
-        )}
-      </header>
+              }
+            }}
+          />
+          <button
+            className={styles.mobileSearchClose}
+            onClick={() => {
+              setQuery('');
+              setSearchOpen(false);
+            }}
+            aria-label="Close search"
+          >
+            <X size={18} />
+          </button>
+        </div>
+      )}
 
       <input
         ref={fileInputRef}
