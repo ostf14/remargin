@@ -21,6 +21,8 @@ interface ReaderState {
   setReadingSurface: (s: ReadingSurface) => void;
   readerMode: ReaderMode;
   setReaderMode: (m: ReaderMode) => void;
+  trimMargins: boolean;
+  setTrimMargins: (v: boolean) => void;
 }
 
 export const ReaderContext = createContext<ReaderState>({
@@ -37,6 +39,8 @@ export const ReaderContext = createContext<ReaderState>({
   setReadingSurface: () => {},
   readerMode: 'pages',
   setReaderMode: () => {},
+  trimMargins: false,
+  setTrimMargins: () => {},
 });
 
 // Resolve the persisted view: reopen the last book if it still exists.
@@ -59,6 +63,7 @@ export function ReaderProvider({ children }: { children: ReactNode }) {
     () => loadAppState().readingSurface,
   );
   const [readerMode, setReaderModeState] = useState<ReaderMode>(() => loadAppState().readerMode);
+  const [trimMargins, setTrimMarginsState] = useState<boolean>(() => loadAppState().trimMargins);
   const [pendingAnchor, setPendingAnchor] = useState<AnchorData | null>(null);
 
   // Reflect the theme onto <html> so CSS custom properties switch app-wide.
@@ -94,6 +99,11 @@ export function ReaderProvider({ children }: { children: ReactNode }) {
     saveAppState({ ...loadAppState(), readerMode: m });
   };
 
+  const setTrimMargins = (v: boolean) => {
+    setTrimMarginsState(v);
+    saveAppState({ ...loadAppState(), trimMargins: v });
+  };
+
   const openBook = (book: Book, anchor?: AnchorData) => {
     setCurrentBook(book);
     setViewMode('reader');
@@ -125,6 +135,8 @@ export function ReaderProvider({ children }: { children: ReactNode }) {
         setReadingSurface,
         readerMode,
         setReaderMode,
+        trimMargins,
+        setTrimMargins,
       }}
     >
       {children}

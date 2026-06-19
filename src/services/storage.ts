@@ -67,17 +67,22 @@ const DEFAULT_APP_STATE: AppState = {
   readingSurface: 'light',
   readerMode: 'pages',
   libraryView: 'grid',
+  trimMargins: false,
 };
 
 export function loadAppState(): AppState {
   try {
     const raw = localStorage.getItem(APP_STATE_KEY);
-    const merged: AppState = raw
-      ? { ...DEFAULT_APP_STATE, ...JSON.parse(raw) }
-      : { ...DEFAULT_APP_STATE };
+    const parsed = raw ? (JSON.parse(raw) as Partial<AppState>) : {};
+    const merged: AppState = { ...DEFAULT_APP_STATE, ...parsed };
     // The old 'list' library view is gone — fold existing users back to grid so they
     // don't get stuck on an unrendered view after upgrade.
     if ((merged.libraryView as string) === 'list') merged.libraryView = 'grid';
+    // Mobile-first default for trim — only if the user has never set it (storage didn't
+    // carry the key yet). Saved preference always wins.
+    if (typeof parsed.trimMargins !== 'boolean' && typeof window !== 'undefined') {
+      merged.trimMargins = window.matchMedia('(max-width: 600px)').matches;
+    }
     return merged;
   } catch {
     return { ...DEFAULT_APP_STATE };

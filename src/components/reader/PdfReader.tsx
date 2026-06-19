@@ -15,6 +15,7 @@ import { MarginNotes, type PositionedNote } from '../annotations/MarginNotes';
 import { Toast } from './Toast';
 import { formatCitation } from '../../services/citation';
 import { countPdfWords, readingMinutes, formatDuration } from '../../services/wordCount';
+import { detectContentBoundsNorm, type ContentBoundsNorm } from '../../utils/detectContentBounds';
 import styles from './PdfReader.module.css';
 
 // Word-level find highlight on the (transparent) text layer: each occurrence of the
@@ -246,7 +247,16 @@ export function PdfReader({ book }: Props) {
   const baseScaleRef = useRef(1);
   const lastRenderedPageRef = useRef(0);
   const { patchBook } = useLibrary();
-  const { showAnnotations, pendingAnchor, readerMode, setReaderMode } = useReader();
+  const { showAnnotations, pendingAnchor, readerMode, setReaderMode, trimMargins, setTrimMargins } =
+    useReader();
+  // Normalised content bounds per page — once computed at any scale, the 0..1 rectangle
+  // is reusable when the canvas re-renders at a different zoom/base scale.
+  const trimNormsRef = useRef<Map<number, ContentBoundsNorm>>(new Map());
+  // Page-coord offset of the current-render's trim crop (used by save / paint / notes).
+  // Page-coord units are scale-independent, so this stays accurate across zoom changes.
+  const trimOffsetRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+  const trimMarginsRef = useRef(trimMargins);
+  trimMarginsRef.current = trimMargins;
   const { annotations, addAnnotation, updateAnnotation, deleteAnnotation } = useAnnotations(book.id);
   const annotationsRef = useRef(annotations);
   annotationsRef.current = annotations;
@@ -327,6 +337,9 @@ export function PdfReader({ book }: Props) {
     if (!layer) return;
     layer.replaceChildren();
     const scale = baseScaleRef.current;
+    // When trim is on the highlightLayer carries the same translate as the canvas, so
+    // these positions are still in the natural (untrimmed) coord system. No subtraction
+    // needed here — see the inline transform set in the rAF below.
     for (const a of annotationsRef.current) {
       if (a.anchor.kind !== 'pdf' || a.anchor.page !== pageNum) continue;
       for (const r of a.anchor.rects) {
@@ -356,9 +369,11 @@ export function PdfReader({ book }: Props) {
       if (!first) continue;
       // Anchor × baseScale only — never × zoom. The page's CSS transform supplies
       // the zoom, so positions are stable across zooming (no jump, no recompute).
+      // Subtract the trim's top offset so notes track the cropped content's visual y.
+      const trimY = trimOffsetRef.current.y;
       result.push({
         id: a.id,
-        anchorTop: PAGE_PAD_TOP + first.y * scale,
+        anchorTop: PAGE_PAD_TOP + (first.y - trimY) * scale,
         note: a.note,
         color: a.color,
       });
@@ -399,6 +414,42 @@ export function PdfReader({ book }: Props) {
       const targetText = Math.max(320, pageWidth - NOTES_W - TEXT_PAD - 8);
       if (targetText > 0) baseScale = targetText / unscaled.width;
     }
+
+    // Trim margins: detect the content rectangle (cached normalised), then crank the
+    // base scale so the cropped width fills the text zone. The canvas itself is rendered
+    // larger; the pageContainer is sized to the cropped area; canvas + textLayer +
+    // highlightLayer get translate(-cropLeft, -cropTop) so the content shows through.
+    let trimNorm: ContentBoundsNorm | null = null;
+    if (trimMarginsRef.current) {
+      let cached = trimNormsRef.current.get(num);
+      if (!cached) {
+        // Quick low-res render just for detection — much cheaper than a real render.
+        try {
+          const detVp = p.getViewport({ scale: 0.3 });
+          const det = document.createElement('canvas');
+          det.width = Math.floor(detVp.width);
+          det.height = Math.floor(detVp.height);
+          const detCtx = det.getContext('2d');
+          if (detCtx) {
+            await p.render({ canvasContext: detCtx, viewport: detVp }).promise;
+            if (seq !== renderSeqRef.current) return; // superseded during detection
+            cached = detectContentBoundsNorm(det);
+            trimNormsRef.current.set(num, cached);
+          }
+        } catch {
+          /* detection failed — fall back to no-trim for this page */
+        }
+      }
+      if (cached) {
+        const normW = Math.max(0.1, cached.right - cached.left);
+        baseScale = baseScale / normW;
+        trimNorm = cached;
+      }
+    }
+    trimOffsetRef.current = trimNorm
+      ? { x: trimNorm.left * unscaled.width, y: trimNorm.top * unscaled.height }
+      : { x: 0, y: 0 };
+
     const baseChanged = baseScale !== baseScaleRef.current;
     const pageChanged = num !== lastRenderedPageRef.current;
     baseScaleRef.current = baseScale;
@@ -440,6 +491,37 @@ export function PdfReader({ book }: Props) {
       canvas.getContext('2d')!.drawImage(offscreen, 0, 0);
       renderedZoomRef.current = zoom;
       renderedPageRef.current = num;
+
+      // Apply (or clear) the trim crop. pageContainer shrinks to the content rect;
+      // canvas/textLayer/highlightLayer get translated up-left so the content shows
+      // inside the cropped frame. selectionLayer stays at inset:0 — its existing
+      // selection-band math already uses getClientRects() which sees the transforms.
+      const pageContainer = pageContainerRef.current;
+      const textLayer = textLayerRef.current;
+      const highlightLayer = highlightLayerRef.current;
+      if (trimNorm) {
+        const cropLeftCss = trimNorm.left * cssWidth;
+        const cropTopCss = trimNorm.top * cssHeight;
+        const cropWidthCss = (trimNorm.right - trimNorm.left) * cssWidth;
+        const cropHeightCss = (trimNorm.bottom - trimNorm.top) * cssHeight;
+        const translate = `translate(${-cropLeftCss}px, ${-cropTopCss}px)`;
+        if (pageContainer) {
+          pageContainer.style.width = `${cropWidthCss}px`;
+          pageContainer.style.height = `${cropHeightCss}px`;
+          pageContainer.style.overflow = 'hidden';
+        }
+        canvas.style.transform = translate;
+        if (textLayer) textLayer.style.transform = translate;
+        if (highlightLayer) highlightLayer.style.transform = translate;
+      } else if (pageContainer) {
+        pageContainer.style.width = '';
+        pageContainer.style.height = '';
+        pageContainer.style.overflow = '';
+        canvas.style.transform = '';
+        if (textLayer) textLayer.style.transform = '';
+        if (highlightLayer) highlightLayer.style.transform = '';
+      }
+
       paintSavedHighlights(num);
       // Notes move only when the page or the fit-width scale changes — never on zoom.
       if (baseChanged || pageChanged) recomputeNotePositions();
@@ -475,6 +557,9 @@ export function PdfReader({ book }: Props) {
 
   useEffect(() => {
     let cancelled = false;
+    // New book — drop any cached trim bounds from the previous book.
+    trimNormsRef.current = new Map();
+    trimOffsetRef.current = { x: 0, y: 0 };
     (async () => {
       try {
         const arrayBuf = await getBookFile(book.id);
@@ -516,6 +601,13 @@ export function PdfReader({ book }: Props) {
   useEffect(() => {
     if (pdfRef.current) renderPage(pdfRef.current, page);
   }, [page, renderPage]);
+
+  // Toggle of the Trim setting → re-render the current page so the new crop / no-crop
+  // state shows. Bounds are kept in trimNormsRef across toggles, so flipping back is free.
+  useEffect(() => {
+    if (pdfRef.current) renderPage(pdfRef.current, pageRef.current);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [trimMargins]);
 
   useEffect(() => {
     const pct = totalPages > 0 ? Math.round((page / totalPages) * 100) : 0;
@@ -575,9 +667,13 @@ export function PdfReader({ book }: Props) {
       if (!range.intersectsNode(layer)) return;
       const lines = computeSelectionLineRects(layer, pageContainer);
       const scale = baseScaleRef.current * zoomRef.current || 1;
+      // line.x/y are pageContainer-local; when trim is on, the visible content is
+      // shifted in by (trimOffset.x, trimOffset.y) page-coord units, so we add those
+      // to land the saved rect in untrimmed page coords.
+      const off = trimOffsetRef.current;
       const rects = lines.map((l) => ({
-        x: l.left / scale,
-        y: l.top / scale,
+        x: l.left / scale + off.x,
+        y: l.top / scale + off.y,
         width: (l.right - l.left) / scale,
         height: (l.bottom - l.top) / scale,
       }));
@@ -659,8 +755,11 @@ export function PdfReader({ book }: Props) {
     if (!pageContainer) return;
     const base = pageContainer.getBoundingClientRect();
     const scale = baseScaleRef.current * zoomRef.current || 1;
-    const px = (e.clientX - base.left) / scale;
-    const py = (e.clientY - base.top) / scale;
+    // When trim is on, base.left/top corresponds to the cropped content's top-left, so
+    // page-coord px/py have to add the trim offset back to compare against stored rects.
+    const off = trimOffsetRef.current;
+    const px = (e.clientX - base.left) / scale + off.x;
+    const py = (e.clientY - base.top) / scale + off.y;
     for (const a of annotationsRef.current) {
       if (a.anchor.kind !== 'pdf' || a.anchor.page !== pageRef.current) continue;
       const hit = a.anchor.rects.some(
@@ -920,6 +1019,7 @@ export function PdfReader({ book }: Props) {
         searching,
       }}
       zoom={{ value: zoom, onIn: zoomIn, onOut: zoomOut }}
+      trim={{ value: trimMargins, onToggle: () => setTrimMargins(!trimMargins) }}
     >
       <div className={styles.wrapper}>
         <div className={styles.readerArea}>

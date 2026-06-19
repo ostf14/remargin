@@ -38,6 +38,10 @@ interface SearchControls {
   total: number;
   searching: boolean;
 }
+interface TrimControls {
+  value: boolean;
+  onToggle: () => void;
+}
 
 interface Props {
   title: string;
@@ -49,6 +53,7 @@ interface Props {
   search?: SearchControls; // in-book find, always shown inline in the header
   zoom?: ZoomControls; // PDF only
   font?: FontControls; // EPUB only
+  trim?: TrimControls; // PDF only — auto-crop empty page margins
   showNav?: boolean; // page-turn side zones; false in EPUB scroll mode
   children: ReactNode;
 }
@@ -85,6 +90,7 @@ export function ReaderShell({
   search,
   zoom,
   font,
+  trim,
   showNav = true,
   children,
 }: Props) {
@@ -349,6 +355,19 @@ export function ReaderShell({
                 <Moon size={12} />
               </button>
             </div>
+            {trim && (
+              <div className={styles.row}>
+                <span className={styles.label}>Trim</span>
+                <button
+                  className={`${styles.sBtn} ${trim.value ? styles.sBtnActive : ''}`}
+                  onClick={trim.onToggle}
+                  aria-pressed={trim.value}
+                  aria-label="Toggle trim margins"
+                >
+                  {trim.value ? 'On' : 'Off'}
+                </button>
+              </div>
+            )}
             <div className={styles.divider} />
             <div className={styles.row}>
               <span className={styles.label}>Mode</span>
