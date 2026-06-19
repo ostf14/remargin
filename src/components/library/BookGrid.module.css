@@ -49,27 +49,27 @@
   display: none;
 }
 
-/* Mobile slide-down search bar — sibling of the header so the header's solid bg sits
-   above it. Translates up out of sight when closed, slides down into view when opened.
-   z-index 5 sits between content (0) and header (10), so the slide reveals onto content. */
+/* Mobile slide-down search bar — sits in the flow below the header so opening it pushes
+   the grid DOWN (instead of overlapping it). Animates via max-height (the transform
+   variant previously reserved layout space even when closed). */
 .mobileSearchBar {
-  position: sticky;
-  top: 56px; /* mobile header height — sits flush against its bottom edge */
   display: none; /* desktop hides it; mobile media flips to flex */
   align-items: center;
   gap: 8px;
-  padding: 8px 12px;
+  padding: 0 12px;
+  max-height: 0;
+  overflow: hidden;
   background: var(--bg-primary);
-  border-bottom: 0.5px solid var(--border);
-  transform: translateY(-110%);
-  transition: transform 0.2s var(--ease-out);
-  z-index: 9;
-  pointer-events: none;
+  border-bottom: 0.5px solid transparent;
+  transition: max-height 0.2s var(--ease-out),
+    padding 0.2s var(--ease-out),
+    border-bottom-color 0.2s var(--ease-out);
 }
 
 .mobileSearchOpen {
-  transform: translateY(0);
-  pointer-events: auto;
+  max-height: 56px;
+  padding: 8px 12px;
+  border-bottom-color: var(--border);
 }
 
 .mobileSearchBar .search {

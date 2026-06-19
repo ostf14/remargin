@@ -439,19 +439,40 @@
   .searchToggle {
     display: flex;
   }
-  /* When the user taps the icon, the input expands to fill the row and the icon hides. */
+  /* When the user opens search the input pops above the bottom-right action pill (which
+     hosts the magnifying-glass on ≤600px). On tablets where the toggle still lives in
+     the header, this still reads as the search "growing out" of its trigger. */
   .mobileSearchOpen .headerSearch {
-    display: flex;
-    flex: 1;
+    position: fixed;
+    bottom: calc(76px + env(safe-area-inset-bottom));
+    left: 12px;
+    right: 12px;
     width: auto;
-    margin-left: auto;
+    display: flex;
+    padding: 8px 12px;
+    background: var(--bg-secondary);
+    border: 0.5px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    z-index: 100;
+    margin-left: 0;
+    animation: searchPopUp 0.18s var(--ease-out);
   }
-  .mobileSearchOpen .searchToggle {
-    display: none;
+  /* The input itself gets a touch more padding so the field reads as a clear strip. */
+  .mobileSearchOpen .headerSearchInput {
+    font-size: 14px;
+    padding: 6px 0;
   }
-  /* Title shrinks aside when search occupies the row. */
-  .mobileSearchOpen .titleBlock {
-    display: none;
+}
+
+@keyframes searchPopUp {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
 
@@ -485,6 +506,12 @@
   }
   .actionPill {
     display: flex;
+  }
+  /* On desktop topActions sits after the inline search (which has margin-left: auto).
+     On mobile the search is hidden, so topActions needs its own push to the right edge —
+     otherwise the gear ends up packed next to the back button. */
+  .topActions {
+    margin-left: auto;
   }
   /* Touch-friendly 44px zones; arrows stay on mobile (swipe is additive later, not a replacement). */
   .navLeft,
