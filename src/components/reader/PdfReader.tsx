@@ -986,7 +986,7 @@ function PdfPaginatedReader({ book }: Props) {
   }, []);
 
   // Two-finger pinch on touch screens — mirrors the Ctrl+wheel zoom for mobile.
-  usePinchZoom(canvasWrapRef, setZoom, { min: ZOOM_MIN, max: ZOOM_MAX });
+  usePinchZoom(canvasWrapRef, zoomRef, setZoom, { min: ZOOM_MIN, max: ZOOM_MAX });
 
   // Re-rasterise the bitmap sharper 250ms after zooming stops. The canvas CSS size
   // and the page transform don't change — only a crisper image swaps in, no jump.

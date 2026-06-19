@@ -395,7 +395,7 @@ export function PdfScrollReader({ book }: Props) {
   const zoomOut = () => setZoom((z) => Math.max(0.5, +(z - 0.25).toFixed(2)));
 
   // Two-finger pinch zoom on touch screens.
-  usePinchZoom(containerRef, setZoom, { min: 0.5, max: 3 });
+  usePinchZoom(containerRef, zoomRef, setZoom, { min: 0.5, max: 3 });
 
   // Saved highlight click → open popover near it.
   const onSavedHighlightClick = (id: string, x: number, y: number) => {

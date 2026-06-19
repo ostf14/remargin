@@ -144,6 +144,8 @@ export function EpubReader({ book }: Props) {
   const fontOffsetRef = useRef(fontOffset);
   fontOffsetRef.current = fontOffset;
   const [zoom, setZoom] = useState(1);
+  const zoomRef = useRef(zoom);
+  zoomRef.current = zoom;
 
   // Transient "Copied citation" toast.
   const [toast, setToast] = useState<string | null>(null);
@@ -607,7 +609,7 @@ export function EpubReader({ book }: Props) {
   }, [handleZoomWheel]);
 
   // Two-finger pinch zoom on touch screens. The hook clamps internally.
-  usePinchZoom(deskRef, setZoom, { min: ZOOM_MIN, max: ZOOM_MAX });
+  usePinchZoom(deskRef, zoomRef, setZoom, { min: ZOOM_MIN, max: ZOOM_MAX });
 
   const drawHighlight = (cfi: string, color: HighlightColor) => {
     renditionRef.current?.annotations.highlight(cfi, {}, () => {}, 'hl', {
