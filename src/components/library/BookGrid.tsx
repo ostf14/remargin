@@ -290,7 +290,6 @@ export function BookGrid() {
                 featured={isFeatured}
                 enriching={enrichingIds.has(book.id)}
                 onClick={() => openBook(book)}
-                onRemove={() => setPendingDelete(book)}
                 onContextMenu={(e, b) => {
                   e.preventDefault();
                   setMenu({ book: b, x: e.clientX, y: e.clientY });

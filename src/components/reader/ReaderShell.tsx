@@ -152,6 +152,20 @@ export function ReaderShell({
     };
   }, [bump]);
 
+  // Mobile: block the system text-selection callout (Copy/Share OS menu) inside the reader
+  // shell so our HighlightPopover is the only thing that appears on selection. Scoped to the
+  // shell — long-press still opens a context menu in library cards. Tablet/desktop keep the
+  // browser default.
+  const shellRootRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!window.matchMedia('(max-width: 600px)').matches) return;
+    const root = shellRootRef.current;
+    if (!root) return;
+    const block = (e: Event) => e.preventDefault();
+    root.addEventListener('contextmenu', block);
+    return () => root.removeEventListener('contextmenu', block);
+  }, []);
+
   // Opening settings / search keeps the chrome up.
   useEffect(() => {
     if (settingsOpen) bump();
@@ -177,7 +191,7 @@ export function ReaderShell({
   const searchCounter = search && search.total > 0 ? `${search.current} of ${search.total}` : '';
 
   return (
-    <div className={`${styles.shell} ${show ? styles.showChrome : ''}`}>
+    <div ref={shellRootRef} className={`${styles.shell} ${show ? styles.showChrome : ''}`}>
       <div className={styles.content}>{children}</div>
 
       {/* Side page-turn zones (hidden while the notes panel is open, or in scroll mode). */}

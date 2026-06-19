@@ -97,6 +97,9 @@
 
 :global(.textLayer) {
   z-index: 3;
+  -webkit-touch-callout: none;
+  -webkit-user-select: text;
+  user-select: text;
 }
 
 /* The text layer exists only to back the browser's Selection; the visible text is the
@@ -131,8 +134,10 @@
 
 /* ─────────────────────────── Mobile (≤600px): edge-to-edge ─────────────────────────── */
 @media (max-width: 600px) {
+  /* Bottom padding reserves room for the floating actionPill so the last lines never sit
+     under it. 76px = pill height (~52) + breathing room + safe-area. */
   .canvasWrap {
-    padding: 44px 0 0;
+    padding: 44px 0 calc(76px + env(safe-area-inset-bottom));
   }
   .page {
     max-width: 100%;

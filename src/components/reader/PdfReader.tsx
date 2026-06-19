@@ -16,6 +16,7 @@ import { Toast } from './Toast';
 import { formatCitation } from '../../services/citation';
 import { countPdfWords, readingMinutes, formatDuration } from '../../services/wordCount';
 import { detectContentBoundsNorm, type ContentBoundsNorm } from '../../utils/detectContentBounds';
+import { PdfScrollReader } from './PdfScrollReader';
 import styles from './PdfReader.module.css';
 
 // Word-level find highlight on the (transparent) text layer: each occurrence of the
@@ -228,7 +229,16 @@ interface Props {
 // first page row) from the top of the page sheet. Margin cards share this origin.
 const PAGE_PAD_TOP = 24;
 
+// Top-level wrapper: paginated by default; delegate to the continuous-scroll reader when
+// the user switches modes. Two readers, two implementations — instead of one reader
+// running both layouts side-by-side and tangling their state.
 export function PdfReader({ book }: Props) {
+  const { readerMode } = useReader();
+  if (readerMode === 'scroll') return <PdfScrollReader book={book} />;
+  return <PdfPaginatedReader book={book} />;
+}
+
+function PdfPaginatedReader({ book }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const canvasWrapRef = useRef<HTMLDivElement>(null);
   const pageContainerRef = useRef<HTMLDivElement>(null);
@@ -302,16 +312,13 @@ export function PdfReader({ book }: Props) {
   // Keydown handler is registered once but must see fresh state — bridge via a ref.
   const shortcutKeyRef = useRef<(e: KeyboardEvent) => void>(() => {});
 
-  // Scroll / flip aren't built for PDF — toast and snap the mode back to 'pages' so
-  // the settings drawer's active state reflects what's actually rendered.
+  // Flip mode isn't built — toast and snap back to 'pages'. Scroll mode is handled at the
+  // wrapper, so it never reaches this paginated path.
   const prevModeRef = useRef(readerMode);
   useEffect(() => {
     if (readerMode === prevModeRef.current) return;
     prevModeRef.current = readerMode;
-    if (readerMode === 'scroll') {
-      showToast('Scroll mode coming soon for PDF');
-      setReaderMode('pages');
-    } else if (readerMode === 'flip') {
+    if (readerMode === 'flip') {
       showToast('Flip mode — coming soon');
       setReaderMode('pages');
     }

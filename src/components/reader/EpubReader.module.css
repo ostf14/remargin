@@ -77,6 +77,9 @@
 .viewer {
   width: 100%;
   height: 100%;
+  -webkit-touch-callout: none;
+  -webkit-user-select: text;
+  user-select: text;
 }
 
 .loading {
@@ -114,12 +117,14 @@
 
 /* ─────────────────────────── Mobile (≤600px): edge-to-edge ─────────────────────────── */
 @media (max-width: 600px) {
+  /* Bottom padding reserves room for the floating actionPill so the page never sits
+     under it. 76px = pill height (~52) + breathing room + safe-area. */
   .desk {
-    padding: 44px 0 0;
+    padding: 44px 0 calc(76px + env(safe-area-inset-bottom));
   }
   .page {
     aspect-ratio: auto;
-    height: 100%;
+    height: calc(100% - 76px - env(safe-area-inset-bottom));
     width: 100%;
     max-width: 100%;
     border-radius: 0;

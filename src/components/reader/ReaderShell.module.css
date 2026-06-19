@@ -3,6 +3,12 @@
   inset: 0;
   background: var(--bg-primary);
   overflow: hidden;
+  /* Mobile WebKit: block the long-press text-selection callout (system "Copy/Share" menu)
+     across the whole reader shell, while still permitting the user to select text — that's
+     how the HighlightPopover gets a chance to appear instead. */
+  -webkit-touch-callout: none;
+  -webkit-user-select: text;
+  user-select: text;
 }
 
 /* Reader content fills the whole viewport; chrome floats over it. */
@@ -551,8 +557,9 @@
     font-size: 12px;
   }
   .progressPill {
-    bottom: calc(env(safe-area-inset-bottom) + 8px);
-    font-size: 12px;
-    padding: 6px 12px;
+    bottom: calc(env(safe-area-inset-bottom) + 4px);
+    font-size: 10px;
+    padding: 3px 8px;
+    opacity: 0.7;
   }
 }

@@ -134,3 +134,17 @@
   flex-shrink: 0;
   vertical-align: middle;
 }
+
+/* ─────────────────────────── Mobile (≤600px) ─────────────────────────── */
+/* Sidebar becomes a full-screen overlay so the page stays full-width when annotations
+   aren't open. Pen-tool tap brings it up over everything. */
+@media (max-width: 600px) {
+  .panel {
+    position: fixed;
+    inset: 44px 0 0 0;
+    width: 100%;
+    border-left: none;
+    padding-top: 0;
+    z-index: 30;
+  }
+}
