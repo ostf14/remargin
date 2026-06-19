@@ -7,7 +7,6 @@ import {
   BookOpen,
   ChevronDown,
   LayoutGrid,
-  List,
   MessageSquareText,
 } from 'lucide-react';
 import type { Book, LibraryView } from '../../types';
@@ -221,14 +220,13 @@ export function BookGrid() {
           </button>
         </div>
       ) : (
-        <div className={view === 'list' ? styles.list : styles.grid}>
+        <div className={styles.grid}>
           {visibleBooks.map((book, i) => {
-            const isFeatured = view === 'grid' && i === 0 && book.id === heroId;
+            const isFeatured = i === 0 && book.id === heroId;
             return (
               <BookCard
                 key={book.id}
                 book={book}
-                view={view}
                 featured={isFeatured}
                 enriching={enrichingIds.has(book.id)}
                 onClick={() => openBook(book)}
@@ -256,14 +254,6 @@ export function BookGrid() {
             aria-label="Grid view"
           >
             <LayoutGrid size={16} />
-          </button>
-          <button
-            className={`${styles.pillBtn} ${view === 'list' ? styles.pillBtnActive : ''}`}
-            onClick={() => setLibraryView('list')}
-            title="List view"
-            aria-label="List view"
-          >
-            <List size={16} />
           </button>
           <button
             className={`${styles.pillBtn} ${view === 'notes' ? styles.pillBtnActive : ''}`}

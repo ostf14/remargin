@@ -8,7 +8,7 @@ export type ReadingSurface = 'light' | 'sepia' | 'dark';
 
 export type ReaderMode = 'pages' | 'scroll' | 'flip';
 
-export type LibraryView = 'grid' | 'list' | 'notes';
+export type LibraryView = 'grid' | 'notes';
 
 export interface EpubAnchor {
   kind: 'epub';
@@ -58,5 +58,5 @@ export interface AppState {
   epubFontSizeOffset: number; // default 0, range -4 to +8
   readingSurface: ReadingSurface; // page tint while reading, separate from app theme
   readerMode: ReaderMode; // pages | scroll | flip (UI only for now; default 'pages')
-  libraryView: LibraryView; // grid | list (library layout; default 'grid')
+  libraryView: LibraryView; // grid | notes (library layout; default 'grid')
 }

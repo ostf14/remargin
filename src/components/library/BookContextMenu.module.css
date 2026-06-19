@@ -66,3 +66,15 @@
     transform: rotate(360deg);
   }
 }
+
+/* ─────────────────────────── Mobile (≤600px): touch sizes ─────────────────────────── */
+@media (max-width: 600px) {
+  .menu {
+    min-width: 220px;
+  }
+  .item {
+    padding: 12px 16px;
+    font-size: 14px;
+    min-height: 44px;
+  }
+}

@@ -194,117 +194,6 @@
   white-space: nowrap;
 }
 
-/* ═══════════════════════ List row (variant C) ═══════════════════════ */
-.row {
-  position: relative;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 8px;
-  border-bottom: 0.5px solid var(--border);
-  cursor: pointer;
-  transition: background var(--duration-fast) var(--ease-out);
-}
-
-.row:hover {
-  background: var(--bg-secondary);
-}
-
-.thumb {
-  flex-shrink: 0;
-  width: 36px;
-  height: 52px;
-  border-radius: 3px;
-  overflow: hidden;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--bg-tertiary);
-}
-
-.thumbImg {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  display: block;
-}
-
-.thumbIcon {
-  color: var(--text-quaternary);
-}
-
-.info {
-  flex: 1;
-  min-width: 0;
-}
-
-.rowTitle {
-  font-size: 14px;
-  font-weight: var(--weight-medium);
-  color: var(--text-primary);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.sub {
-  margin-top: 1px;
-  font-size: 13px;
-  font-weight: var(--weight-normal);
-  color: var(--text-secondary);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.rowBar {
-  flex-shrink: 0;
-  width: 50px;
-  height: 2px;
-  border-radius: var(--radius-full);
-  background: var(--border);
-  overflow: hidden;
-}
-
-.rowBarFill {
-  height: 100%;
-  background: var(--accent);
-}
-
-.format {
-  flex-shrink: 0;
-  width: 34px;
-  font-size: 10px;
-  font-weight: var(--weight-normal);
-  color: var(--text-tertiary);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  text-align: right;
-}
-
-.rowRemove {
-  flex-shrink: 0;
-  width: 24px;
-  height: 24px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: var(--radius-full);
-  background: transparent;
-  color: var(--text-quaternary);
-  opacity: 0;
-  transition: opacity var(--duration-fast) var(--ease-out),
-    color var(--duration-fast) var(--ease-out);
-}
-
-.row:hover .rowRemove {
-  opacity: 1;
-}
-
-.rowRemove:hover {
-  color: var(--danger);
-}
-
 /* ─────────────────────────── Mobile (≤600px): horizontal cards ─────────────────────────── */
 @media (max-width: 600px) {
   .card {
@@ -364,18 +253,23 @@
   }
 
   .title {
-    font-size: 13px;
+    font-size: 14px;
     min-height: 0;
     -webkit-line-clamp: 1;
     line-clamp: 1;
   }
 
   .author {
-    font-size: 11px;
+    font-size: 12px;
   }
 
   .foot {
     margin-top: 4px;
+  }
+
+  .tag,
+  .progress {
+    font-size: 11px;
   }
 
   /* Remove button stays visible without hover (no hover on touch). */
@@ -383,5 +277,7 @@
     opacity: 1;
     top: 4px;
     right: 4px;
+    width: 32px;
+    height: 32px;
   }
 }

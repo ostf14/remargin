@@ -101,6 +101,10 @@ export function ReaderShell({
   } = useReader();
   const [show, setShow] = useState(true);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  // Mobile / tablet: the search input collapses behind a magnifying-glass icon. Desktop
+  // (≥1025px) ignores this flag — CSS keeps the input visible regardless.
+  const [searchOpen, setSearchOpen] = useState(false);
+  const searchInputRef = useRef<HTMLInputElement>(null);
   const timerRef = useRef<number | null>(null);
   const settingsRef = useRef(settingsOpen);
   settingsRef.current = settingsOpen;
@@ -151,6 +155,18 @@ export function ReaderShell({
     if (searchActive) bump();
   }, [searchActive, bump]);
 
+  // Auto-open + focus the input when search is triggered from outside (e.g. notes-view
+  // jump); collapse when cleared.
+  useEffect(() => {
+    if (searchActive) {
+      setSearchOpen(true);
+      // Wait for the input to become visible before focusing.
+      window.setTimeout(() => searchInputRef.current?.focus(), 0);
+    } else {
+      setSearchOpen(false);
+    }
+  }, [searchActive]);
+
   // Just the position when there are hits; empty otherwise (no "No results"/"Searching").
   const searchCounter = search && search.total > 0 ? `${search.current} of ${search.total}` : '';
 
@@ -182,7 +198,7 @@ export function ReaderShell({
         </>
       )}
 
-      <header className={styles.topBar}>
+      <header className={`${styles.topBar} ${searchOpen ? styles.mobileSearchOpen : ''}`}>
         <button className={styles.backBtn} onClick={closeBook} aria-label="Back to library">
           <ArrowLeft size={16} />
         </button>
@@ -192,11 +208,29 @@ export function ReaderShell({
           {subtitle && <div className={styles.subtitle}>{subtitle}</div>}
         </div>
 
-        {/* Find field is always present, between the title and the action icons. */}
+        {/* Magnifying-glass toggle — visible at ≤1024px only (CSS-gated). Expands the
+            inline search field when tapped. */}
+        {search && (
+          <button
+            className={styles.searchToggle}
+            onClick={() => {
+              setSearchOpen(true);
+              window.setTimeout(() => searchInputRef.current?.focus(), 0);
+            }}
+            title="Search"
+            aria-label="Open search"
+          >
+            <Search size={18} />
+          </button>
+        )}
+
+        {/* Find field — always visible on desktop; on ≤1024px stays collapsed until the
+            toggle is tapped (the topBar's .mobileSearchOpen class flips its display). */}
         {search && (
           <div className={styles.headerSearch}>
             <Search className={styles.headerSearchIcon} size={12} aria-hidden="true" />
             <input
+              ref={searchInputRef}
               className={styles.headerSearchInput}
               type="text"
               placeholder="Search"
@@ -210,6 +244,7 @@ export function ReaderShell({
                 } else if (e.key === 'Escape') {
                   e.preventDefault();
                   search.onClose();
+                  setSearchOpen(false);
                 }
               }}
             />
@@ -224,8 +259,15 @@ export function ReaderShell({
                 </button>
               </>
             )}
-            {search.query && (
-              <button className={styles.searchBtn} onClick={search.onClose} aria-label="Clear search">
+            {(search.query || searchOpen) && (
+              <button
+                className={styles.searchBtn}
+                onClick={() => {
+                  search.onClose();
+                  setSearchOpen(false);
+                }}
+                aria-label={search.query ? 'Clear search' : 'Close search'}
+              >
                 <X size={14} />
               </button>
             )}

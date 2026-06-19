@@ -106,6 +106,25 @@
   color: var(--accent);
 }
 
+/* Magnifying-glass toggle that expands the inline search at ≤1024px. Hidden on desktop. */
+.searchToggle {
+  flex-shrink: 0;
+  margin-left: auto;
+  display: none; /* desktop default — the always-visible input replaces it */
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-full);
+  background: transparent;
+  color: var(--text-tertiary);
+}
+
+.searchToggle:hover {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
 /* ─────────────────────────── Inline header search ─────────────────────────── */
 .headerSearch {
   flex-shrink: 0;
@@ -370,6 +389,31 @@
   pointer-events: none;
 }
 
+/* ─────────────────────────── Tablet + mobile (≤1024px) ─────────────────────────── */
+@media (max-width: 1024px) {
+  /* Hide the always-on input; surface the magnifying-glass instead. */
+  .headerSearch {
+    display: none;
+  }
+  .searchToggle {
+    display: flex;
+  }
+  /* When the user taps the icon, the input expands to fill the row and the icon hides. */
+  .mobileSearchOpen .headerSearch {
+    display: flex;
+    flex: 1;
+    width: auto;
+    margin-left: auto;
+  }
+  .mobileSearchOpen .searchToggle {
+    display: none;
+  }
+  /* Title shrinks aside when search occupies the row. */
+  .mobileSearchOpen .titleBlock {
+    display: none;
+  }
+}
+
 /* ─────────────────────────── Mobile (≤600px) ─────────────────────────── */
 @media (max-width: 600px) {
   /* The auto-hide chrome's fade-in/out is unfriendly on touch — pin the header and the
@@ -393,10 +437,22 @@
     font-size: 10px;
     display: none;
   }
-  /* Side page-turn zones aren't useful on a phone (swipe will replace them later). */
+  /* Touch-friendly 44px zones; arrows stay on mobile (swipe is additive later, not a replacement). */
   .navLeft,
   .navRight {
-    display: none;
+    width: 44px;
+  }
+  /* Larger chevron to keep the touch target visually proportional to the 44px zone. */
+  .chevron {
+    width: 24px;
+    height: 24px;
+  }
+  /* Header action buttons grow to 44×44 (Apple HIG). */
+  .backBtn,
+  .iconBtn,
+  .searchToggle {
+    min-width: 44px;
+    min-height: 44px;
   }
   .settings {
     left: 0;
@@ -404,9 +460,23 @@
     width: auto;
     border-radius: 0;
   }
+  /* Settings drawer rows + buttons grow for touch. */
+  .label {
+    font-size: 13px;
+    min-width: 56px;
+  }
+  .sBtn {
+    width: 44px;
+    height: 44px;
+  }
+  .modeBtn {
+    height: 44px;
+    padding: 0 14px;
+    font-size: 12px;
+  }
   .progressPill {
     bottom: calc(env(safe-area-inset-bottom) + 8px);
-    font-size: 10px;
-    padding: 3px 8px;
+    font-size: 12px;
+    padding: 6px 12px;
   }
 }

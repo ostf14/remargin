@@ -270,13 +270,6 @@
   }
 }
 
-/* List view (variant C) — compact rows. */
-.list {
-  display: flex;
-  flex-direction: column;
-  padding: 8px 20px 24px;
-}
-
 
 /* Empty library. */
 .empty {
@@ -372,29 +365,37 @@
     padding: 0;
   }
 
-  /* List view keeps its compact 36×52 thumb at this width too, just edge-to-edge. */
-  .list {
-    padding: 0;
-  }
-
   .header {
-    height: 44px;
+    height: 56px;
     padding: 8px 12px;
     gap: 8px;
   }
   .logo {
-    font-size: 16px;
+    font-size: 18px;
   }
-  /* Drop the inline search on narrow screens — limited room. Sort + import + theme stay. */
-  .searchWrap {
-    display: none;
+  /* Apple HIG touch target — header action buttons grow to 44×44. */
+  .importBtn,
+  .themeToggle {
+    width: 44px;
+    height: 44px;
+  }
+  /* Sort dropdown trigger goes pill-shaped and taller for fingers. */
+  .sortBtn {
+    height: 40px;
+    font-size: 13px;
   }
   .viewPill {
-    bottom: 8px;
-    right: 8px;
+    bottom: 12px;
+    right: 12px;
+    padding: 6px;
+    gap: 4px;
   }
   .pillBtn {
-    width: 24px;
-    height: 24px;
+    width: 40px;
+    height: 40px;
+  }
+  .pillCount {
+    font-size: 12px;
+    padding: 0 6px 0 10px;
   }
 }
