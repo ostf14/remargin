@@ -21,12 +21,16 @@ interface GoogleBooksResponse {
   items?: { volumeInfo?: GoogleVolumeInfo }[];
 }
 
-// PDF metadata titles often carry a trailing series / edition / subtitle in parens
-// ("Aesthetic Theory (Athlone Contemporary European Thinkers)"), which makes both
-// Google's intitle: and Open Library's title= miss the lookup. Strip it before
-// querying — the parens are noise, not part of the actual book title.
+// PDF metadata titles carry junk that breaks Google's intitle: and Open Library's
+// title= lookups. Strip it before querying:
+//   - trailing parenthetical series / edition ("… (Athlone Contemporary European Thinkers)")
+//   - underscores from filename-derived titles ("Buck-Morss_Susan_The_Origin…")
+//   - extension fragments (".pdf" if it slipped through)
+//   - runs of whitespace
 export function normalizeLookupTitle(title: string): string {
   return title
+    .replace(/\.(pdf|epub)$/i, '')
+    .replace(/[_]+/g, ' ')
     .replace(/\s*\([^)]*\)\s*$/, '')
     .replace(/\s+/g, ' ')
     .trim();
