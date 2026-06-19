@@ -171,6 +171,9 @@ html {
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
   overflow-x: hidden;
+  /* Paint html too — otherwise on theme switch the body/#root area updates but the
+     viewport edges briefly show the old html background. */
+  background: var(--bg-primary);
 }
 
 body {

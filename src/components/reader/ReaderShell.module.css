@@ -389,6 +389,47 @@
   pointer-events: none;
 }
 
+/* ─────────────────────────── Floating action pill (mobile reader) ───────────────────────────
+   Holds the Search-open + Annotations buttons so the small mobile header doesn't get
+   crowded. Same colours / shadow as the library's view pill on the opposite corner. */
+.actionPill {
+  position: fixed;
+  bottom: calc(12px + env(safe-area-inset-bottom));
+  right: 12px;
+  z-index: 100;
+  display: none; /* desktop hides; mobile media query flips to flex */
+  align-items: center;
+  gap: 4px;
+  padding: 6px;
+  background: var(--bg-secondary);
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius-full);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.pillBtn {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-full);
+  background: transparent;
+  color: var(--text-quaternary);
+  transition: color var(--duration-fast) var(--ease-out),
+    background var(--duration-fast) var(--ease-out);
+}
+
+.pillBtn:hover {
+  color: var(--text-secondary);
+}
+
+.pillBtnActive,
+.pillBtnActive:hover {
+  color: var(--text-primary);
+  background: var(--bg-tertiary);
+}
+
 /* ─────────────────────────── Tablet + mobile (≤1024px) ─────────────────────────── */
 @media (max-width: 1024px) {
   /* Hide the always-on input; surface the magnifying-glass instead. */
@@ -436,6 +477,14 @@
   .subtitle {
     font-size: 10px;
     display: none;
+  }
+  /* Search toggle + annotations icon move to the floating action pill at bottom-right. */
+  .searchToggle,
+  .annotationsBtn {
+    display: none;
+  }
+  .actionPill {
+    display: flex;
   }
   /* Touch-friendly 44px zones; arrows stay on mobile (swipe is additive later, not a replacement). */
   .navLeft,

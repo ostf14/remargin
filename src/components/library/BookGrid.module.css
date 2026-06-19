@@ -500,12 +500,14 @@
   .sortIcon {
     display: inline-flex;
   }
-  /* Sort button becomes an icon-only 44×44 chip, same as the other icon buttons. */
+  /* Sort button becomes an icon-only 44×44 chip — center the icon (the desktop rule has
+     align-items but no justify-content, so the icon would hug the left edge). */
   .sortBtn {
     width: 44px;
     height: 44px;
     padding: 0;
     font-size: 0;
+    justify-content: center;
     color: var(--text-secondary);
   }
   .iconBtn {

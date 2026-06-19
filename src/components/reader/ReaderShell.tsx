@@ -276,7 +276,7 @@ export function ReaderShell({
 
         <div className={styles.topActions}>
           <button
-            className={`${styles.iconBtn} ${showAnnotations ? styles.iconBtnActive : ''}`}
+            className={`${styles.iconBtn} ${styles.annotationsBtn} ${showAnnotations ? styles.iconBtnActive : ''}`}
             onClick={() => setShowAnnotations(!showAnnotations)}
             title="Annotations"
             aria-label="Toggle annotations"
@@ -376,6 +376,32 @@ export function ReaderShell({
 
       {/* Always-on progress pill (bottom-left), like a word count — never auto-hides. */}
       {progressText && <div className={styles.progressPill}>{progressText}</div>}
+
+      {/* Mobile-only bottom-right action pill — replaces the search toggle + annotations
+          icon in the header to keep the small header uncluttered. Hidden on desktop. */}
+      <div className={styles.actionPill}>
+        {search && (
+          <button
+            className={styles.pillBtn}
+            onClick={() => {
+              setSearchOpen(true);
+              window.setTimeout(() => searchInputRef.current?.focus(), 0);
+            }}
+            title="Search"
+            aria-label="Open search"
+          >
+            <Search size={20} />
+          </button>
+        )}
+        <button
+          className={`${styles.pillBtn} ${showAnnotations ? styles.pillBtnActive : ''}`}
+          onClick={() => setShowAnnotations(!showAnnotations)}
+          title="Annotations"
+          aria-label="Toggle annotations"
+        >
+          <PenTool size={20} />
+        </button>
+      </div>
     </div>
   );
 }
