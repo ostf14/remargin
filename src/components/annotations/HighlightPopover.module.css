@@ -180,10 +180,9 @@
     left: 0 !important;
     right: 0;
     top: auto !important;
-    /* Lift the sheet so Brave / Chrome Android's "Search with Google" callout (which
-     parks itself at the very bottom of the viewport on selection) can sit beneath us
-     instead of covering the colour buttons / Add note / Copy citation. */
-    bottom: 84px;
+    /* Lift the sheet ~16px off the viewport edge so Brave / Chrome Android's
+       "Search with Google" callout doesn't overlap the colour buttons. */
+    bottom: 16px;
     transform: translateY(0);
     margin-top: 0;
     flex-direction: column;
