@@ -11,6 +11,11 @@
   -webkit-tap-highlight-color: transparent !important;
   -webkit-user-select: text;
   user-select: text;
+  /* pan-y allows vertical scroll (continuous scroll mode, settings drawer, etc.) but
+     blocks the browser's native pinch-zoom — so usePinchZoom's two-finger handler is the
+     only thing zooming, and zooms the document content rather than the whole UI.
+     Scoped to .shell, not body, so the library keeps native browser zoom for accessibility. */
+  touch-action: pan-y;
 }
 
 /* Reader content fills the whole viewport; chrome floats over it. */

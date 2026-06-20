@@ -41,8 +41,14 @@ export function usePinchZoom(
     };
 
     const onMove = (e: TouchEvent) => {
-      if (!pinching || e.touches.length !== 2) return;
+      if (e.touches.length !== 2) return;
+      // preventDefault MUST run before any work — Chrome treats the first frame as
+      // "did you want to handle this?" and if we hesitate, the browser claims the
+      // gesture for native pinch-zoom and our handler stops winning. stopPropagation
+      // keeps the gesture from reaching outer scroll containers / other listeners.
       e.preventDefault();
+      e.stopPropagation();
+      if (!pinching) return;
       const dist = distOf(e);
       if (startDist <= 0) return;
       const ratio = dist / startDist;

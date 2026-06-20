@@ -190,11 +190,9 @@ body {
   overflow: hidden;
   overflow-x: hidden;
   margin: 0;
-  /* `manipulation` allows pan + pinch but blocks double-tap zoom — our usePinchZoom
-     hook handles the pinch with preventDefault while leaving panning native. Lets us
-     drop the heavy-handed maximum-scale=1 / user-scalable=no in the viewport meta
-     (which was breaking Android PWA rendering on some devices). */
-  touch-action: manipulation;
+  /* No global touch-action: the library leaves native browser zoom alone (accessibility),
+     and the reader's .shell scopes its own touch-action: pan-y so pinch fires our handler
+     instead of the system zoom. */
 }
 
 html {
