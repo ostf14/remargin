@@ -128,6 +128,11 @@ export function EpubReader({ book }: Props) {
   const [loading, setLoading] = useState(true);
   const [wordCount, setWordCount] = useState(book.wordCount);
   const [popover, setPopover] = useState<PopoverState | null>(null);
+  // While the create-popover is open we paint a translucent "preview" highlight at the
+  // selection's cfi — gives the user a visual anchor for what they're about to colour,
+  // since the live selection is dropped immediately to suppress the browser's translator
+  // bubble. Cleared on dismiss / colour pick / save.
+  const previewCfiRef = useRef<string | null>(null);
   const [savedPopover, setSavedPopover] = useState<{ x: number; y: number; id: string } | null>(
     null,
   );
@@ -382,20 +387,27 @@ export function EpubReader({ book }: Props) {
             chapter: chapter || 'Unknown',
           });
 
-          // Drop the iframe's live selection now that we've snapshotted the text + cfi.
-          // Without a live selection, Brave/Chrome Mobile can't attach its translator /
-          // search / dictionary bubble to anything — our HighlightPopover becomes the
-          // only post-selection UI. Done in rAF so the browser sees the selection
-          // settle first and our bubble suppression doesn't race with epub.js's own
-          // post-select work.
-          const win = iframe?.contentWindow;
-          if (win) {
-            requestAnimationFrame(() => {
-              try {
-                win.getSelection()?.removeAllRanges();
-              } catch { /* iframe may have navigated away */ }
+          // Drop the iframe's live selection RIGHT NOW — synchronously, same task as
+          // 'selected'. With rAF we leave the browser a frame to show its translator /
+          // share bubble before we clear; doing it inline wins the race in Brave + Chrome.
+          try {
+            iframe?.contentWindow?.getSelection()?.removeAllRanges();
+          } catch { /* iframe may have navigated away */ }
+
+          // Paint a translucent yellow preview highlight at the same cfi, so the user
+          // keeps a visual anchor for the text they're about to colour. Removed when
+          // the popover closes (see handleHighlight / handleNote / dismiss handlers).
+          try {
+            r.annotations.remove(cfi, 'highlight');
+          } catch { /* nothing to clean up */ }
+          try {
+            r.annotations.highlight(cfi, {}, () => {}, 'preview-hl', {
+              fill: 'rgba(252, 211, 77, 0.5)',
+              'fill-opacity': '1',
+              'mix-blend-mode': 'multiply',
             });
-          }
+            previewCfiRef.current = cfi;
+          } catch { /* if this fails the popover still works, just no preview band */ }
         });
 
         // Iframe-level keys (Page Up/Down etc.). Document-level arrow keys are handled
@@ -634,20 +646,36 @@ export function EpubReader({ book }: Props) {
     });
   };
 
+  // Close the create-popover and tear down its preview overlay together. Always called
+  // before drawHighlight() so the real coloured rect doesn't fight a stale preview at
+  // the same cfi (remove(cfi,'highlight') in epub.js targets every highlight at the cfi).
+  const closePopover = () => {
+    const cfi = previewCfiRef.current;
+    if (cfi) {
+      try {
+        renditionRef.current?.annotations.remove(cfi, 'highlight');
+      } catch { /* nothing to clean up */ }
+      previewCfiRef.current = null;
+    }
+    setPopover(null);
+  };
+
   const handleHighlight = (color: HighlightColor = 'yellow') => {
     if (!popover) return;
     const anchor: EpubAnchor = { kind: 'epub', cfi: popover.cfiRange, chapter: popover.chapter };
+    const cfi = popover.cfiRange;
     addAnnotation(popover.text, anchor, color);
-    setPopover(null);
-    drawHighlight(popover.cfiRange, color);
+    closePopover();
+    drawHighlight(cfi, color);
   };
 
   const handleNote = () => {
     if (!popover) return;
     const anchor: EpubAnchor = { kind: 'epub', cfi: popover.cfiRange, chapter: popover.chapter };
+    const cfi = popover.cfiRange;
     const ann = addAnnotation(popover.text, anchor, 'yellow');
-    setPopover(null);
-    drawHighlight(popover.cfiRange, 'yellow');
+    closePopover();
+    drawHighlight(cfi, 'yellow');
     if (ann) setAutoFocusId(ann.id);
   };
 
@@ -655,9 +683,10 @@ export function EpubReader({ book }: Props) {
   const handleSaveNoteFromPopover = (text: string) => {
     if (!popover) return;
     const anchor: EpubAnchor = { kind: 'epub', cfi: popover.cfiRange, chapter: popover.chapter };
+    const cfi = popover.cfiRange;
     const ann = addAnnotation(popover.text, anchor, 'yellow');
-    setPopover(null);
-    drawHighlight(popover.cfiRange, 'yellow');
+    closePopover();
+    drawHighlight(cfi, 'yellow');
     if (ann && text.trim()) updateAnnotation(ann.id, { note: text.trim() });
   };
 
@@ -994,7 +1023,7 @@ export function EpubReader({ book }: Props) {
           onNote={handleNote}
           onSaveNote={handleSaveNoteFromPopover}
           onCopyCitation={handleCopyCitationFromPopover}
-          onDismiss={() => setPopover(null)}
+          onDismiss={closePopover}
         />
       )}
 
