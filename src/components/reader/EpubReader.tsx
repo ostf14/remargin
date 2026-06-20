@@ -381,6 +381,21 @@ export function EpubReader({ book }: Props) {
             cfiRange: cfi,
             chapter: chapter || 'Unknown',
           });
+
+          // Drop the iframe's live selection now that we've snapshotted the text + cfi.
+          // Without a live selection, Brave/Chrome Mobile can't attach its translator /
+          // search / dictionary bubble to anything — our HighlightPopover becomes the
+          // only post-selection UI. Done in rAF so the browser sees the selection
+          // settle first and our bubble suppression doesn't race with epub.js's own
+          // post-select work.
+          const win = iframe?.contentWindow;
+          if (win) {
+            requestAnimationFrame(() => {
+              try {
+                win.getSelection()?.removeAllRanges();
+              } catch { /* iframe may have navigated away */ }
+            });
+          }
         });
 
         // Iframe-level keys (Page Up/Down etc.). Document-level arrow keys are handled
