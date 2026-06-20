@@ -1,7 +1,11 @@
-import { createContext, useEffect, useState, type ReactNode } from 'react';
+import { createContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import type { AnchorData, Book, ReaderMode, ReadingSurface, ViewMode } from '../types';
 import { useLibrary } from '../hooks/useLibrary';
 import { loadAppState, saveAppState } from '../services/storage';
+
+// Tag we attach to pushed history entries so popstate can tell our reader entries
+// apart from anything else on the back stack.
+const READER_HISTORY_TAG = 'remarginReader';
 
 type Theme = 'dark' | 'light';
 
@@ -60,6 +64,9 @@ export function ReaderProvider({ children }: { children: ReactNode }) {
   );
   const [readerMode, setReaderModeState] = useState<ReaderMode>(() => loadAppState().readerMode);
   const [pendingAnchor, setPendingAnchor] = useState<AnchorData | null>(null);
+  // Stable ref so the popstate listener stays installed once but reads current state.
+  const currentBookRef = useRef<Book | null>(null);
+  currentBookRef.current = currentBook;
 
   // Reflect the theme onto <html> so CSS custom properties switch app-wide.
   useEffect(() => {
@@ -71,6 +78,35 @@ export function ReaderProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     document.documentElement.setAttribute('data-surface', readingSurface);
   }, [readingSurface]);
+
+  // Android system-back / browser-back: pop pushed history entries so the user lands on
+  // the library instead of exiting the PWA / browser tab. Installed once; reads current
+  // state via currentBookRef.
+  useEffect(() => {
+    const onPop = () => {
+      if (currentBookRef.current) {
+        setCurrentBook(null);
+        setViewMode('library');
+        setShowAnnotations(false);
+        saveAppState({ ...loadAppState(), lastView: 'library', lastBookId: null });
+      }
+    };
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, []);
+
+  // If the last session was inside a book, restoreState put us straight into reader
+  // mode without anyone calling openBook → no history entry was pushed. Push one now
+  // so Android back / browser back still closes the book first instead of exiting.
+  useEffect(() => {
+    if (currentBookRef.current) {
+      try {
+        window.history.pushState({ [READER_HISTORY_TAG]: true, bookId: currentBookRef.current.id }, '');
+      } catch { /* ignore — non-fatal */ }
+    }
+    // Mount-only.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const persistView = (view: ViewMode, bookId: string | null) => {
     saveAppState({ ...loadAppState(), lastView: view, lastBookId: bookId });
@@ -107,9 +143,22 @@ export function ReaderProvider({ children }: { children: ReactNode }) {
     setShowAnnotations(false);
     setPendingAnchor(anchor ?? null); // reset every open; the reader reads it once at mount
     persistView('reader', book.id);
+    // Push a history entry tagged for our popstate listener so Android system-back (and
+    // browser back) closes the book first instead of exiting the app / tab.
+    try {
+      window.history.pushState({ [READER_HISTORY_TAG]: true, bookId: book.id }, '');
+    } catch { /* ignore — non-fatal */ }
   };
 
   const closeBook = () => {
+    // If we pushed a history entry on open, pop it — popstate then does the actual
+    // teardown so manual close and Android back follow the same code path. If we never
+    // pushed (rare; restore failed or pushState threw), tear down directly.
+    const state = window.history.state as Record<string, unknown> | null;
+    if (state && state[READER_HISTORY_TAG]) {
+      window.history.back();
+      return;
+    }
     setCurrentBook(null);
     setViewMode('library');
     setShowAnnotations(false);
