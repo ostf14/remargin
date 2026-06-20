@@ -180,7 +180,10 @@
     left: 0 !important;
     right: 0;
     top: auto !important;
-    bottom: 0;
+    /* Lift the sheet so Brave / Chrome Android's "Search with Google" callout (which
+     parks itself at the very bottom of the viewport on selection) can sit beneath us
+     instead of covering the colour buttons / Add note / Copy citation. */
+    bottom: 84px;
     transform: translateY(0);
     margin-top: 0;
     flex-direction: column;
@@ -188,6 +191,7 @@
     background: var(--bg-secondary);
     border: 0;
     border-top: 0.5px solid var(--border);
+    border-bottom: 0.5px solid var(--border);
     border-radius: 12px 12px 0 0;
     padding: 16px 16px calc(16px + env(safe-area-inset-bottom));
     box-shadow: var(--shadow-xl);
