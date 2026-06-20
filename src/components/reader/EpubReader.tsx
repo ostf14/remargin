@@ -322,6 +322,27 @@ export function EpubReader({ book }: Props) {
             const ping = () => window.dispatchEvent(new Event('reader-activity'));
             doc.addEventListener('mousemove', ping);
             doc.addEventListener('mousedown', ping);
+            // After the user stops adjusting the selection for SETTLE_MS, collapse it.
+            // Our HighlightPopover already has the cfi + text captured (epub.js's
+            // 'selected' event re-fires on every handle drag), so collapsing here loses
+            // nothing. The big win: Brave's "Google search this selection" bubble
+            // dismisses when the selection is gone, leaving only our action bar.
+            // Drag handles still work fully — every drag pings selectionchange and
+            // resets the timer, so the collapse only fires once the user is idle.
+            const SETTLE_MS = 800;
+            let settleTimer: number | null = null;
+            const onSelChange = () => {
+              if (settleTimer) window.clearTimeout(settleTimer);
+              const sel = doc.defaultView?.getSelection();
+              if (!sel || sel.isCollapsed) return;
+              settleTimer = window.setTimeout(() => {
+                const s = doc.defaultView?.getSelection();
+                if (s && !s.isCollapsed) {
+                  try { s.removeAllRanges(); } catch { /* doc may be gone */ }
+                }
+              }, SETTLE_MS);
+            };
+            doc.addEventListener('selectionchange', onSelChange);
             // The rendered content is a separate document, so the parent's Google Fonts
             // <link> doesn't reach it — load the reading font (Literata) inside the iframe.
             // Falls back to Georgia (in the theme stack) if the request is blocked.
