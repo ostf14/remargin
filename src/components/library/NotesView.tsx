@@ -163,7 +163,7 @@ export function NotesView() {
       </div>
 
       <div className={styles.searchWrap}>
-        <Search className={styles.searchIcon} size={13} aria-hidden="true" />
+        <Search className={styles.searchIcon} size={14} aria-hidden="true" />
         <input
           className={styles.search}
           type="text"

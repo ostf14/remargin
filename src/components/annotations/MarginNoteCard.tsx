@@ -1,4 +1,5 @@
 import { forwardRef, useEffect, useRef, useState } from 'react';
+import { Pencil, X } from 'lucide-react';
 import styles from './MarginNotes.module.css';
 
 interface Props {
@@ -84,11 +85,11 @@ export const MarginNoteCard = forwardRef<HTMLDivElement, Props>(function MarginN
             )}
           </div>
           <div className={styles.actions}>
-            <button className={styles.actionBtn} title="Edit" onClick={() => setEditing(true)}>
-              ✎
+            <button className={styles.actionBtn} title="Edit" onClick={() => setEditing(true)} aria-label="Edit note">
+              <Pencil size={14} />
             </button>
-            <button className={styles.actionBtn} title="Delete" onClick={onDelete}>
-              ✕
+            <button className={styles.actionBtn} title="Delete" onClick={onDelete} aria-label="Delete note">
+              <X size={14} />
             </button>
           </div>
         </>

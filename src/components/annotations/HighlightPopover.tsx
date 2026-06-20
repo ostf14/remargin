@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Pencil, X } from 'lucide-react';
 import type { HighlightColor } from '../../types';
 import styles from './HighlightPopover.module.css';
 
@@ -102,7 +103,8 @@ export function HighlightPopover({
           <div className={styles.actionsRow}>
             {onNote && (
               <button className={styles.noteBtn} onClick={handleNote} title={noteLabel}>
-                ✎ {isMobile ? (initialNote.trim() ? 'Edit note' : 'Add note') : noteLabel}
+                <Pencil size={14} aria-hidden="true" />
+                <span>{isMobile ? (initialNote.trim() ? 'Edit note' : 'Add note') : noteLabel}</span>
               </button>
             )}
             {onCopyCitation && (
@@ -111,8 +113,8 @@ export function HighlightPopover({
               </button>
             )}
             {onDelete && (
-              <button className={styles.deleteBtn} onClick={onDelete} title="Delete highlight">
-                ✕
+              <button className={styles.deleteBtn} onClick={onDelete} title="Delete highlight" aria-label="Delete highlight">
+                <X size={14} />
               </button>
             )}
           </div>
