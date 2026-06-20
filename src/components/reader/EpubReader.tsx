@@ -128,11 +128,6 @@ export function EpubReader({ book }: Props) {
   const [loading, setLoading] = useState(true);
   const [wordCount, setWordCount] = useState(book.wordCount);
   const [popover, setPopover] = useState<PopoverState | null>(null);
-  // While the create-popover is open we paint a translucent "preview" highlight at the
-  // selection's cfi — gives the user a visual anchor for what they're about to colour,
-  // since the live selection is dropped immediately to suppress the browser's translator
-  // bubble. Cleared on dismiss / colour pick / save.
-  const previewCfiRef = useRef<string | null>(null);
   const [savedPopover, setSavedPopover] = useState<{ x: number; y: number; id: string } | null>(
     null,
   );
@@ -368,6 +363,12 @@ export function EpubReader({ book }: Props) {
           setRelocateTick((t) => t + 1);
         });
 
+        // 'selected' fires repeatedly: once when the long-press lands on a word, and
+        // again every time the user drags one of the selection handles to extend the
+        // range. Each fire updates the popover with the latest cfi/text; collapsing
+        // the selection here would kill the drag handles and trap the user on the
+        // first word. We collapse only after the user commits (picks a colour / saves
+        // a note / dismisses) — see closePopover.
         r.on('selected', (cfiRange: unknown) => {
           const cfi = cfiRange as string;
           const range = r.getRange(cfi);
@@ -386,28 +387,6 @@ export function EpubReader({ book }: Props) {
             cfiRange: cfi,
             chapter: chapter || 'Unknown',
           });
-
-          // Drop the iframe's live selection RIGHT NOW — synchronously, same task as
-          // 'selected'. With rAF we leave the browser a frame to show its translator /
-          // share bubble before we clear; doing it inline wins the race in Brave + Chrome.
-          try {
-            iframe?.contentWindow?.getSelection()?.removeAllRanges();
-          } catch { /* iframe may have navigated away */ }
-
-          // Paint a translucent yellow preview highlight at the same cfi, so the user
-          // keeps a visual anchor for the text they're about to colour. Removed when
-          // the popover closes (see handleHighlight / handleNote / dismiss handlers).
-          try {
-            r.annotations.remove(cfi, 'highlight');
-          } catch { /* nothing to clean up */ }
-          try {
-            r.annotations.highlight(cfi, {}, () => {}, 'preview-hl', {
-              fill: 'rgba(252, 211, 77, 0.5)',
-              'fill-opacity': '1',
-              'mix-blend-mode': 'multiply',
-            });
-            previewCfiRef.current = cfi;
-          } catch { /* if this fails the popover still works, just no preview band */ }
         });
 
         // Iframe-level keys (Page Up/Down etc.). Document-level arrow keys are handled
@@ -646,17 +625,16 @@ export function EpubReader({ book }: Props) {
     });
   };
 
-  // Close the create-popover and tear down its preview overlay together. Always called
-  // before drawHighlight() so the real coloured rect doesn't fight a stale preview at
-  // the same cfi (remove(cfi,'highlight') in epub.js targets every highlight at the cfi).
+  // Close the create-popover AND clear the iframe's selection. We deliberately keep
+  // the live selection visible while the popover is open so the user can still drag
+  // the system selection handles to extend the range — collapsing earlier would trap
+  // them on whatever word the long-press first hit. Collapse happens on commit
+  // (colour pick / save / dismiss), once the cfi is captured into the annotation.
   const closePopover = () => {
-    const cfi = previewCfiRef.current;
-    if (cfi) {
-      try {
-        renditionRef.current?.annotations.remove(cfi, 'highlight');
-      } catch { /* nothing to clean up */ }
-      previewCfiRef.current = null;
-    }
+    try {
+      const iframe = viewerRef.current?.querySelector('iframe');
+      iframe?.contentWindow?.getSelection()?.removeAllRanges();
+    } catch { /* iframe may have navigated away */ }
     setPopover(null);
   };
 
