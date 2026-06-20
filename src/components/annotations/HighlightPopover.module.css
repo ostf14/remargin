@@ -180,9 +180,10 @@
     left: 0 !important;
     right: 0;
     top: auto !important;
-    /* Lift the sheet ~16px off the viewport edge so Brave / Chrome Android's
-       "Search with Google" callout doesn't overlap the colour buttons. */
-    bottom: 16px;
+    /* Sheet background extends all the way to the viewport edge — no gap. The buttons
+       inside get extra bottom padding so they still sit ~16px above the edge, clearing
+       Brave / Chrome Android's "Search with Google" callout. */
+    bottom: 0;
     transform: translateY(0);
     margin-top: 0;
     flex-direction: column;
@@ -190,9 +191,8 @@
     background: var(--bg-secondary);
     border: 0;
     border-top: 0.5px solid var(--border);
-    border-bottom: 0.5px solid var(--border);
     border-radius: 12px 12px 0 0;
-    padding: 16px 16px calc(16px + env(safe-area-inset-bottom));
+    padding: 16px 16px calc(32px + env(safe-area-inset-bottom));
     box-shadow: var(--shadow-xl);
     animation: slideUp 0.3s var(--ease-out);
   }
