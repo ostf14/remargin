@@ -1,7 +1,6 @@
 import { useCallback, useState } from 'react';
 import type { Book } from '../types';
 import { parseEpub } from '../services/epubParser';
-import { parsePdf } from '../services/pdfParser';
 import { fetchBookMetadata } from '../services/googleBooks';
 import { fetchOpenLibraryCover } from '../services/openLibrary';
 import { countWordsFromData } from '../services/wordCount';
@@ -16,12 +15,7 @@ const authorIsBad = (b: Book) => {
   const a = b.author.trim();
   return !a || a === 'Unknown Author';
 };
-// A `data:` cover is the PDF parser's first-page placeholder — upgradeable to a real
-// publisher cover. An EPUB embedded cover is also a data URL but counts as real (its
-// format is 'epub'), so we only treat PDF data covers as placeholders.
-const isPlaceholderCover = (b: Book) =>
-  b.format === 'pdf' && !!b.coverUrl && b.coverUrl.startsWith('data:');
-const needsCover = (b: Book) => !b.coverUrl || isPlaceholderCover(b);
+const needsCover = (b: Book) => !b.coverUrl;
 
 // Same title + author (case-insensitive) counts as the same book already in the library.
 const sameBook = (a: Book, b: Book) =>
@@ -35,8 +29,7 @@ export function useImport() {
   const [importing, setImporting] = useState(false);
 
   // Fill missing author/cover from Google Books → Open Library. Never blocks, never
-  // throws. A PDF parser placeholder cover (data: URL) counts as "needs upgrade" so we
-  // still query — the placeholder stays in place if the network finds nothing better.
+  // throws. Only EPUBs reach this path now (PDF imports are blocked at the file gate).
   const enrich = useCallback(
     async (book: Book) => {
       if (titleIsBad(book) || (!authorIsBad(book) && !needsCover(book))) return;
@@ -79,10 +72,20 @@ export function useImport() {
     async (files: FileList | File[]) => {
       setImporting(true);
       try {
+        // Surface a single PDF-blocked warning per batch, regardless of how many PDFs
+        // the user dropped — avoids stacking N alerts on a folder drop.
+        let warnedPdf = false;
         for (const file of Array.from(files)) {
           const ext = file.name.split('.').pop()?.toLowerCase();
-          if (ext !== 'epub' && ext !== 'pdf') continue;
-          const parsed = ext === 'epub' ? await parseEpub(file) : await parsePdf(file);
+          if (ext === 'pdf') {
+            if (!warnedPdf) {
+              alert('PDF support is paused. Import EPUB files for now.');
+              warnedPdf = true;
+            }
+            continue;
+          }
+          if (ext !== 'epub') continue;
+          const parsed = await parseEpub(file);
           // Skip if the same title+author is already shelved, unless the user insists.
           if (books.some((b) => sameBook(b, parsed.book))) {
             if (!window.confirm('This book already exists. Import anyway?')) continue;
@@ -90,7 +93,6 @@ export function useImport() {
           await saveBookFile(parsed.book.id, parsed.data);
           addBook(parsed.book);
           // Book is in the library now; enrich metadata + count words in the background.
-          // A PDF placeholder cover (data: URL) still calls enrich so it can be upgraded.
           if (titleIsBad(parsed.book) || authorIsBad(parsed.book) || needsCover(parsed.book)) {
             void enrich(parsed.book);
           }

@@ -1,3 +1,6 @@
+// 'pdf' kept in the union so any books still on the user's localStorage shelf
+// type-check — they just won't open (gated in ReaderContext.openBook). The PDF
+// reader and parser are gone; reinstate them from git history when PDF returns.
 export type BookFormat = 'epub' | 'pdf';
 
 export type HighlightColor = 'yellow' | 'green' | 'blue' | 'red' | 'purple';
@@ -59,5 +62,4 @@ export interface AppState {
   readingSurface: ReadingSurface; // page tint while reading, separate from app theme
   readerMode: ReaderMode; // pages | scroll (default 'pages')
   libraryView: LibraryView; // grid | notes (library layout; default 'grid')
-  trimMargins: boolean; // PDF only — auto-crop the empty page margins
 }

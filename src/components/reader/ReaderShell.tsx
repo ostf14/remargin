@@ -18,11 +18,6 @@ import type { ReadingSurface, ReaderMode } from '../../types';
 import { useReader } from '../../hooks/useReader';
 import styles from './ReaderShell.module.css';
 
-interface ZoomControls {
-  value: number; // 1 = 100%
-  onIn: () => void;
-  onOut: () => void;
-}
 interface FontControls {
   onInc: () => void;
   onDec: () => void;
@@ -37,22 +32,16 @@ interface SearchControls {
   total: number;
   searching: boolean;
 }
-interface TrimControls {
-  value: boolean;
-  onToggle: () => void;
-}
 
 interface Props {
   title: string;
-  subtitle?: string; // chapter (EPUB) / "Page n / total" (PDF) — no progress
+  subtitle?: string; // chapter (EPUB)
   progress: number; // 0–100
   progressText: string; // "22% · ~4h 50m left" — shown in the always-on bottom pill
   onPrev: () => void;
   onNext: () => void;
   search?: SearchControls; // in-book find, always shown inline in the header
-  zoom?: ZoomControls; // PDF only
   font?: FontControls; // EPUB only
-  trim?: TrimControls; // PDF only — auto-crop empty page margins
   showNav?: boolean; // page-turn side zones; false in EPUB scroll mode
   children: ReactNode;
 }
@@ -86,9 +75,7 @@ export function ReaderShell({
   onPrev,
   onNext,
   search,
-  zoom,
   font,
-  trim,
   showNav = true,
   children,
 }: Props) {
@@ -323,18 +310,6 @@ export function ReaderShell({
           </button>
 
           <div className={`${styles.settings} ${settingsOpen ? styles.settingsOpen : ''}`}>
-            {zoom && (
-              <div className={styles.row}>
-                <span className={styles.label}>Zoom</span>
-                <button className={styles.sBtn} onClick={zoom.onOut} aria-label="Zoom out">
-                  &minus;
-                </button>
-                <span className={styles.sValue}>{Math.round(zoom.value * 100)}%</span>
-                <button className={styles.sBtn} onClick={zoom.onIn} aria-label="Zoom in">
-                  +
-                </button>
-              </div>
-            )}
             {font && (
               <div className={styles.row}>
                 <span className={styles.label}>Font</span>
@@ -379,19 +354,6 @@ export function ReaderShell({
                 <Moon size={12} />
               </button>
             </div>
-            {trim && (
-              <div className={styles.row}>
-                <span className={styles.label}>Trim</span>
-                <button
-                  className={`${styles.sBtn} ${trim.value ? styles.sBtnActive : ''}`}
-                  onClick={trim.onToggle}
-                  aria-pressed={trim.value}
-                  aria-label="Toggle trim margins"
-                >
-                  {trim.value ? 'On' : 'Off'}
-                </button>
-              </div>
-            )}
             <div className={styles.divider} />
             <div className={styles.row}>
               <span className={styles.label}>Mode</span>

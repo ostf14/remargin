@@ -4,7 +4,6 @@ import { useImport } from './hooks/useImport';
 import { BookGrid } from './components/library/BookGrid';
 import { DropOverlay } from './components/library/DropOverlay';
 import { EpubReader } from './components/reader/EpubReader';
-import { PdfReader } from './components/reader/PdfReader';
 
 const hasFiles = (e: DragEvent) =>
   !!e.dataTransfer && Array.from(e.dataTransfer.types).includes('Files');
@@ -54,9 +53,10 @@ export default function App() {
   }, [importFiles]);
 
   let content: ReactNode = <BookGrid />;
-  if (viewMode === 'reader' && currentBook) {
-    if (currentBook.format === 'epub') content = <EpubReader book={currentBook} />;
-    else if (currentBook.format === 'pdf') content = <PdfReader book={currentBook} />;
+  // PDF support is frozen — only EPUB renders a reader. Existing PDF books in the
+  // library show their card but can't be opened (gated in BookGrid's openBook).
+  if (viewMode === 'reader' && currentBook && currentBook.format === 'epub') {
+    content = <EpubReader book={currentBook} />;
   }
 
   return (
