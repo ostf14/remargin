@@ -322,7 +322,10 @@
 
 /* ─────────────────────────── Side page-turn zones ─────────────────────────── */
 /* Always-visible chevrons (not part of the auto-hide chrome). Simple colour states,
-   no background, no fades — just a subtle press feedback. */
+   no background, no fades — just a subtle press feedback.
+   touch-action: pan-y so vertical scrolling (continuous EPUB scroll mode) passes
+   through the zones: a tap still fires onClick → prev/next, but a drag scrolls the
+   underlying content instead of being trapped. */
 .navLeft,
 .navRight {
   position: absolute;
@@ -334,6 +337,7 @@
   justify-content: center;
   cursor: pointer;
   z-index: 15;
+  touch-action: pan-y;
 }
 
 .navLeft {

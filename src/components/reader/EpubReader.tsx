@@ -288,18 +288,18 @@ export function EpubReader({ book }: Props) {
 
       // Creates a rendition + wires every handler. Called once at mount with the saved
       // mode, again from the mode-switch effect after destroying the previous rendition.
-      // Continuous scroll uses epub.js's "continuous" view manager, which streams every
-      // spine item into one scroll container (vs the default manager that swaps sections).
+      // Scroll mode uses `flow: 'scrolled-doc'` with the DEFAULT view manager — the
+      // current spine section scrolls vertically inside the viewer; prev/next moves
+      // between sections. epub.js's "continuous" manager (which streamed the whole book
+      // into one scroller) is unreliable: on many real-world EPUBs it loads only the
+      // first section (often the ToC) and stops, and the initial layout race resizes
+      // the cover image to zero. Per-section scrolled-doc is the robust default.
       const createRendition = (mode: 'pages' | 'scroll'): Rendition => {
-        // The `manager` option is real (ContinuousViewManager — see epub.js dist) but the
-        // shipped .d.ts doesn't declare it; cast around the typing without losing checks
-        // on the known fields.
         const r = epubInstance.renderTo(container, {
           width: '100%',
           height: '100%',
           spread: 'none',
           flow: mode === 'scroll' ? 'scrolled-doc' : 'paginated',
-          ...({ manager: mode === 'scroll' ? 'continuous' : 'default' } as Record<string, string>),
         });
         renditionRef.current = r;
 
@@ -936,7 +936,7 @@ export function EpubReader({ book }: Props) {
       subtitle={chapter || 'Chapter'}
       progress={percentage}
       progressText={progressText}
-      showNav={readerMode !== 'scroll'}
+      showNav
       onPrev={() => renditionRef.current?.prev()}
       onNext={() => renditionRef.current?.next()}
       search={{
