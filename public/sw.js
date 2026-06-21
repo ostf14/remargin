@@ -1,4 +1,4 @@
-const CACHE = 'remargin-v1';
+const CACHE = 'remargin-v2';
 const PRECACHE = ['/', '/index.html'];
 
 self.addEventListener('install', (e) => {

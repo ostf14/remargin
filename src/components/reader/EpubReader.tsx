@@ -294,10 +294,15 @@ export function EpubReader({ book }: Props) {
       // into one scroller) is unreliable: on many real-world EPUBs it loads only the
       // first section (often the ToC) and stops, and the initial layout race resizes
       // the cover image to zero. Per-section scrolled-doc is the robust default.
+      //
+      // height: 'auto' in scroll mode tells epub.js NOT to clamp the iframe to a single
+      // viewport height. Without this, the iframe stays at the container's height and
+      // content gets visually paginated even though flow says scrolled-doc. With auto,
+      // the iframe grows to its full content height and the outer .desk scrolls it.
       const createRendition = (mode: 'pages' | 'scroll'): Rendition => {
         const r = epubInstance.renderTo(container, {
           width: '100%',
-          height: '100%',
+          height: mode === 'scroll' ? 'auto' : '100%',
           spread: 'none',
           flow: mode === 'scroll' ? 'scrolled-doc' : 'paginated',
         });
