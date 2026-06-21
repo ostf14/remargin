@@ -552,14 +552,13 @@ export function EpubReader({ book }: Props) {
   }, [openSavedHighlight, renditionEpoch]);
 
   // Scroll mode = one long scroll. As the user approaches the bottom of the loaded
-  // content, fetch the next spine section and append its body into the SAME iframe
-  // (adopting nodes so they render under our existing iframe styles). No swap, no
-  // reset — just an iframe that keeps growing. The ResizeObserver in the 'rendered'
-  // handler picks up each height change and the outer .desk scrolls it all as one body.
-  //
-  // Limitation: new highlights only resolve cleanly inside the section epub.js's
-  // rendition is currently pointed at (the first one). Highlighting in appended
-  // sections is best-effort. For accurate per-section highlights, use Pages mode.
+  // content, fetch the next spine section and CLONE its body into the SAME iframe
+  // (importNode, not adoptNode — adoptNode moves nodes out of the section's own
+  // document, which destroys epub.js's CFI scope for that section and breaks every
+  // future highlight there). The ResizeObserver picks up each height change; the
+  // outer .desk scrolls everything as one body. Selections inside an appended section
+  // are mapped to that section's document and given a real CFI via the wrapper's
+  // data-spine-href (see the selection effect below).
   const appendedSpinesRef = useRef<Set<string>>(new Set());
   useEffect(() => {
     if (readerMode !== 'scroll') return;
@@ -616,8 +615,10 @@ export function EpubReader({ book }: Props) {
         wrapper.style.marginTop = '2.5em';
         for (const node of Array.from(body.childNodes)) {
           try {
-            wrapper.appendChild(iframeDoc.adoptNode(node));
-          } catch { /* node may have been moved already; skip */ }
+            // Deep clone (importNode), NOT move (adoptNode) — the original stays in
+            // section.document so epub.js's CFI machinery still has its DOM scope.
+            wrapper.appendChild(iframeDoc.importNode(node, true));
+          } catch { /* skip un-importable node (e.g. doctype) */ }
         }
         iframeDoc.body.appendChild(wrapper);
         appendedSpinesRef.current.add(nextItem.href);
@@ -642,6 +643,141 @@ export function EpubReader({ book }: Props) {
     return () => {
       desk.removeEventListener('scroll', onScroll);
       window.clearTimeout(kickoff);
+    };
+  }, [readerMode, renditionEpoch]);
+
+  // Selection inside an appended section. epub.js's 'selected' event only resolves the
+  // CFI for the section its rendition is currently displaying — for everything we
+  // appended into the iframe, we have to compute the CFI ourselves:
+  //   1. Walk up from the selection's start node to find the [data-spine-href] wrapper.
+  //   2. The spine item with that href is still loaded (we never unload after append),
+  //      and its original DOM lives in section.contents (we cloned, not adopted).
+  //   3. Path-walk from the iframe range to the wrapper, then resolve the same path in
+  //      section.contents — same structure, equivalent nodes.
+  //   4. Build a section-scoped range and feed it to section.cfiFromRange() for a real
+  //      CFI that survives mode switches and persists correctly.
+  // Selections inside the rendition's own section keep the existing 'selected' flow.
+  useEffect(() => {
+    if (readerMode !== 'scroll') return;
+    const epub = epubRef.current;
+    const r = renditionRef.current;
+    if (!epub || !r) return;
+
+    type SpineLite = {
+      href: string;
+      contents: HTMLElement | null;
+      cfiFromRange?: (r: Range) => string;
+    };
+    const spines = epub.spine.spineItems as unknown as SpineLite[];
+
+    const pathToAncestor = (node: Node, ancestor: Node): number[] | null => {
+      const path: number[] = [];
+      let n: Node | null = node;
+      while (n && n !== ancestor) {
+        const parent: Node | null = n.parentNode;
+        if (!parent) return null;
+        path.unshift(Array.from(parent.childNodes).indexOf(n as ChildNode));
+        n = parent;
+      }
+      return n === ancestor ? path : null;
+    };
+    const resolvePath = (root: Node, path: number[]): Node | null => {
+      let n: Node = root;
+      for (const i of path) {
+        const next: ChildNode | undefined = n.childNodes[i];
+        if (!next) return null;
+        n = next;
+      }
+      return n;
+    };
+
+    let timer: number | null = null;
+    const onSelChange = (doc: Document) => {
+      if (timer) window.clearTimeout(timer);
+      timer = window.setTimeout(() => {
+        const win = doc.defaultView;
+        const sel = win?.getSelection();
+        if (!sel || sel.isCollapsed || sel.rangeCount === 0) return;
+        const range = sel.getRangeAt(0);
+        const text = sel.toString().trim();
+        if (!text) return;
+
+        // Find the appended-section wrapper enclosing this selection. None → it's in
+        // the rendition's own section and epub.js's 'selected' is already on it.
+        let wrapper: HTMLElement | null = null;
+        let n: Node | null = range.commonAncestorContainer;
+        while (n && n !== doc.body) {
+          if (n instanceof HTMLElement && n.dataset.spineHref) {
+            wrapper = n;
+            break;
+          }
+          n = n.parentNode;
+        }
+        if (!wrapper) return;
+
+        const href = wrapper.dataset.spineHref!;
+        const section = spines.find((s) => s.href === href);
+        if (!section?.contents || !section.cfiFromRange) return;
+
+        const startPath = pathToAncestor(range.startContainer, wrapper);
+        const endPath = pathToAncestor(range.endContainer, wrapper);
+        if (!startPath || !endPath) return;
+        const startNode = resolvePath(section.contents, startPath);
+        const endNode = resolvePath(section.contents, endPath);
+        if (!startNode || !endNode) return;
+
+        const sectionDoc = section.contents.ownerDocument;
+        if (!sectionDoc) return;
+        const secRange = sectionDoc.createRange();
+        try {
+          secRange.setStart(startNode, range.startOffset);
+          secRange.setEnd(endNode, range.endOffset);
+        } catch { return; }
+        let cfi: string;
+        try {
+          cfi = section.cfiFromRange(secRange);
+        } catch { return; }
+        if (!cfi) return;
+
+        // Chapter title via the TOC (same lookup epub.js does for the rendition).
+        let ch = '';
+        const toc = epub.navigation?.toc || [];
+        for (const item of toc) {
+          if (href.includes(item.href.split('#')[0])) {
+            ch = item.label.trim();
+            break;
+          }
+        }
+
+        const rect = range.getBoundingClientRect();
+        const iframe = viewerRef.current?.querySelector('iframe');
+        const iframeRect = iframe?.getBoundingClientRect() ?? { left: 0, top: 0 };
+        setPopover({
+          x: rect.left + iframeRect.left + rect.width / 2,
+          y: rect.top + iframeRect.top,
+          text,
+          cfiRange: cfi,
+          chapter: ch || 'Unknown',
+        });
+      }, 350);
+    };
+
+    const wired = new Map<Document, () => void>();
+    const attach = () => {
+      const doc = viewerRef.current?.querySelector('iframe')?.contentDocument;
+      if (!doc || wired.has(doc)) return;
+      const handler = () => onSelChange(doc);
+      doc.addEventListener('selectionchange', handler);
+      wired.set(doc, handler);
+    };
+    r.on('rendered', attach);
+    attach();
+    return () => {
+      if (timer) window.clearTimeout(timer);
+      for (const [doc, fn] of wired) {
+        try { doc.removeEventListener('selectionchange', fn); } catch { /* gone */ }
+      }
+      wired.clear();
     };
   }, [readerMode, renditionEpoch]);
 
