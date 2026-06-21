@@ -316,7 +316,8 @@ export function EpubReader({ book }: Props) {
         r.on('displayed', () => setLoading(false));
 
         // Per-iframe setup: Ctrl+wheel zoom, parent-document activity ping (for chrome
-        // auto-hide), Literata font injection. Done once per fresh document.
+        // auto-hide), Literata font injection, and our own selection→popover handler.
+        // Done once per fresh document.
         const attachedDocs = new Set<Document>();
         r.on('rendered', () => {
           const doc = container.querySelector('iframe')?.contentDocument;
@@ -325,6 +326,57 @@ export function EpubReader({ book }: Props) {
           const ping = () => window.dispatchEvent(new Event('reader-activity'));
           doc.addEventListener('mousemove', ping);
           doc.addEventListener('mousedown', ping);
+          // Selection→popover: we read the live selection on mouseup/touchend and
+          // build the popover ourselves. rendition.on('selected') turned out to drop
+          // most events during back-to-back selections (verified: 1/20 fires) — our
+          // own listener gets every commit because we look at the DOM directly
+          // instead of waiting for epub.js's debounced internal pipeline.
+          const handleLiveSelection = () => {
+            const win = doc.defaultView;
+            if (!win) return;
+            const sel = win.getSelection();
+            if (!sel || sel.isCollapsed || sel.rangeCount === 0) return;
+            const range = sel.getRangeAt(0);
+            const text = range.toString().trim();
+            if (!text) return;
+            // Convert the live DOM Range to an epubcfi via the matching Contents
+            // instance (paginated mode usually has one, but match by document so we
+            // don't pick a stale one after a section change).
+            let cfiStr = '';
+            try {
+              // epub.js's typings claim getContents() returns a single Contents, but at
+              // runtime it returns an array — cast around the bad type.
+              const getContents = (r as unknown as {
+                getContents: () => Array<{
+                  document: Document;
+                  cfiFromRange: (rng: Range) => { toString(): string } | string;
+                }>;
+              }).getContents;
+              const all = getContents.call(r);
+              const ours = all.find((c) => c.document === doc);
+              if (!ours) return;
+              const cfi = ours.cfiFromRange(range);
+              cfiStr = typeof cfi === 'string' ? cfi : cfi.toString();
+            } catch {
+              return;
+            }
+            if (!cfiStr) return;
+            const rect = range.getBoundingClientRect();
+            const iframe = container.querySelector('iframe');
+            const iframeRect = iframe?.getBoundingClientRect() || { left: 0, top: 0 };
+            const x = rect.left + iframeRect.left + rect.width / 2;
+            const y = rect.top + iframeRect.top;
+            // Dedup against a stale state object if the same CFI is already shown
+            // (e.g. mouseup followed by a touchend on the same commit) — avoids a
+            // useless re-render.
+            setPopover((prev) =>
+              prev && prev.cfiRange === cfiStr
+                ? prev
+                : { x, y, text, cfiRange: cfiStr, chapter: chapter || 'Unknown' },
+            );
+          };
+          doc.addEventListener('mouseup', handleLiveSelection);
+          doc.addEventListener('touchend', handleLiveSelection);
           if (doc.head && !doc.getElementById('remargin-reading-font')) {
             const fontLink = doc.createElement('link');
             fontLink.id = 'remargin-reading-font';
@@ -360,32 +412,6 @@ export function EpubReader({ book }: Props) {
 
           // Page turned — margin-note anchors moved; recompute after layout settles.
           setRelocateTick((t) => t + 1);
-        });
-
-        // 'selected' fires repeatedly: once when the long-press lands on a word, and
-        // again every time the user drags one of the selection handles to extend the
-        // range. Each fire updates the popover with the latest cfi/text; collapsing
-        // the selection here would kill the drag handles and trap the user on the
-        // first word. We collapse only after the user commits (picks a colour / saves
-        // a note / dismisses) — see closePopover.
-        r.on('selected', (cfiRange: unknown) => {
-          const cfi = cfiRange as string;
-          const range = r.getRange(cfi);
-          if (!range) return;
-          const text = range.toString().trim();
-          if (!text) return;
-
-          const rect = range.getBoundingClientRect();
-          const iframe = container.querySelector('iframe');
-          const iframeRect = iframe?.getBoundingClientRect() || { left: 0, top: 0 };
-
-          setPopover({
-            x: rect.left + iframeRect.left + rect.width / 2,
-            y: rect.top + iframeRect.top,
-            text,
-            cfiRange: cfi,
-            chapter: chapter || 'Unknown',
-          });
         });
 
         // Iframe-level keys (Page Up/Down etc.). Document-level arrow keys are handled
