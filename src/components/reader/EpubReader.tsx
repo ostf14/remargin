@@ -551,6 +551,38 @@ export function EpubReader({ book }: Props) {
     };
   }, [openSavedHighlight, renditionEpoch]);
 
+  // Scroll mode auto-advance: when the user scrolls close to the bottom of the current
+  // section, transparently load the next one and reset scrollTop to 0 so they can keep
+  // scrolling without ever tapping a chevron. End-of-book stops cleanly via the rendition
+  // location's atEnd flag. Forward only — going back uses the prev chevron, which lands
+  // at the top of the previous section (good enough; full reverse-on-pull-up needs scroll
+  // anchoring we're not doing yet).
+  useEffect(() => {
+    if (readerMode !== 'scroll') return;
+    const desk = deskRef.current;
+    if (!desk) return;
+    let advancing = false;
+    const onScroll = () => {
+      if (advancing) return;
+      const r = renditionRef.current;
+      if (!r) return;
+      const dist = desk.scrollHeight - desk.scrollTop - desk.clientHeight;
+      if (dist > 80) return;
+      const loc = r.currentLocation() as { atEnd?: boolean } | undefined;
+      if (loc?.atEnd) return;
+      advancing = true;
+      Promise.resolve(r.next()).then(() => {
+        window.setTimeout(() => {
+          const d = deskRef.current;
+          if (d) d.scrollTop = 0;
+          advancing = false;
+        }, 200);
+      });
+    };
+    desk.addEventListener('scroll', onScroll, { passive: true });
+    return () => desk.removeEventListener('scroll', onScroll);
+  }, [readerMode, renditionEpoch]);
+
   // Tracks which CFIs we've drawn on the current rendition, with their colour. Resetting
   // on renditionEpoch (mode switch) is handled by re-running this effect — we also wipe
   // the map there.
