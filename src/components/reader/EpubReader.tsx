@@ -288,12 +288,11 @@ export function EpubReader({ book }: Props) {
 
       // Creates a rendition + wires every handler. Called once at mount with the saved
       // mode, again from the mode-switch effect after destroying the previous rendition.
-      // Scroll mode uses `flow: 'scrolled-doc'` with the DEFAULT view manager — the
-      // current spine section scrolls vertically inside the viewer; prev/next moves
-      // between sections. epub.js's "continuous" manager (which streamed the whole book
-      // into one scroller) is unreliable: on many real-world EPUBs it loads only the
-      // first section (often the ToC) and stops, and the initial layout race resizes
-      // the cover image to zero. Per-section scrolled-doc is the robust default.
+      // Pages mode: flow 'paginated' with epub.js's default manager (column pagination).
+      // Scroll mode: flow 'scrolled-doc' — the CURRENT spine section reflows as one tall
+      // column inside the viewer and scrolls natively; prev/next moves between sections.
+      // We don't touch the iframe height ourselves: epub.js sizes it to its content in
+      // scrolled-doc mode, and the .epub-container's overflow-y: auto does the scrolling.
       const createRendition = (mode: 'pages' | 'scroll'): Rendition => {
         const r = epubInstance.renderTo(container, {
           width: '100%',
@@ -310,53 +309,25 @@ export function EpubReader({ book }: Props) {
 
         r.on('displayed', () => setLoading(false));
 
-        // Wheel events fire inside the content iframe — attach the Ctrl+wheel font
-        // handler to each rendered document so the gesture is caught over the text.
+        // Per-iframe setup: Ctrl+wheel zoom, parent-document activity ping (for chrome
+        // auto-hide), Literata font injection. Done once per fresh document.
         const attachedDocs = new Set<Document>();
-        // In scroll mode, manually size the iframe to its content height after every
-        // render. epub.js's default manager doesn't reliably call View.expand() for
-        // flow: 'scrolled-doc', so the iframe stays at viewport height and content past
-        // the first screen is clipped (feels exactly like pagination). Re-measuring on
-        // load + images-ready + ResizeObserver covers late layout changes.
-        const sizeIframeToContent = (iframe: HTMLIFrameElement) => {
-          if (readerModeRef.current !== 'scroll') return;
-          const doc = iframe.contentDocument;
-          if (!doc?.body) return;
-          const h = Math.max(doc.body.scrollHeight, doc.documentElement.scrollHeight);
-          if (h > 0) iframe.style.height = `${h}px`;
-        };
         r.on('rendered', () => {
-          const iframe = container.querySelector('iframe');
-          const doc = iframe?.contentDocument;
-          if (!iframe || !doc) return;
-          if (!attachedDocs.has(doc)) {
-            doc.addEventListener('wheel', handleZoomWheel, { passive: false });
-            // Forward pointer activity inside the iframe so the chrome auto-hide timer
-            // (which lives in the parent document) keeps resetting while reading EPUB.
-            const ping = () => window.dispatchEvent(new Event('reader-activity'));
-            doc.addEventListener('mousemove', ping);
-            doc.addEventListener('mousedown', ping);
-            // The rendered content is a separate document, so the parent's Google Fonts
-            // <link> doesn't reach it — load the reading font (Literata) inside the iframe.
-            // Falls back to Georgia (in the theme stack) if the request is blocked.
-            if (doc.head && !doc.getElementById('remargin-reading-font')) {
-              const fontLink = doc.createElement('link');
-              fontLink.id = 'remargin-reading-font';
-              fontLink.rel = 'stylesheet';
-              fontLink.href =
-                'https://fonts.googleapis.com/css2?family=Literata:ital,wght@0,400;0,700;1,400&display=swap';
-              doc.head.appendChild(fontLink);
-            }
-            attachedDocs.add(doc);
+          const doc = container.querySelector('iframe')?.contentDocument;
+          if (!doc || attachedDocs.has(doc)) return;
+          doc.addEventListener('wheel', handleZoomWheel, { passive: false });
+          const ping = () => window.dispatchEvent(new Event('reader-activity'));
+          doc.addEventListener('mousemove', ping);
+          doc.addEventListener('mousedown', ping);
+          if (doc.head && !doc.getElementById('remargin-reading-font')) {
+            const fontLink = doc.createElement('link');
+            fontLink.id = 'remargin-reading-font';
+            fontLink.rel = 'stylesheet';
+            fontLink.href =
+              'https://fonts.googleapis.com/css2?family=Literata:ital,wght@0,400;0,700;1,400&display=swap';
+            doc.head.appendChild(fontLink);
           }
-          // Initial size + a follow-up after images/fonts settle. ResizeObserver on the
-          // body keeps it accurate if anything reflows later (e.g. font-size change).
-          sizeIframeToContent(iframe);
-          window.setTimeout(() => sizeIframeToContent(iframe), 250);
-          try {
-            const ro = new ResizeObserver(() => sizeIframeToContent(iframe));
-            ro.observe(doc.body);
-          } catch { /* old browsers — fall back to the setTimeout pass */ }
+          attachedDocs.add(doc);
         });
 
         r.on('relocated', (location: unknown) => {
@@ -551,235 +522,70 @@ export function EpubReader({ book }: Props) {
     };
   }, [openSavedHighlight, renditionEpoch]);
 
-  // Scroll mode = one long scroll. As the user approaches the bottom of the loaded
-  // content, fetch the next spine section and CLONE its body into the SAME iframe
-  // (importNode, not adoptNode — adoptNode moves nodes out of the section's own
-  // document, which destroys epub.js's CFI scope for that section and breaks every
-  // future highlight there). The ResizeObserver picks up each height change; the
-  // outer .desk scrolls everything as one body. Selections inside an appended section
-  // are mapped to that section's document and given a real CFI via the wrapper's
-  // data-spine-href (see the selection effect below).
-  const appendedSpinesRef = useRef<Set<string>>(new Set());
+  // Scroll mode chapter/progress tracking: in flow:'scrolled-doc' epub.js doesn't fire
+  // 'relocated' on every scroll tick, only when display() is called or the user calls
+  // next/prev. So we poll currentLocation() on a debounced scroll event from the iframe's
+  // own scroller (.epub-container) and update chapter + progress + lastPosition ourselves.
   useEffect(() => {
     if (readerMode !== 'scroll') return;
-    appendedSpinesRef.current = new Set();
-    const desk = deskRef.current;
-    if (!desk) return;
-
-    let busy = false;
-    const sizeIframe = () => {
-      const iframe = viewerRef.current?.querySelector('iframe');
-      if (!iframe) return;
-      const doc = iframe.contentDocument;
-      if (!doc?.body) return;
-      const h = Math.max(doc.body.scrollHeight, doc.documentElement.scrollHeight);
-      if (h > 0) iframe.style.height = `${h}px`;
-    };
-
-    const appendNextSpine = async () => {
-      if (busy) return;
-      const epub = epubRef.current;
-      const iframe = viewerRef.current?.querySelector('iframe') as HTMLIFrameElement | null;
-      const iframeDoc = iframe?.contentDocument;
-      if (!epub || !iframe || !iframeDoc) return;
-
-      // epub.js's SpineItem type doesn't surface href / contents in the d.ts even
-      // though both exist at runtime — cast through unknown.
-      const spines = epub.spine.spineItems as unknown as Array<{
-        href: string;
-        load: (l: unknown) => Promise<unknown>;
-        contents: HTMLElement | null;
-      }>;
-      if (!spines.length) return;
-
-      // First loaded section is whatever rendition currently shows. After that,
-      // appended hrefs are tracked in appendedSpinesRef. Find the next un-appended.
-      const currentLoc = renditionRef.current?.currentLocation() as { start?: { href?: string } } | undefined;
-      const currentHref = currentLoc?.start?.href ?? spines[0]?.href;
-      let idx = spines.findIndex((s) => s.href === currentHref);
-      if (idx < 0) idx = 0;
-      while (idx < spines.length - 1 && appendedSpinesRef.current.has(spines[idx + 1].href)) {
-        idx++;
-      }
-      const nextItem = spines[idx + 1];
-      if (!nextItem) return; // end of book
-
-      busy = true;
-      try {
-        await nextItem.load(epub.load.bind(epub));
-        const body = nextItem.contents;
-        if (!body) return;
-        const wrapper = iframeDoc.createElement('div');
-        wrapper.dataset.spineHref = nextItem.href;
-        // Visual breathing room between appended chapters.
-        wrapper.style.marginTop = '2.5em';
-        for (const node of Array.from(body.childNodes)) {
-          try {
-            // Deep clone (importNode), NOT move (adoptNode) — the original stays in
-            // section.document so epub.js's CFI machinery still has its DOM scope.
-            wrapper.appendChild(iframeDoc.importNode(node, true));
-          } catch { /* skip un-importable node (e.g. doctype) */ }
-        }
-        iframeDoc.body.appendChild(wrapper);
-        appendedSpinesRef.current.add(nextItem.href);
-        sizeIframe();
-      } catch { /* unreadable section — skip and try the next on the next scroll */ }
-      finally {
-        busy = false;
-      }
-    };
-
-    const onScroll = () => {
-      // Pre-fetch with 1000px lookahead so the user never sees the seam.
-      const dist = desk.scrollHeight - desk.scrollTop - desk.clientHeight;
-      if (dist < 1000) void appendNextSpine();
-    };
-    desk.addEventListener('scroll', onScroll, { passive: true });
-
-    // Kick off the first append a moment after the rendition's initial render so the
-    // user sees the next chapter ready as soon as they begin scrolling.
-    const kickoff = window.setTimeout(() => void appendNextSpine(), 1500);
-
-    return () => {
-      desk.removeEventListener('scroll', onScroll);
-      window.clearTimeout(kickoff);
-    };
-  }, [readerMode, renditionEpoch]);
-
-  // Selection inside an appended section. epub.js's 'selected' event only resolves the
-  // CFI for the section its rendition is currently displaying — for everything we
-  // appended into the iframe, we have to compute the CFI ourselves:
-  //   1. Walk up from the selection's start node to find the [data-spine-href] wrapper.
-  //   2. The spine item with that href is still loaded (we never unload after append),
-  //      and its original DOM lives in section.contents (we cloned, not adopted).
-  //   3. Path-walk from the iframe range to the wrapper, then resolve the same path in
-  //      section.contents — same structure, equivalent nodes.
-  //   4. Build a section-scoped range and feed it to section.cfiFromRange() for a real
-  //      CFI that survives mode switches and persists correctly.
-  // Selections inside the rendition's own section keep the existing 'selected' flow.
-  useEffect(() => {
-    if (readerMode !== 'scroll') return;
-    const epub = epubRef.current;
     const r = renditionRef.current;
-    if (!epub || !r) return;
+    const epub = epubRef.current;
+    if (!r || !epub) return;
 
-    type SpineLite = {
-      href: string;
-      contents: HTMLElement | null;
-      cfiFromRange?: (r: Range) => string;
-    };
-    const spines = epub.spine.spineItems as unknown as SpineLite[];
-
-    const pathToAncestor = (node: Node, ancestor: Node): number[] | null => {
-      const path: number[] = [];
-      let n: Node | null = node;
-      while (n && n !== ancestor) {
-        const parent: Node | null = n.parentNode;
-        if (!parent) return null;
-        path.unshift(Array.from(parent.childNodes).indexOf(n as ChildNode));
-        n = parent;
-      }
-      return n === ancestor ? path : null;
-    };
-    const resolvePath = (root: Node, path: number[]): Node | null => {
-      let n: Node = root;
-      for (const i of path) {
-        const next: ChildNode | undefined = n.childNodes[i];
-        if (!next) return null;
-        n = next;
-      }
-      return n;
-    };
-
+    let attached: HTMLElement | null = null;
     let timer: number | null = null;
-    const onSelChange = (doc: Document) => {
+    const tick = () => {
+      const loc = r.currentLocation() as
+        | { start?: { cfi?: string; href?: string; percentage?: number } }
+        | undefined;
+      const startCfi = loc?.start?.cfi;
+      const startHref = loc?.start?.href;
+      if (!startCfi || !startHref) return;
+      lastCfiRef.current = startCfi;
+      // Progress: prefer the precise side-locations index, fall back to epub.js's coarse %.
+      const side = sideRef.current;
+      let pct = Math.round((loc?.start?.percentage ?? 0) * 100);
+      if (side) {
+        const p = side.locations.percentageFromCfi(startCfi);
+        if (Number.isFinite(p)) pct = Math.round(p * 100);
+      }
+      pct = Math.max(0, Math.min(100, pct));
+      setPercentage(pct);
+      patchBook(book.id, {
+        lastOpened: new Date().toISOString(),
+        progress: pct,
+        lastPosition: startCfi,
+      });
+      // Chapter from TOC (same lookup as the relocated handler).
+      getCurrentChapter(epub, startHref).then((ch) => {
+        if (ch) setChapter(ch);
+      });
+    };
+    const onScroll = () => {
       if (timer) window.clearTimeout(timer);
-      timer = window.setTimeout(() => {
-        const win = doc.defaultView;
-        const sel = win?.getSelection();
-        if (!sel || sel.isCollapsed || sel.rangeCount === 0) return;
-        const range = sel.getRangeAt(0);
-        const text = sel.toString().trim();
-        if (!text) return;
-
-        // Find the appended-section wrapper enclosing this selection. None → it's in
-        // the rendition's own section and epub.js's 'selected' is already on it.
-        let wrapper: HTMLElement | null = null;
-        let n: Node | null = range.commonAncestorContainer;
-        while (n && n !== doc.body) {
-          if (n instanceof HTMLElement && n.dataset.spineHref) {
-            wrapper = n;
-            break;
-          }
-          n = n.parentNode;
-        }
-        if (!wrapper) return;
-
-        const href = wrapper.dataset.spineHref!;
-        const section = spines.find((s) => s.href === href);
-        if (!section?.contents || !section.cfiFromRange) return;
-
-        const startPath = pathToAncestor(range.startContainer, wrapper);
-        const endPath = pathToAncestor(range.endContainer, wrapper);
-        if (!startPath || !endPath) return;
-        const startNode = resolvePath(section.contents, startPath);
-        const endNode = resolvePath(section.contents, endPath);
-        if (!startNode || !endNode) return;
-
-        const sectionDoc = section.contents.ownerDocument;
-        if (!sectionDoc) return;
-        const secRange = sectionDoc.createRange();
-        try {
-          secRange.setStart(startNode, range.startOffset);
-          secRange.setEnd(endNode, range.endOffset);
-        } catch { return; }
-        let cfi: string;
-        try {
-          cfi = section.cfiFromRange(secRange);
-        } catch { return; }
-        if (!cfi) return;
-
-        // Chapter title via the TOC (same lookup epub.js does for the rendition).
-        let ch = '';
-        const toc = epub.navigation?.toc || [];
-        for (const item of toc) {
-          if (href.includes(item.href.split('#')[0])) {
-            ch = item.label.trim();
-            break;
-          }
-        }
-
-        const rect = range.getBoundingClientRect();
-        const iframe = viewerRef.current?.querySelector('iframe');
-        const iframeRect = iframe?.getBoundingClientRect() ?? { left: 0, top: 0 };
-        setPopover({
-          x: rect.left + iframeRect.left + rect.width / 2,
-          y: rect.top + iframeRect.top,
-          text,
-          cfiRange: cfi,
-          chapter: ch || 'Unknown',
-        });
-      }, 350);
+      timer = window.setTimeout(tick, 200);
     };
-
-    const wired = new Map<Document, () => void>();
-    const attach = () => {
-      const doc = viewerRef.current?.querySelector('iframe')?.contentDocument;
-      if (!doc || wired.has(doc)) return;
-      const handler = () => onSelChange(doc);
-      doc.addEventListener('selectionchange', handler);
-      wired.set(doc, handler);
+    // Find the scroller epub.js created. In scrolled-doc mode it's the .epub-container
+    // (one per rendition). It can appear after a microtask, so retry briefly.
+    const attach = (attempt = 0) => {
+      const epubContainer = viewerRef.current?.querySelector(
+        '.epub-container',
+      ) as HTMLElement | null;
+      if (!epubContainer) {
+        if (attempt < 10) window.setTimeout(() => attach(attempt + 1), 100);
+        return;
+      }
+      attached = epubContainer;
+      epubContainer.addEventListener('scroll', onScroll, { passive: true });
+      // Initial tick once attached so chapter/progress show as soon as scroll mode opens.
+      window.setTimeout(tick, 100);
     };
-    r.on('rendered', attach);
     attach();
     return () => {
       if (timer) window.clearTimeout(timer);
-      for (const [doc, fn] of wired) {
-        try { doc.removeEventListener('selectionchange', fn); } catch { /* gone */ }
-      }
-      wired.clear();
+      attached?.removeEventListener('scroll', onScroll);
     };
-  }, [readerMode, renditionEpoch]);
+  }, [readerMode, renditionEpoch, book.id, patchBook, getCurrentChapter]);
 
   // Tracks which CFIs we've drawn on the current rendition, with their colour. Resetting
   // on renditionEpoch (mode switch) is handled by re-running this effect — we also wipe
