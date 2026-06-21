@@ -53,24 +53,35 @@ function surfaceInk(surface: ReadingSurface): string {
   return surface === 'sepia' ? '#5b4636' : surface === 'dark' ? '#d4d4d4' : '#313131';
 }
 
-function surfaceTheme(surface: ReadingSurface): Record<string, Record<string, string>> {
+function surfaceTheme(
+  surface: ReadingSurface,
+  mode: 'pages' | 'scroll',
+): Record<string, Record<string, string>> {
   const ink = surfaceInk(surface);
   const link = surface === 'dark' ? '#9b9bff' : '#8e5cd6';
+  // In scroll mode the iframe body is the text column itself (no .page card around it),
+  // so we constrain it here: ~700px max-width centered, with side padding for breathing room.
+  const body: Record<string, string> = {
+    background: 'transparent !important',
+    color: `${ink} !important`,
+    'font-family': "'Literata', Georgia, serif !important",
+    'line-height': '1.7 !important',
+    padding: mode === 'scroll' ? '20px 48px !important' : '0 !important',
+    '-webkit-user-select': 'text !important',
+    'user-select': 'text !important',
+    // Block the Chrome Android long-press "Google search" callout while preserving
+    // the user's ability to select text. CSS variables don't cross the iframe so we
+    // inject literals here too.
+    '-webkit-touch-callout': 'none !important',
+    '-webkit-tap-highlight-color': 'transparent !important',
+  };
+  if (mode === 'scroll') {
+    body['max-width'] = '700px !important';
+    body['margin'] = '0 auto !important';
+    body['box-sizing'] = 'border-box !important';
+  }
   return {
-    body: {
-      background: 'transparent !important',
-      color: `${ink} !important`,
-      'font-family': "'Literata', Georgia, serif !important",
-      'line-height': '1.7 !important',
-      padding: '0 !important',
-      '-webkit-user-select': 'text !important',
-      'user-select': 'text !important',
-      // Block the Chrome Android long-press "Google search" callout while preserving
-      // the user's ability to select text. CSS variables don't cross the iframe so we
-      // inject literals here too.
-      '-webkit-touch-callout': 'none !important',
-      '-webkit-tap-highlight-color': 'transparent !important',
-    },
+    body,
     a: { color: `${link} !important` },
     // Keep media within the column/page so it can't get cropped or bleed onto the next page.
     'img, svg, video, canvas, figure': {
@@ -309,7 +320,7 @@ export function EpubReader({ book }: Props) {
 
         // Reading surface (light/sepia/dark). themes.default reliably applies on render
         // (CSS custom properties don't cross the iframe, so colours are literals).
-        r.themes.default(surfaceTheme(readingSurfaceRef.current));
+        r.themes.default(surfaceTheme(readingSurfaceRef.current, mode));
         r.themes.fontSize(`${100 + fontOffsetRef.current}%`);
 
         r.on('displayed', () => setLoading(false));
@@ -746,7 +757,8 @@ export function EpubReader({ book }: Props) {
   useEffect(() => {
     const r = renditionRef.current;
     if (!r) return;
-    r.themes.default(surfaceTheme(readingSurface));
+    const mode = readerModeRef.current === 'scroll' ? 'scroll' : 'pages';
+    r.themes.default(surfaceTheme(readingSurface, mode));
     r.themes.override('color', surfaceInk(readingSurface));
   }, [readingSurface]);
 
@@ -976,13 +988,15 @@ export function EpubReader({ book }: Props) {
                 <div ref={viewerRef} className={styles.viewer} />
               </div>
 
-              <MarginNotes
-                notes={notePositions}
-                autoFocusId={autoFocusId}
-                onSave={handleSaveNote}
-                onDelete={deleteAnnotation}
-                onBlurEmpty={() => setAutoFocusId(null)}
-              />
+              {readerMode !== 'scroll' && (
+                <MarginNotes
+                  notes={notePositions}
+                  autoFocusId={autoFocusId}
+                  onSave={handleSaveNote}
+                  onDelete={deleteAnnotation}
+                  onBlurEmpty={() => setAutoFocusId(null)}
+                />
+              )}
             </div>
           </div>
         </div>

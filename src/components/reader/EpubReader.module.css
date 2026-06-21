@@ -100,35 +100,34 @@
   font-size: var(--text-sm);
 }
 
-/* Scroll reading mode: epub.js's continuous view manager controls scroll inside
-   .epub-container — it has to, because that's how it knows to lazy-load the next
-   spine view. Rather than fight that, we make the .page fill the whole .desk
-   (no desk padding, no max-width, no border-radius / shadow) so the user sees ONE
-   reading surface from edge to edge instead of a small white card with a scrollbar
-   inside it. Scroll still technically happens inside .epub-container, but visually
-   it reads as the whole reader. */
+/* Scroll reading mode: no page metaphor. The desk IS the reading surface — its
+   background flips to --reader-page (the active surface tint), the .page card
+   becomes a transparent shell, and epub.js's continuous .epub-container is the
+   scroller, capped at ~750px and centered. Kindle-style: text sits on the surface,
+   no white rectangle floating in a void. Scrollbar hidden visually (global rule
+   above already covers it). */
 .scrollMode {
   padding: 56px 0 0 !important;
-  overflow: hidden;
+  background: var(--reader-page);
 }
 .scrollMode .page {
-  aspect-ratio: auto !important;
-  height: 100% !important;
-  max-width: 100% !important;
   width: 100% !important;
+  max-width: none !important;
+  height: 100% !important;
   margin: 0 !important;
+  padding: 0 !important;
+  background: transparent !important;
   box-shadow: none !important;
   border-radius: 0 !important;
+  aspect-ratio: auto !important;
 }
 .scrollMode .textZone {
   padding: 0 !important;
 }
 .scrollMode .viewer :global(.epub-container) {
-  overflow-x: hidden !important;
-  scrollbar-width: auto;
-}
-.scrollMode .viewer :global(.epub-container)::-webkit-scrollbar {
-  display: block;
+  max-width: 750px;
+  margin: 0 auto;
+  padding-top: 20px;
 }
 
 /* ─────────────────────────── Mobile (≤600px): edge-to-edge ─────────────────────────── */
