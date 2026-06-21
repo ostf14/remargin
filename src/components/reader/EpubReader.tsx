@@ -90,6 +90,14 @@ function surfaceTheme(surface: ReadingSurface): Record<string, Record<string, st
 // Text-zone top padding (CSS) — vertical offset of the iframe from the page top.
 const EPUB_PAD_TOP = 40;
 
+// Shared CFI utility for ordering annotation CFIs against the visible page's CFI
+// window. epubjs attaches the EpubCFI class to its default export at runtime
+// (lib/epub.js: `ePub.CFI = _epubcfi.default;`) but the d.ts doesn't surface it as
+// a named export, so reach for the runtime property with a minimal cast.
+const cfiTool = new (ePub as unknown as {
+  CFI: new () => { compare: (a: string, b: string) => number };
+}).CFI();
+
 interface PopoverState {
   x: number;
   y: number;
@@ -170,25 +178,37 @@ export function EpubReader({ book }: Props) {
     setZoom((z) => clampZoom(z - e.deltaY * 0.002));
   }, []);
 
-  // Position margin notes opposite their highlight: resolve the cfi to a live
-  // Range, take its on-screen top (offset by the iframe), relative to readerArea.
-  // Ranges outside the visible page are skipped so only current-page notes show.
+  // Position margin notes opposite their highlight. Filter to the currently visible
+  // page via CFI compare against rendition.currentLocation()'s start/end CFIs — the
+  // older geometric viewport check (range bounding-rect vs iframe size) leaked notes
+  // from off-screen columns onto every page. Then resolve the cfi to a live Range to
+  // compute its vertical position for the card's anchorTop.
   const recomputeNotePositions = useCallback(() => {
     const rendition = renditionRef.current;
-    const container = viewerRef.current;
-    const iframe = container?.querySelector('iframe');
-    if (!rendition || !iframe) {
+    if (!rendition) {
       setNotePositions([]);
       return;
     }
-    // The iframe's client box is its untransformed internal viewport — the page's
-    // CSS zoom transform doesn't affect it, so positions computed here are stable.
-    const iw = iframe.clientWidth;
-    const ih = iframe.clientHeight;
+    const loc = rendition.currentLocation() as
+      | { start?: { cfi: string }; end?: { cfi: string } }
+      | undefined
+      | null;
+    const startCfi = loc?.start?.cfi;
+    const endCfi = loc?.end?.cfi;
+    if (!startCfi || !endCfi) {
+      setNotePositions([]);
+      return;
+    }
     const result: PositionedNote[] = [];
     for (const a of annotationsRef.current) {
       if (a.anchor.kind !== 'epub') continue;
       if (a.note.trim() === '' && a.id !== autoFocusIdRef.current) continue;
+      try {
+        if (cfiTool.compare(a.anchor.cfi, startCfi) < 0) continue;
+        if (cfiTool.compare(a.anchor.cfi, endCfi) > 0) continue;
+      } catch {
+        continue;
+      }
       let range: Range | null = null;
       try {
         range = rendition.getRange(a.anchor.cfi);
@@ -198,9 +218,6 @@ export function EpubReader({ book }: Props) {
       if (!range) continue;
       const r = range.getBoundingClientRect();
       if (!r) continue;
-      // r is in the iframe's own coordinate space; skip ranges off the current
-      // page (paginated columns push others outside the viewport).
-      if (r.right < 0 || r.left > iw || r.bottom < 0 || r.top > ih) continue;
       result.push({ id: a.id, anchorTop: EPUB_PAD_TOP + r.top, note: a.note, color: a.color });
     }
     setNotePositions(result);
