@@ -66,6 +66,9 @@
   box-shadow: var(--reader-page-shadow);
   border-radius: var(--radius-sm);
   transform: scale(var(--zoom, 1));
+  /* preserve-3d so the page-turn overlay (built in EpubReader.tsx → animatePageTurn)
+     rotates with real depth instead of collapsing flat against the page. */
+  transform-style: preserve-3d;
   /* Zoom must stay instant — transition colour/shadow only, never transform. */
   transition: background var(--duration-normal) var(--ease-out),
     box-shadow var(--duration-normal) var(--ease-out);
@@ -104,31 +107,8 @@
   font-size: var(--text-sm);
 }
 
-/* ─────────────────────────── Page-turn animation ───────────────────────────
-   Triggered by Next/Prev (buttons, side chevrons, arrow keys) via animatePageTurn.
-   The .page fades out + drifts in the turn direction, becomes invisible while epub.js
-   swaps the content (the 40–60% window), then fades back in from the opposite side.
-   .display(cfi) jumps from search / TOC are not animated — they're instant. */
-.slideLeft {
-  animation: slideLeft 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-}
-.slideRight {
-  animation: slideRight 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-}
-
-@keyframes slideLeft {
-  0%   { opacity: 1; transform: translateX(0)     scale(var(--zoom, 1)); }
-  40%  { opacity: 0; transform: translateX(-30px) scale(var(--zoom, 1)); }
-  60%  { opacity: 0; transform: translateX(30px)  scale(var(--zoom, 1)); }
-  100% { opacity: 1; transform: translateX(0)     scale(var(--zoom, 1)); }
-}
-
-@keyframes slideRight {
-  0%   { opacity: 1; transform: translateX(0)     scale(var(--zoom, 1)); }
-  40%  { opacity: 0; transform: translateX(30px)  scale(var(--zoom, 1)); }
-  60%  { opacity: 0; transform: translateX(-30px) scale(var(--zoom, 1)); }
-  100% { opacity: 1; transform: translateX(0)     scale(var(--zoom, 1)); }
-}
+/* Page-turn animation lives in EpubReader.tsx → animatePageTurn: a runtime-injected
+   overlay div that rotates in 3D over .page while epub.js swaps the content beneath. */
 
 /* ─────────────────────────── Mobile (≤600px): edge-to-edge ─────────────────────────── */
 @media (max-width: 600px) {

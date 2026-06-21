@@ -104,6 +104,9 @@ export function EpubReader({ book }: Props) {
   const pageElRef = useRef<HTMLDivElement>(null);
   const epubRef = useRef<EpubBook | null>(null);
   const renditionRef = useRef<Rendition | null>(null);
+  // Blocks reentrant page-turn animations — spam-pressing Next would stack overlays
+  // and double-jump epub.js. We let the current flip finish before accepting another.
+  const animatingRef = useRef(false);
   const { patchBook } = useLibrary();
   const { showAnnotations, readingSurface, pendingAnchor } = useReader();
   const readingSurfaceRef = useRef(readingSurface);
@@ -170,29 +173,70 @@ export function EpubReader({ book }: Props) {
     setZoom((z) => clampZoom(z - e.deltaY * 0.002));
   }, []);
 
-  // Page-turn animation: the .page slides out (opacity → 0), epub.js swaps content at the
-  // midpoint while it's invisible, then it slides back in. Triggered by Next/Prev buttons,
-  // side chevrons, and arrow keys — never by direct display(cfi) jumps (search / TOC).
-  // 0–40%: fade out + slight translate in turn direction. 40–60%: invisible (content swap
-  // window). 60–100%: fade in from the opposite side.
+  // Page-turn animation: a 3D flip. epub.js can only render one page at a time, so we
+  // can't cross-fade between the old and new content. Instead we build a solid-coloured
+  // overlay matching the page surface, slap it on top of .page, immediately tell epub.js
+  // to load the new page underneath, then rotate the overlay 180° around its inner edge.
+  // backface-visibility:hidden makes the overlay disappear past 90° — by then the new
+  // page is visible behind it. Triggered by Next/Prev buttons, side chevrons, and arrow
+  // keys; never by direct display(cfi) jumps (search / TOC stay instant).
   // Stable callback (no deps) — captured by the once-on-mount keydown effect.
   const animatePageTurn = useCallback((direction: 'next' | 'prev') => {
     const page = pageElRef.current;
     const rendition = renditionRef.current;
     if (!page || !rendition) return;
-    const cls = direction === 'next' ? styles.slideLeft : styles.slideRight;
-    // If a previous turn's class is still on, strip both first and force a reflow so the
-    // CSS animation restarts even when the same direction is re-triggered mid-flight.
-    page.classList.remove(styles.slideLeft, styles.slideRight);
-    void page.offsetWidth;
-    page.classList.add(cls);
+    if (animatingRef.current) return;
+    animatingRef.current = true;
+
+    const overlay = document.createElement('div');
+    overlay.style.cssText = `
+      position: absolute;
+      inset: 0;
+      background: var(--reader-page, #f5f0eb);
+      z-index: 10;
+      transform-origin: ${direction === 'next' ? 'left center' : 'right center'};
+      transform-style: preserve-3d;
+      backface-visibility: hidden;
+      pointer-events: none;
+    `;
+
+    // Vertical shadow band along the trailing edge — adds a sense of paper fold so the
+    // flat overlay reads as a physical sheet rather than a coloured rectangle.
+    const shadow = document.createElement('div');
+    shadow.style.cssText = `
+      position: absolute;
+      top: 0;
+      ${direction === 'next' ? 'right: 0;' : 'left: 0;'}
+      width: 40px;
+      height: 100%;
+      background: linear-gradient(${direction === 'next' ? 'to left' : 'to right'}, rgba(0, 0, 0, 0.1), transparent);
+      pointer-events: none;
+    `;
+    overlay.appendChild(shadow);
+
+    page.style.perspective = '1500px';
+    page.appendChild(overlay);
+
+    // Swap the underlying content NOW so the new page is fully painted by the time the
+    // overlay rotates past 90° and exposes it.
+    if (direction === 'next') rendition.next();
+    else rendition.prev();
+
+    // One frame to commit the initial transform-less state, then animate to the flipped
+    // state — without this raF the browser may collapse start + end into one paint and
+    // skip the transition entirely.
+    const rotation = direction === 'next' ? 'rotateY(-180deg)' : 'rotateY(180deg)';
+    requestAnimationFrame(() => {
+      overlay.style.transition = 'transform 0.4s cubic-bezier(0.4, 0, 0.2, 1)';
+      overlay.style.boxShadow = '-4px 0 16px rgba(0, 0, 0, 0.15)';
+      overlay.style.transform = rotation;
+    });
+
     window.setTimeout(() => {
-      if (direction === 'next') rendition.next();
-      else rendition.prev();
-    }, 100);
-    window.setTimeout(() => {
-      page.classList.remove(cls);
-    }, 300);
+      overlay.remove();
+      page.style.perspective = '';
+      animatingRef.current = false;
+    }, 450);
   }, []);
 
   // Position margin notes opposite their highlight: resolve the cfi to a live
