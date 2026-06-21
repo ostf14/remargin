@@ -291,41 +291,11 @@
   border-color: var(--accent);
 }
 
-.divider {
-  height: 0.5px;
-  background: var(--border);
-  margin: 2px 0;
-}
-
-.modeBtn {
-  height: 28px;
-  padding: 0 10px;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  border-radius: 6px;
-  background: transparent;
-  border: 0.5px solid transparent;
-  color: var(--text-tertiary);
-  font-size: 10px;
-  font-weight: var(--weight-normal);
-}
-
-.modeBtn:hover {
-  background: var(--bg-tertiary);
-}
-
-.modeActive {
-  color: var(--text-primary);
-  border: 0.5px solid var(--border);
-}
-
 /* ─────────────────────────── Side page-turn zones ─────────────────────────── */
 /* Always-visible chevrons (not part of the auto-hide chrome). Simple colour states,
    no background, no fades — just a subtle press feedback.
-   touch-action: pan-y so vertical scrolling (continuous EPUB scroll mode) passes
-   through the zones: a tap still fires onClick → prev/next, but a drag scrolls the
-   underlying content instead of being trapped. */
+   touch-action: pan-y so vertical scrolling passes through the zones: a tap still
+   fires onClick → prev/next, but a drag is forwarded to the underlying content. */
 .navLeft,
 .navRight {
   position: absolute;
@@ -561,11 +531,6 @@
   .sBtn {
     width: 44px;
     height: 44px;
-  }
-  .modeBtn {
-    height: 44px;
-    padding: 0 14px;
-    font-size: 12px;
   }
   .progressPill {
     bottom: calc(env(safe-area-inset-bottom) + 4px);

@@ -11,10 +11,8 @@ import {
   X,
   Sun,
   Moon,
-  BookOpen,
-  Scroll,
 } from 'lucide-react';
-import type { ReadingSurface, ReaderMode } from '../../types';
+import type { ReadingSurface } from '../../types';
 import { useReader } from '../../hooks/useReader';
 import styles from './ReaderShell.module.css';
 
@@ -42,7 +40,6 @@ interface Props {
   onNext: () => void;
   search?: SearchControls; // in-book find, always shown inline in the header
   font?: FontControls; // EPUB only
-  showNav?: boolean; // page-turn side zones; false in EPUB scroll mode
   children: ReactNode;
 }
 
@@ -51,11 +48,6 @@ const SURFACES: { key: ReadingSurface; bg: string }[] = [
   { key: 'light', bg: '#f5f0eb' },
   { key: 'sepia', bg: '#e8d5b8' },
   { key: 'dark', bg: '#2b2b2b' },
-];
-
-const MODES: { key: ReaderMode; label: string; Icon: typeof BookOpen }[] = [
-  { key: 'pages', label: 'Pages', Icon: BookOpen },
-  { key: 'scroll', label: 'Scroll', Icon: Scroll },
 ];
 
 const HIDE_DELAY = 3000;
@@ -76,7 +68,6 @@ export function ReaderShell({
   onNext,
   search,
   font,
-  showNav = true,
   children,
 }: Props) {
   const {
@@ -87,8 +78,6 @@ export function ReaderShell({
     toggleTheme,
     readingSurface,
     setReadingSurface,
-    readerMode,
-    setReaderMode,
   } = useReader();
   const [show, setShow] = useState(true);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -191,8 +180,8 @@ export function ReaderShell({
     <div ref={shellRootRef} className={`${styles.shell} ${show ? styles.showChrome : ''}`}>
       <div className={styles.content}>{children}</div>
 
-      {/* Side page-turn zones (hidden while the notes panel is open, or in scroll mode). */}
-      {showNav && !showAnnotations && (
+      {/* Side page-turn zones (hidden while the notes panel is open). */}
+      {!showAnnotations && (
         <>
           <div
             className={styles.navLeft}
@@ -353,20 +342,6 @@ export function ReaderShell({
               >
                 <Moon size={12} />
               </button>
-            </div>
-            <div className={styles.divider} />
-            <div className={styles.row}>
-              <span className={styles.label}>Mode</span>
-              {MODES.map(({ key, label, Icon }) => (
-                <button
-                  key={key}
-                  className={`${styles.modeBtn} ${readerMode === key ? styles.modeActive : ''}`}
-                  onClick={() => setReaderMode(key)}
-                >
-                  <Icon size={10} />
-                  {label}
-                </button>
-              ))}
             </div>
           </div>
         </div>

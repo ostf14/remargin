@@ -1,5 +1,5 @@
 import { createContext, useEffect, useRef, useState, type ReactNode } from 'react';
-import type { AnchorData, Book, ReaderMode, ReadingSurface, ViewMode } from '../types';
+import type { AnchorData, Book, ReadingSurface, ViewMode } from '../types';
 import { useLibrary } from '../hooks/useLibrary';
 import { loadAppState, saveAppState } from '../services/storage';
 
@@ -23,8 +23,6 @@ interface ReaderState {
   toggleTheme: () => void;
   readingSurface: ReadingSurface;
   setReadingSurface: (s: ReadingSurface) => void;
-  readerMode: ReaderMode;
-  setReaderMode: (m: ReaderMode) => void;
 }
 
 export const ReaderContext = createContext<ReaderState>({
@@ -39,8 +37,6 @@ export const ReaderContext = createContext<ReaderState>({
   toggleTheme: () => {},
   readingSurface: 'light',
   setReadingSurface: () => {},
-  readerMode: 'pages',
-  setReaderMode: () => {},
 });
 
 // Resolve the persisted view: reopen the last book if it still exists.
@@ -62,7 +58,6 @@ export function ReaderProvider({ children }: { children: ReactNode }) {
   const [readingSurface, setReadingSurfaceState] = useState<ReadingSurface>(
     () => loadAppState().readingSurface,
   );
-  const [readerMode, setReaderModeState] = useState<ReaderMode>(() => loadAppState().readerMode);
   const [pendingAnchor, setPendingAnchor] = useState<AnchorData | null>(null);
   // Stable ref so the popstate listener stays installed once but reads current state.
   const currentBookRef = useRef<Book | null>(null);
@@ -125,11 +120,6 @@ export function ReaderProvider({ children }: { children: ReactNode }) {
     saveAppState({ ...loadAppState(), readingSurface: s });
   };
 
-  const setReaderMode = (m: ReaderMode) => {
-    setReaderModeState(m);
-    saveAppState({ ...loadAppState(), readerMode: m });
-  };
-
   const openBook = (book: Book, anchor?: AnchorData) => {
     // PDF reading is paused — refuse to enter reader mode for PDFs no matter where the
     // call came from (BookGrid card click, NotesView jump-to-highlight, last-position
@@ -179,8 +169,6 @@ export function ReaderProvider({ children }: { children: ReactNode }) {
         toggleTheme,
         readingSurface,
         setReadingSurface,
-        readerMode,
-        setReaderMode,
       }}
     >
       {children}

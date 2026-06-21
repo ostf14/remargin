@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useRef, useState, useCallback, type CSSProperties } from 'react';
 import ePub, { type Rendition, type Book as EpubBook } from 'epubjs';
 import type { Annotation, Book, EpubAnchor, HighlightColor, ReadingSurface } from '../../types';
 import { useLibrary } from '../../hooks/useLibrary';
@@ -53,35 +53,24 @@ function surfaceInk(surface: ReadingSurface): string {
   return surface === 'sepia' ? '#5b4636' : surface === 'dark' ? '#d4d4d4' : '#313131';
 }
 
-function surfaceTheme(
-  surface: ReadingSurface,
-  mode: 'pages' | 'scroll',
-): Record<string, Record<string, string>> {
+function surfaceTheme(surface: ReadingSurface): Record<string, Record<string, string>> {
   const ink = surfaceInk(surface);
   const link = surface === 'dark' ? '#9b9bff' : '#8e5cd6';
-  // In scroll mode the iframe body is the text column itself (no .page card around it),
-  // so we constrain it here: ~700px max-width centered, with side padding for breathing room.
-  const body: Record<string, string> = {
-    background: 'transparent !important',
-    color: `${ink} !important`,
-    'font-family': "'Literata', Georgia, serif !important",
-    'line-height': '1.7 !important',
-    padding: mode === 'scroll' ? '20px 48px !important' : '0 !important',
-    '-webkit-user-select': 'text !important',
-    'user-select': 'text !important',
-    // Block the Chrome Android long-press "Google search" callout while preserving
-    // the user's ability to select text. CSS variables don't cross the iframe so we
-    // inject literals here too.
-    '-webkit-touch-callout': 'none !important',
-    '-webkit-tap-highlight-color': 'transparent !important',
-  };
-  if (mode === 'scroll') {
-    body['max-width'] = '700px !important';
-    body['margin'] = '0 auto !important';
-    body['box-sizing'] = 'border-box !important';
-  }
   return {
-    body,
+    body: {
+      background: 'transparent !important',
+      color: `${ink} !important`,
+      'font-family': "'Literata', Georgia, serif !important",
+      'line-height': '1.7 !important',
+      padding: '0 !important',
+      '-webkit-user-select': 'text !important',
+      'user-select': 'text !important',
+      // Block the Chrome Android long-press "Google search" callout while preserving
+      // the user's ability to select text. CSS variables don't cross the iframe so we
+      // inject literals here too.
+      '-webkit-touch-callout': 'none !important',
+      '-webkit-tap-highlight-color': 'transparent !important',
+    },
     a: { color: `${link} !important` },
     // Keep media within the column/page so it can't get cropped or bleed onto the next page.
     'img, svg, video, canvas, figure': {
@@ -116,11 +105,9 @@ export function EpubReader({ book }: Props) {
   const epubRef = useRef<EpubBook | null>(null);
   const renditionRef = useRef<Rendition | null>(null);
   const { patchBook } = useLibrary();
-  const { showAnnotations, readingSurface, pendingAnchor, readerMode } = useReader();
+  const { showAnnotations, readingSurface, pendingAnchor } = useReader();
   const readingSurfaceRef = useRef(readingSurface);
   readingSurfaceRef.current = readingSurface;
-  const readerModeRef = useRef(readerMode);
-  readerModeRef.current = readerMode;
   // Opened from the Notes view targeting a highlight → start at its CFI instead of the
   // saved reading position. Captured once at mount (openBook resets pendingAnchor per open).
   const initialCfiRef = useRef(
@@ -147,10 +134,6 @@ export function EpubReader({ book }: Props) {
   const autoFocusIdRef = useRef<string | null>(null);
   autoFocusIdRef.current = autoFocusId;
   const [relocateTick, setRelocateTick] = useState(0);
-  // Bumped on every rendition recreate (mode switch) so the annotations effect re-paints.
-  const [renditionEpoch, setRenditionEpoch] = useState(0);
-  // The mode-switch effect calls into the main useEffect's closure via this ref.
-  const recreateRenditionRef = useRef<((mode: 'pages' | 'scroll') => void) | null>(null);
   const [fontOffset, setFontOffset] = useState(() => clampFontOffset(loadAppState().epubFontSizeOffset));
   const fontOffsetRef = useRef(fontOffset);
   fontOffsetRef.current = fontOffset;
@@ -185,6 +168,31 @@ export function EpubReader({ book }: Props) {
     if (!e.ctrlKey) return;
     e.preventDefault();
     setZoom((z) => clampZoom(z - e.deltaY * 0.002));
+  }, []);
+
+  // Page-turn animation: the .page slides out (opacity → 0), epub.js swaps content at the
+  // midpoint while it's invisible, then it slides back in. Triggered by Next/Prev buttons,
+  // side chevrons, and arrow keys — never by direct display(cfi) jumps (search / TOC).
+  // 0–40%: fade out + slight translate in turn direction. 40–60%: invisible (content swap
+  // window). 60–100%: fade in from the opposite side.
+  // Stable callback (no deps) — captured by the once-on-mount keydown effect.
+  const animatePageTurn = useCallback((direction: 'next' | 'prev') => {
+    const page = pageElRef.current;
+    const rendition = renditionRef.current;
+    if (!page || !rendition) return;
+    const cls = direction === 'next' ? styles.slideLeft : styles.slideRight;
+    // If a previous turn's class is still on, strip both first and force a reflow so the
+    // CSS animation restarts even when the same direction is re-triggered mid-flight.
+    page.classList.remove(styles.slideLeft, styles.slideRight);
+    void page.offsetWidth;
+    page.classList.add(cls);
+    window.setTimeout(() => {
+      if (direction === 'next') rendition.next();
+      else rendition.prev();
+    }, 100);
+    window.setTimeout(() => {
+      page.classList.remove(cls);
+    }, 300);
   }, []);
 
   // Position margin notes opposite their highlight: resolve the cfi to a live
@@ -297,30 +305,20 @@ export function EpubReader({ book }: Props) {
 
       const epubInstance = epub;
 
-      // Creates a rendition + wires every handler. Called once at mount with the saved
-      // mode, again from the mode-switch effect after destroying the previous rendition.
-      // Pages mode: flow 'paginated' with epub.js's default manager (column pagination).
-      // Scroll mode: flow 'scrolled' WITH the 'continuous' view manager — epub.js streams
-      // the whole spine into one tall scroll container, lazy-loading sections as the user
-      // scrolls. relocated fires on scroll, currentLocation() updates, selection works
-      // natively. Verified live before this commit (see browser experiments).
-      // The manager option isn't in epub.js's shipped d.ts, so we cast around it without
-      // losing checks on the known fields.
-      const createRendition = (mode: 'pages' | 'scroll'): Rendition => {
+      // Creates the rendition + wires every handler. Paginated flow with the default view
+      // manager (column-based page turns). Called once per book mount.
+      const createRendition = (): Rendition => {
         const r = epubInstance.renderTo(container, {
           width: '100%',
           height: '100%',
           spread: 'none',
-          flow: mode === 'scroll' ? 'scrolled' : 'paginated',
-          ...(mode === 'scroll'
-            ? ({ manager: 'continuous' } as Record<string, string>)
-            : {}),
+          flow: 'paginated',
         });
         renditionRef.current = r;
 
         // Reading surface (light/sepia/dark). themes.default reliably applies on render
         // (CSS custom properties don't cross the iframe, so colours are literals).
-        r.themes.default(surfaceTheme(readingSurfaceRef.current, mode));
+        r.themes.default(surfaceTheme(readingSurfaceRef.current));
         r.themes.fontSize(`${100 + fontOffsetRef.current}%`);
 
         r.on('displayed', () => setLoading(false));
@@ -399,7 +397,7 @@ export function EpubReader({ book }: Props) {
         });
 
         // Iframe-level keys (Page Up/Down etc.). Document-level arrow keys are handled
-        // by the standalone keydown effect below so they survive rendition recreation.
+        // by the standalone keydown effect below.
         r.on('keydown', ((e: KeyboardEvent) => shortcutKeyRef.current(e)) as (
           ...args: unknown[]
         ) => void);
@@ -407,7 +405,7 @@ export function EpubReader({ book }: Props) {
         return r;
       };
 
-      rendition = createRendition(readerModeRef.current === 'scroll' ? 'scroll' : 'pages');
+      rendition = createRendition();
 
       const startCfi = initialCfiRef.current;
       if (startCfi) {
@@ -416,25 +414,11 @@ export function EpubReader({ book }: Props) {
         rendition.display();
       }
 
-      // Expose the factory so the mode-switch effect can destroy + recreate.
-      recreateRenditionRef.current = (mode) => {
-        const cfi = renditionRef.current?.currentLocation()?.start?.cfi ?? lastCfiRef.current;
-        try {
-          renditionRef.current?.destroy();
-        } catch {
-          /* ignore — already gone */
-        }
-        container.innerHTML = '';
-        const next = createRendition(mode);
-        if (cfi) next.display(cfi);
-        else next.display();
-        setRenditionEpoch((e) => e + 1); // tells the annotations effect to re-paint
-      };
-
-      // Document-level arrow keys for page turning — independent of rendition lifecycle.
+      // Document-level arrow keys for page turning. Routed through animatePageTurn so the
+      // slide animation plays the same way it does for chevron clicks.
       handleKey = (e: KeyboardEvent) => {
-        if (e.key === 'ArrowRight' || e.key === 'ArrowDown') renditionRef.current?.next();
-        if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') renditionRef.current?.prev();
+        if (e.key === 'ArrowRight' || e.key === 'ArrowDown') animatePageTurn('next');
+        if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') animatePageTurn('prev');
         shortcutKeyRef.current(e);
       };
       document.addEventListener('keydown', handleKey);
@@ -442,13 +426,10 @@ export function EpubReader({ book }: Props) {
 
     return () => {
       cancelled = true;
-      recreateRenditionRef.current = null;
       if (handleKey) document.removeEventListener('keydown', handleKey);
       if (toastTimerRef.current) window.clearTimeout(toastTimerRef.current);
       sideRef.current?.destroy();
       sideRef.current = null;
-      // The most recent rendition lives in the ref (after any mode-switch recreate),
-      // so destroy that one, not the stale `rendition` captured at mount.
       try {
         renditionRef.current?.destroy();
       } catch {
@@ -536,27 +517,14 @@ export function EpubReader({ book }: Props) {
       }
       wired.clear();
     };
-  }, [openSavedHighlight, renditionEpoch]);
+  }, [openSavedHighlight]);
 
-  // No manual scroll-driven chapter tracking: the continuous view manager scrolls
-  // inside .epub-container and fires 'relocated' as the visible CFI moves, so the
-  // existing relocated handler updates chapter / progress / lastPosition.
-
-  // Tracks which CFIs we've drawn on the current rendition, with their colour. Resetting
-  // on renditionEpoch (mode switch) is handled by re-running this effect — we also wipe
-  // the map there.
+  // Tracks which CFIs we've drawn on the current rendition, with their colour, so we
+  // diff-paint (only the deltas) instead of repainting every highlight on every change.
   const drawnHighlightsRef = useRef<Map<string, string>>(new Map());
-  const drawnEpochRef = useRef(-1);
   useEffect(() => {
     const rendition = renditionRef.current;
     if (!rendition) return;
-
-    // Wipe the tracking map on a rendition recreate — the new rendition has no SVG
-    // overlays yet, so anything we "remembered drawing" needs to be re-added.
-    if (renditionEpoch !== drawnEpochRef.current) {
-      drawnHighlightsRef.current.clear();
-      drawnEpochRef.current = renditionEpoch;
-    }
 
     const want = new Map<string, { color: string; ann: Annotation }>();
     for (const a of annotations) {
@@ -598,7 +566,7 @@ export function EpubReader({ book }: Props) {
       );
       drawnHighlightsRef.current.set(cfi, color);
     }
-  }, [annotations, openSavedHighlight, renditionEpoch]);
+  }, [annotations, openSavedHighlight]);
 
   // Recompute note positions whenever annotations, focus, or the page changes.
   useEffect(() => {
@@ -757,8 +725,7 @@ export function EpubReader({ book }: Props) {
   useEffect(() => {
     const r = renditionRef.current;
     if (!r) return;
-    const mode = readerModeRef.current === 'scroll' ? 'scroll' : 'pages';
-    r.themes.default(surfaceTheme(readingSurface, mode));
+    r.themes.default(surfaceTheme(readingSurface));
     r.themes.override('color', surfaceInk(readingSurface));
   }, [readingSurface]);
 
@@ -840,30 +807,14 @@ export function EpubReader({ book }: Props) {
     searchFlowRef.current = false;
   }, [debouncedSearch]);
 
-  // Reading mode: scroll → scrolled-doc (continuous manager, whole book in one scroll),
-  // pages → paginated (default manager). Skips the initial mount; recreating the
-  // rendition wires the new manager and the destination CFI.
-  const prevModeRef = useRef(readerMode);
-  useEffect(() => {
-    if (readerMode === prevModeRef.current) return;
-    prevModeRef.current = readerMode;
-    if (!recreateRenditionRef.current) return;
-    // A search-flow toggle (paginated→scrolled-doc-temp) doesn't apply to the new
-    // rendition; reset the flag so search's "restore paginated" effect doesn't undo us.
-    searchFlowRef.current = false;
-    recreateRenditionRef.current(readerMode === 'scroll' ? 'scroll' : 'pages');
-    setRelocateTick((t) => t + 1);
-  }, [readerMode]);
-
-  // Centre the active match in the visible reading viewport — the same outcome the PDF
-  // reader gives by scrolling its container to the match. In scrolled-doc mode the text
-  // lives in an iframe inside epub.js's own scroll container, which itself sits inside
-  // the zoomable .desk; at zoom>1 the match can be off-screen in BOTH at once, so no
-  // single-container scroll suffices. epub.js draws the highlight as an SVG overlay in
-  // the *parent* document, nested under both scroll containers — so scrollIntoView on it
-  // scrolls every scroll ancestor together and lands the word at the viewport's middle
-  // (vertical only, like the PDF; horizontal stays put unless the word is off-side).
-  // The overlay is added async after display(), so retry until it appears.
+  // Centre the active match in the visible reading viewport. Search switches flow to
+  // 'scrolled-doc' (so a match deep in a long section is reachable by scrolling), the
+  // text lives in an iframe inside epub.js's scroll container, which sits inside the
+  // zoomable .desk; at zoom>1 the match can be off-screen in BOTH at once, so no single-
+  // container scroll suffices. epub.js draws the highlight as an SVG overlay in the
+  // *parent* document, nested under both scroll containers — scrollIntoView on it scrolls
+  // every scroll ancestor together and lands the word at the viewport's middle. The
+  // overlay is added async after display(), so retry until it appears.
   const centerMatch = useCallback(() => {
     const tryCenter = (attempt: number) => {
       const hits = viewerRef.current?.querySelectorAll('[ref="search-hit"]');
@@ -883,9 +834,8 @@ export function EpubReader({ book }: Props) {
       const rendition = renditionRef.current;
       if (!rendition) return;
       // Lazily switch to scrolled-doc on the first jump (see the flow effect) so the
-      // reflow happens during the jump, not the instant search opened. In scroll reading
-      // mode we're already scrolled-doc, so there's nothing to switch.
-      if (readerModeRef.current !== 'scroll' && !searchFlowRef.current) {
+      // reflow happens during the jump, not the instant search opened.
+      if (!searchFlowRef.current) {
         rendition.flow('scrolled-doc');
         searchFlowRef.current = true;
       }
@@ -950,11 +900,8 @@ export function EpubReader({ book }: Props) {
       subtitle={chapter || 'Chapter'}
       progress={percentage}
       progressText={progressText}
-      // Continuous scroll mode handles section transitions automatically — chevrons
-      // are useful only in pages mode. Keep them in pages for column-turn navigation.
-      showNav={readerMode !== 'scroll'}
-      onPrev={() => renditionRef.current?.prev()}
-      onNext={() => renditionRef.current?.next()}
+      onPrev={() => animatePageTurn('prev')}
+      onNext={() => animatePageTurn('next')}
       search={{
         query: searchQuery,
         onQueryChange: setSearchQuery,
@@ -974,29 +921,25 @@ export function EpubReader({ book }: Props) {
         <div className={styles.readerArea}>
           <div
             ref={deskRef}
-            className={`${styles.desk}${searchQuery ? ` ${styles.searching}` : ''}${
-              readerMode === 'scroll' ? ` ${styles.scrollMode}` : ''
-            }`}
+            className={`${styles.desk}${searchQuery ? ` ${styles.searching}` : ''}`}
           >
             <div
               ref={pageElRef}
               className={styles.page}
-              style={{ transform: `scale(${zoom})`, transformOrigin: 'top center' }}
+              style={{ '--zoom': zoom, transformOrigin: 'top center' } as CSSProperties}
             >
               <div className={styles.textZone}>
                 {loading && <div className={styles.loading}>Loading book...</div>}
                 <div ref={viewerRef} className={styles.viewer} />
               </div>
 
-              {readerMode !== 'scroll' && (
-                <MarginNotes
-                  notes={notePositions}
-                  autoFocusId={autoFocusId}
-                  onSave={handleSaveNote}
-                  onDelete={deleteAnnotation}
-                  onBlurEmpty={() => setAutoFocusId(null)}
-                />
-              )}
+              <MarginNotes
+                notes={notePositions}
+                autoFocusId={autoFocusId}
+                onSave={handleSaveNote}
+                onDelete={deleteAnnotation}
+                onBlurEmpty={() => setAutoFocusId(null)}
+              />
             </div>
           </div>
         </div>

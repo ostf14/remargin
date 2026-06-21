@@ -65,7 +65,6 @@ const DEFAULT_APP_STATE: AppState = {
   theme: 'dark',
   epubFontSizeOffset: 0,
   readingSurface: 'light',
-  readerMode: 'pages',
   libraryView: 'grid',
 };
 
@@ -73,6 +72,9 @@ export function loadAppState(): AppState {
   try {
     const raw = localStorage.getItem(APP_STATE_KEY);
     const parsed = raw ? (JSON.parse(raw) as Partial<AppState>) : {};
+    // 'readerMode' was removed (only paginated EPUB now). Strip stale values so a
+    // saved 'scroll' doesn't survive in storage after the next saveAppState.
+    delete (parsed as Record<string, unknown>).readerMode;
     const merged: AppState = { ...DEFAULT_APP_STATE, ...parsed };
     // The old 'list' library view is gone — fold existing users back to grid so they
     // don't get stuck on an unrendered view after upgrade.
