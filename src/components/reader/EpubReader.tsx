@@ -289,16 +289,21 @@ export function EpubReader({ book }: Props) {
       // Creates a rendition + wires every handler. Called once at mount with the saved
       // mode, again from the mode-switch effect after destroying the previous rendition.
       // Pages mode: flow 'paginated' with epub.js's default manager (column pagination).
-      // Scroll mode: flow 'scrolled-doc' — the CURRENT spine section reflows as one tall
-      // column inside the viewer and scrolls natively; prev/next moves between sections.
-      // We don't touch the iframe height ourselves: epub.js sizes it to its content in
-      // scrolled-doc mode, and the .epub-container's overflow-y: auto does the scrolling.
+      // Scroll mode: flow 'scrolled' WITH the 'continuous' view manager — epub.js streams
+      // the whole spine into one tall scroll container, lazy-loading sections as the user
+      // scrolls. relocated fires on scroll, currentLocation() updates, selection works
+      // natively. Verified live before this commit (see browser experiments).
+      // The manager option isn't in epub.js's shipped d.ts, so we cast around it without
+      // losing checks on the known fields.
       const createRendition = (mode: 'pages' | 'scroll'): Rendition => {
         const r = epubInstance.renderTo(container, {
           width: '100%',
           height: '100%',
           spread: 'none',
-          flow: mode === 'scroll' ? 'scrolled-doc' : 'paginated',
+          flow: mode === 'scroll' ? 'scrolled' : 'paginated',
+          ...(mode === 'scroll'
+            ? ({ manager: 'continuous' } as Record<string, string>)
+            : {}),
         });
         renditionRef.current = r;
 
@@ -522,70 +527,9 @@ export function EpubReader({ book }: Props) {
     };
   }, [openSavedHighlight, renditionEpoch]);
 
-  // Scroll mode chapter/progress tracking: in flow:'scrolled-doc' epub.js doesn't fire
-  // 'relocated' on every scroll tick, only when display() is called or the user calls
-  // next/prev. So we poll currentLocation() on a debounced scroll event from the iframe's
-  // own scroller (.epub-container) and update chapter + progress + lastPosition ourselves.
-  useEffect(() => {
-    if (readerMode !== 'scroll') return;
-    const r = renditionRef.current;
-    const epub = epubRef.current;
-    if (!r || !epub) return;
-
-    let attached: HTMLElement | null = null;
-    let timer: number | null = null;
-    const tick = () => {
-      const loc = r.currentLocation() as
-        | { start?: { cfi?: string; href?: string; percentage?: number } }
-        | undefined;
-      const startCfi = loc?.start?.cfi;
-      const startHref = loc?.start?.href;
-      if (!startCfi || !startHref) return;
-      lastCfiRef.current = startCfi;
-      // Progress: prefer the precise side-locations index, fall back to epub.js's coarse %.
-      const side = sideRef.current;
-      let pct = Math.round((loc?.start?.percentage ?? 0) * 100);
-      if (side) {
-        const p = side.locations.percentageFromCfi(startCfi);
-        if (Number.isFinite(p)) pct = Math.round(p * 100);
-      }
-      pct = Math.max(0, Math.min(100, pct));
-      setPercentage(pct);
-      patchBook(book.id, {
-        lastOpened: new Date().toISOString(),
-        progress: pct,
-        lastPosition: startCfi,
-      });
-      // Chapter from TOC (same lookup as the relocated handler).
-      getCurrentChapter(epub, startHref).then((ch) => {
-        if (ch) setChapter(ch);
-      });
-    };
-    const onScroll = () => {
-      if (timer) window.clearTimeout(timer);
-      timer = window.setTimeout(tick, 200);
-    };
-    // Find the scroller epub.js created. In scrolled-doc mode it's the .epub-container
-    // (one per rendition). It can appear after a microtask, so retry briefly.
-    const attach = (attempt = 0) => {
-      const epubContainer = viewerRef.current?.querySelector(
-        '.epub-container',
-      ) as HTMLElement | null;
-      if (!epubContainer) {
-        if (attempt < 10) window.setTimeout(() => attach(attempt + 1), 100);
-        return;
-      }
-      attached = epubContainer;
-      epubContainer.addEventListener('scroll', onScroll, { passive: true });
-      // Initial tick once attached so chapter/progress show as soon as scroll mode opens.
-      window.setTimeout(tick, 100);
-    };
-    attach();
-    return () => {
-      if (timer) window.clearTimeout(timer);
-      attached?.removeEventListener('scroll', onScroll);
-    };
-  }, [readerMode, renditionEpoch, book.id, patchBook, getCurrentChapter]);
+  // No manual scroll-driven chapter tracking in scroll mode: the continuous view
+  // manager fires 'relocated' itself as the user scrolls between sections, and the
+  // existing relocated handler already updates chapter / progress / lastPosition.
 
   // Tracks which CFIs we've drawn on the current rendition, with their colour. Resetting
   // on renditionEpoch (mode switch) is handled by re-running this effect — we also wipe
@@ -994,7 +938,9 @@ export function EpubReader({ book }: Props) {
       subtitle={chapter || 'Chapter'}
       progress={percentage}
       progressText={progressText}
-      showNav
+      // Continuous scroll mode handles section transitions automatically — chevrons
+      // are useful only in pages mode. Keep them in pages for column-turn navigation.
+      showNav={readerMode !== 'scroll'}
       onPrev={() => renditionRef.current?.prev()}
       onNext={() => renditionRef.current?.next()}
       search={{

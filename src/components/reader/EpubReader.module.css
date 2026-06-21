@@ -100,11 +100,12 @@
   font-size: var(--text-sm);
 }
 
-/* Scroll reading mode: epub.js handles the scrolling itself via its .epub-container
-   (overflow-y: auto in scrolled-doc mode). Our chain just gives it a fixed-height box
-   to fill — .page drops its aspect-ratio so it stretches to the desk's height, and
-   .desk stops scrolling externally (a single scroll surface avoids nested-scroll
-   conflicts and keeps touch gestures clean). */
+/* Scroll reading mode: epub.js's continuous view manager streams the whole book into
+   one .epub-container (overflow-y: auto). Our chain just gives it a fixed-height box
+   to fill — .page drops its aspect-ratio so it stretches to .desk's height; .desk
+   itself doesn't scroll (single surface keeps touch clean). overflow-x: hidden on the
+   container so an over-wide image / wide CSS column can't introduce a sideways
+   scrollbar. */
 .scrollMode .page {
   aspect-ratio: auto;
   height: 100%;
@@ -113,7 +114,8 @@
   overflow: hidden;
 }
 .scrollMode .viewer :global(.epub-container) {
-  /* Show the scrollbar — paginated reader hides it globally; in scroll mode we want it. */
+  overflow-x: hidden !important;
+  /* Show the vertical scrollbar — paginated mode hides scrollbars globally. */
   scrollbar-width: auto;
 }
 .scrollMode .viewer :global(.epub-container)::-webkit-scrollbar {
