@@ -173,70 +173,79 @@ export function EpubReader({ book }: Props) {
     setZoom((z) => clampZoom(z - e.deltaY * 0.002));
   }, []);
 
-  // Page-turn animation: a 3D flip. epub.js can only render one page at a time, so we
-  // can't cross-fade between the old and new content. Instead we build a solid-coloured
-  // overlay matching the page surface, slap it on top of .page, immediately tell epub.js
-  // to load the new page underneath, then rotate the overlay 180° around its inner edge.
-  // backface-visibility:hidden makes the overlay disappear past 90° — by then the new
-  // page is visible behind it. Triggered by Next/Prev buttons, side chevrons, and arrow
-  // keys; never by direct display(cfi) jumps (search / TOC stay instant).
+  // Page-turn animation: a 3D flip in the Rokobuljan style (codepen jORNEyz). epub.js
+  // can only render one page at a time, so we slap a "paper" overlay (a soft gradient
+  // mimicking the page surface) on top of .page, immediately tell epub.js to load the
+  // new page underneath, then rotate the overlay 180° around its inner edge.
+  // backface-visibility:hidden makes the overlay vanish past 90°, revealing the new
+  // page behind it. Triggered by Next/Prev (buttons, side chevrons, arrow keys); never
+  // by display(cfi) jumps (search / TOC stay instant).
   // Stable callback (no deps) — captured by the once-on-mount keydown effect.
   const animatePageTurn = useCallback((direction: 'next' | 'prev') => {
     const page = pageElRef.current;
     const rendition = renditionRef.current;
-    if (!page || !rendition) return;
-    if (animatingRef.current) return;
+    if (!page || !rendition || animatingRef.current) return;
     animatingRef.current = true;
+    const isNext = direction === 'next';
 
     const overlay = document.createElement('div');
     overlay.style.cssText = `
       position: absolute;
       inset: 0;
-      background: var(--reader-page, #f5f0eb);
       z-index: 10;
-      transform-origin: ${direction === 'next' ? 'left center' : 'right center'};
+      background: linear-gradient(${isNext ? 'to left' : 'to right'}, #f7f7f7 80%, #eee 100%);
+      transform-origin: ${isNext ? 'left center' : 'right center'};
       transform-style: preserve-3d;
       backface-visibility: hidden;
+      transition: transform 0.6s ease-in-out;
+      box-shadow: 0 0.5em 1em -0.2em rgba(0, 0, 0, 0.12);
       pointer-events: none;
+      translate: 0px;
     `;
 
-    // Vertical shadow band along the trailing edge — adds a sense of paper fold so the
-    // flat overlay reads as a physical sheet rather than a coloured rectangle.
+    // Fold shadow sitting just outside the overlay's hinge edge — gives the flipping
+    // sheet a soft penumbra against the underlying page.
     const shadow = document.createElement('div');
     shadow.style.cssText = `
       position: absolute;
       top: 0;
-      ${direction === 'next' ? 'right: 0;' : 'left: 0;'}
-      width: 40px;
+      ${isNext ? 'left: -30px;' : 'right: -30px;'}
+      width: 30px;
       height: 100%;
-      background: linear-gradient(${direction === 'next' ? 'to left' : 'to right'}, rgba(0, 0, 0, 0.1), transparent);
+      background: linear-gradient(${isNext ? 'to right' : 'to left'}, rgba(0, 0, 0, 0.08), transparent);
       pointer-events: none;
     `;
     overlay.appendChild(shadow);
 
-    page.style.perspective = '1500px';
+    page.style.perspective = '1200px';
     page.appendChild(overlay);
 
-    // Swap the underlying content NOW so the new page is fully painted by the time the
-    // overlay rotates past 90° and exposes it.
-    if (direction === 'next') rendition.next();
+    // Swap the underlying content NOW so it's fully painted by the time the overlay
+    // rotates past 90° and exposes it.
+    if (isNext) rendition.next();
     else rendition.prev();
 
-    // One frame to commit the initial transform-less state, then animate to the flipped
-    // state — without this raF the browser may collapse start + end into one paint and
-    // skip the transition entirely.
-    const rotation = direction === 'next' ? 'rotateY(-180deg)' : 'rotateY(180deg)';
+    // Double rAF: one frame to let the browser commit the appended overlay at identity
+    // transform, a second to apply the rotated transform so the transition actually runs
+    // (a single rAF can still get collapsed into the same paint as the append).
     requestAnimationFrame(() => {
-      overlay.style.transition = 'transform 0.4s cubic-bezier(0.4, 0, 0.2, 1)';
-      overlay.style.boxShadow = '-4px 0 16px rgba(0, 0, 0, 0.15)';
-      overlay.style.transform = rotation;
+      requestAnimationFrame(() => {
+        overlay.style.transform = `rotateY(${isNext ? '-180deg' : '180deg'})`;
+      });
     });
 
-    window.setTimeout(() => {
+    const cleanup = () => {
+      overlay.removeEventListener('transitionend', cleanup);
       overlay.remove();
       page.style.perspective = '';
       animatingRef.current = false;
-    }, 450);
+    };
+    overlay.addEventListener('transitionend', cleanup);
+
+    // Fallback if transitionend never fires (tab hidden, overlay yanked, etc.).
+    window.setTimeout(() => {
+      if (animatingRef.current) cleanup();
+    }, 800);
   }, []);
 
   // Position margin notes opposite their highlight: resolve the cfi to a live
