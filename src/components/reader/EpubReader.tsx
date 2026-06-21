@@ -527,9 +527,9 @@ export function EpubReader({ book }: Props) {
     };
   }, [openSavedHighlight, renditionEpoch]);
 
-  // No manual scroll-driven chapter tracking in scroll mode: the continuous view
-  // manager fires 'relocated' itself as the user scrolls between sections, and the
-  // existing relocated handler already updates chapter / progress / lastPosition.
+  // No manual scroll-driven chapter tracking: the continuous view manager scrolls
+  // inside .epub-container and fires 'relocated' as the visible CFI moves, so the
+  // existing relocated handler updates chapter / progress / lastPosition.
 
   // Tracks which CFIs we've drawn on the current rendition, with their colour. Resetting
   // on renditionEpoch (mode switch) is handled by re-running this effect — we also wipe
