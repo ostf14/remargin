@@ -551,36 +551,98 @@ export function EpubReader({ book }: Props) {
     };
   }, [openSavedHighlight, renditionEpoch]);
 
-  // Scroll mode auto-advance: when the user scrolls close to the bottom of the current
-  // section, transparently load the next one and reset scrollTop to 0 so they can keep
-  // scrolling without ever tapping a chevron. End-of-book stops cleanly via the rendition
-  // location's atEnd flag. Forward only — going back uses the prev chevron, which lands
-  // at the top of the previous section (good enough; full reverse-on-pull-up needs scroll
-  // anchoring we're not doing yet).
+  // Scroll mode = one long scroll. As the user approaches the bottom of the loaded
+  // content, fetch the next spine section and append its body into the SAME iframe
+  // (adopting nodes so they render under our existing iframe styles). No swap, no
+  // reset — just an iframe that keeps growing. The ResizeObserver in the 'rendered'
+  // handler picks up each height change and the outer .desk scrolls it all as one body.
+  //
+  // Limitation: new highlights only resolve cleanly inside the section epub.js's
+  // rendition is currently pointed at (the first one). Highlighting in appended
+  // sections is best-effort. For accurate per-section highlights, use Pages mode.
+  const appendedSpinesRef = useRef<Set<string>>(new Set());
   useEffect(() => {
     if (readerMode !== 'scroll') return;
+    appendedSpinesRef.current = new Set();
     const desk = deskRef.current;
     if (!desk) return;
-    let advancing = false;
+
+    let busy = false;
+    const sizeIframe = () => {
+      const iframe = viewerRef.current?.querySelector('iframe');
+      if (!iframe) return;
+      const doc = iframe.contentDocument;
+      if (!doc?.body) return;
+      const h = Math.max(doc.body.scrollHeight, doc.documentElement.scrollHeight);
+      if (h > 0) iframe.style.height = `${h}px`;
+    };
+
+    const appendNextSpine = async () => {
+      if (busy) return;
+      const epub = epubRef.current;
+      const iframe = viewerRef.current?.querySelector('iframe') as HTMLIFrameElement | null;
+      const iframeDoc = iframe?.contentDocument;
+      if (!epub || !iframe || !iframeDoc) return;
+
+      // epub.js's SpineItem type doesn't surface href / contents in the d.ts even
+      // though both exist at runtime — cast through unknown.
+      const spines = epub.spine.spineItems as unknown as Array<{
+        href: string;
+        load: (l: unknown) => Promise<unknown>;
+        contents: HTMLElement | null;
+      }>;
+      if (!spines.length) return;
+
+      // First loaded section is whatever rendition currently shows. After that,
+      // appended hrefs are tracked in appendedSpinesRef. Find the next un-appended.
+      const currentLoc = renditionRef.current?.currentLocation() as { start?: { href?: string } } | undefined;
+      const currentHref = currentLoc?.start?.href ?? spines[0]?.href;
+      let idx = spines.findIndex((s) => s.href === currentHref);
+      if (idx < 0) idx = 0;
+      while (idx < spines.length - 1 && appendedSpinesRef.current.has(spines[idx + 1].href)) {
+        idx++;
+      }
+      const nextItem = spines[idx + 1];
+      if (!nextItem) return; // end of book
+
+      busy = true;
+      try {
+        await nextItem.load(epub.load.bind(epub));
+        const body = nextItem.contents;
+        if (!body) return;
+        const wrapper = iframeDoc.createElement('div');
+        wrapper.dataset.spineHref = nextItem.href;
+        // Visual breathing room between appended chapters.
+        wrapper.style.marginTop = '2.5em';
+        for (const node of Array.from(body.childNodes)) {
+          try {
+            wrapper.appendChild(iframeDoc.adoptNode(node));
+          } catch { /* node may have been moved already; skip */ }
+        }
+        iframeDoc.body.appendChild(wrapper);
+        appendedSpinesRef.current.add(nextItem.href);
+        sizeIframe();
+      } catch { /* unreadable section — skip and try the next on the next scroll */ }
+      finally {
+        busy = false;
+      }
+    };
+
     const onScroll = () => {
-      if (advancing) return;
-      const r = renditionRef.current;
-      if (!r) return;
+      // Pre-fetch with 1000px lookahead so the user never sees the seam.
       const dist = desk.scrollHeight - desk.scrollTop - desk.clientHeight;
-      if (dist > 80) return;
-      const loc = r.currentLocation() as { atEnd?: boolean } | undefined;
-      if (loc?.atEnd) return;
-      advancing = true;
-      Promise.resolve(r.next()).then(() => {
-        window.setTimeout(() => {
-          const d = deskRef.current;
-          if (d) d.scrollTop = 0;
-          advancing = false;
-        }, 200);
-      });
+      if (dist < 1000) void appendNextSpine();
     };
     desk.addEventListener('scroll', onScroll, { passive: true });
-    return () => desk.removeEventListener('scroll', onScroll);
+
+    // Kick off the first append a moment after the rendition's initial render so the
+    // user sees the next chapter ready as soon as they begin scrolling.
+    const kickoff = window.setTimeout(() => void appendNextSpine(), 1500);
+
+    return () => {
+      desk.removeEventListener('scroll', onScroll);
+      window.clearTimeout(kickoff);
+    };
   }, [readerMode, renditionEpoch]);
 
   // Tracks which CFIs we've drawn on the current rendition, with their colour. Resetting
