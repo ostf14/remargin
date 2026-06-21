@@ -52,9 +52,7 @@
 
 /* The "page": a fixed-proportion cream sheet (900 × 1073 at full width). Height
    derives from width; epub.js paginates content within it, the rest stays cream.
-   Zoom is passed in as the --zoom custom property (set inline from React state) so
-   the page-turn keyframes below can compose `translateX(...) scale(var(--zoom))`
-   without clobbering the user's zoom level. */
+   Zoom is passed in as the --zoom custom property (set inline from React state). */
 .page {
   display: flex;
   width: 100%;
@@ -66,9 +64,6 @@
   box-shadow: var(--reader-page-shadow);
   border-radius: var(--radius-sm);
   transform: scale(var(--zoom, 1));
-  /* preserve-3d so the page-turn overlay (built in EpubReader.tsx → animatePageTurn)
-     rotates with real depth instead of collapsing flat against the page. */
-  transform-style: preserve-3d;
   /* Zoom must stay instant — transition colour/shadow only, never transform. */
   transition: background var(--duration-normal) var(--ease-out),
     box-shadow var(--duration-normal) var(--ease-out);
@@ -106,9 +101,6 @@
   color: var(--reader-ink-soft);
   font-size: var(--text-sm);
 }
-
-/* Page-turn animation lives in EpubReader.tsx → animatePageTurn: a runtime-injected
-   overlay div that rotates in 3D over .page while epub.js swaps the content beneath. */
 
 /* ─────────────────────────── Mobile (≤600px): edge-to-edge ─────────────────────────── */
 @media (max-width: 600px) {

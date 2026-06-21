@@ -104,9 +104,6 @@ export function EpubReader({ book }: Props) {
   const pageElRef = useRef<HTMLDivElement>(null);
   const epubRef = useRef<EpubBook | null>(null);
   const renditionRef = useRef<Rendition | null>(null);
-  // Blocks reentrant page-turn animations — spam-pressing Next would stack overlays
-  // and double-jump epub.js. We let the current flip finish before accepting another.
-  const animatingRef = useRef(false);
   const { patchBook } = useLibrary();
   const { showAnnotations, readingSurface, pendingAnchor } = useReader();
   const readingSurfaceRef = useRef(readingSurface);
@@ -171,81 +168,6 @@ export function EpubReader({ book }: Props) {
     if (!e.ctrlKey) return;
     e.preventDefault();
     setZoom((z) => clampZoom(z - e.deltaY * 0.002));
-  }, []);
-
-  // Page-turn animation: a 3D flip in the Rokobuljan style (codepen jORNEyz). epub.js
-  // can only render one page at a time, so we slap a "paper" overlay (a soft gradient
-  // mimicking the page surface) on top of .page, immediately tell epub.js to load the
-  // new page underneath, then rotate the overlay 180° around its inner edge.
-  // backface-visibility:hidden makes the overlay vanish past 90°, revealing the new
-  // page behind it. Triggered by Next/Prev (buttons, side chevrons, arrow keys); never
-  // by display(cfi) jumps (search / TOC stay instant).
-  // Stable callback (no deps) — captured by the once-on-mount keydown effect.
-  const animatePageTurn = useCallback((direction: 'next' | 'prev') => {
-    const page = pageElRef.current;
-    const rendition = renditionRef.current;
-    if (!page || !rendition || animatingRef.current) return;
-    animatingRef.current = true;
-    const isNext = direction === 'next';
-
-    const overlay = document.createElement('div');
-    overlay.style.cssText = `
-      position: absolute;
-      inset: 0;
-      z-index: 10;
-      background: linear-gradient(${isNext ? 'to left' : 'to right'}, #f7f7f7 80%, #eee 100%);
-      transform-origin: ${isNext ? 'left center' : 'right center'};
-      transform-style: preserve-3d;
-      backface-visibility: hidden;
-      transition: transform 0.6s ease-in-out;
-      box-shadow: 0 0.5em 1em -0.2em rgba(0, 0, 0, 0.12);
-      pointer-events: none;
-      translate: 0px;
-    `;
-
-    // Fold shadow sitting just outside the overlay's hinge edge — gives the flipping
-    // sheet a soft penumbra against the underlying page.
-    const shadow = document.createElement('div');
-    shadow.style.cssText = `
-      position: absolute;
-      top: 0;
-      ${isNext ? 'left: -30px;' : 'right: -30px;'}
-      width: 30px;
-      height: 100%;
-      background: linear-gradient(${isNext ? 'to right' : 'to left'}, rgba(0, 0, 0, 0.08), transparent);
-      pointer-events: none;
-    `;
-    overlay.appendChild(shadow);
-
-    page.style.perspective = '1200px';
-    page.appendChild(overlay);
-
-    // Swap the underlying content NOW so it's fully painted by the time the overlay
-    // rotates past 90° and exposes it.
-    if (isNext) rendition.next();
-    else rendition.prev();
-
-    // Double rAF: one frame to let the browser commit the appended overlay at identity
-    // transform, a second to apply the rotated transform so the transition actually runs
-    // (a single rAF can still get collapsed into the same paint as the append).
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        overlay.style.transform = `rotateY(${isNext ? '-180deg' : '180deg'})`;
-      });
-    });
-
-    const cleanup = () => {
-      overlay.removeEventListener('transitionend', cleanup);
-      overlay.remove();
-      page.style.perspective = '';
-      animatingRef.current = false;
-    };
-    overlay.addEventListener('transitionend', cleanup);
-
-    // Fallback if transitionend never fires (tab hidden, overlay yanked, etc.).
-    window.setTimeout(() => {
-      if (animatingRef.current) cleanup();
-    }, 800);
   }, []);
 
   // Position margin notes opposite their highlight: resolve the cfi to a live
@@ -467,11 +389,10 @@ export function EpubReader({ book }: Props) {
         rendition.display();
       }
 
-      // Document-level arrow keys for page turning. Routed through animatePageTurn so the
-      // slide animation plays the same way it does for chevron clicks.
+      // Document-level arrow keys for page turning.
       handleKey = (e: KeyboardEvent) => {
-        if (e.key === 'ArrowRight' || e.key === 'ArrowDown') animatePageTurn('next');
-        if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') animatePageTurn('prev');
+        if (e.key === 'ArrowRight' || e.key === 'ArrowDown') renditionRef.current?.next();
+        if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') renditionRef.current?.prev();
         shortcutKeyRef.current(e);
       };
       document.addEventListener('keydown', handleKey);
@@ -953,8 +874,8 @@ export function EpubReader({ book }: Props) {
       subtitle={chapter || 'Chapter'}
       progress={percentage}
       progressText={progressText}
-      onPrev={() => animatePageTurn('prev')}
-      onNext={() => animatePageTurn('next')}
+      onPrev={() => renditionRef.current?.prev()}
+      onNext={() => renditionRef.current?.next()}
       search={{
         query: searchQuery,
         onQueryChange: setSearchQuery,
