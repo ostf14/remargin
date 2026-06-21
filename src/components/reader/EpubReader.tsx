@@ -294,15 +294,10 @@ export function EpubReader({ book }: Props) {
       // into one scroller) is unreliable: on many real-world EPUBs it loads only the
       // first section (often the ToC) and stops, and the initial layout race resizes
       // the cover image to zero. Per-section scrolled-doc is the robust default.
-      //
-      // height: 'auto' in scroll mode tells epub.js NOT to clamp the iframe to a single
-      // viewport height. Without this, the iframe stays at the container's height and
-      // content gets visually paginated even though flow says scrolled-doc. With auto,
-      // the iframe grows to its full content height and the outer .desk scrolls it.
       const createRendition = (mode: 'pages' | 'scroll'): Rendition => {
         const r = epubInstance.renderTo(container, {
           width: '100%',
-          height: mode === 'scroll' ? 'auto' : '100%',
+          height: '100%',
           spread: 'none',
           flow: mode === 'scroll' ? 'scrolled-doc' : 'paginated',
         });
@@ -318,9 +313,23 @@ export function EpubReader({ book }: Props) {
         // Wheel events fire inside the content iframe — attach the Ctrl+wheel font
         // handler to each rendered document so the gesture is caught over the text.
         const attachedDocs = new Set<Document>();
+        // In scroll mode, manually size the iframe to its content height after every
+        // render. epub.js's default manager doesn't reliably call View.expand() for
+        // flow: 'scrolled-doc', so the iframe stays at viewport height and content past
+        // the first screen is clipped (feels exactly like pagination). Re-measuring on
+        // load + images-ready + ResizeObserver covers late layout changes.
+        const sizeIframeToContent = (iframe: HTMLIFrameElement) => {
+          if (readerModeRef.current !== 'scroll') return;
+          const doc = iframe.contentDocument;
+          if (!doc?.body) return;
+          const h = Math.max(doc.body.scrollHeight, doc.documentElement.scrollHeight);
+          if (h > 0) iframe.style.height = `${h}px`;
+        };
         r.on('rendered', () => {
-          const doc = container.querySelector('iframe')?.contentDocument;
-          if (doc && !attachedDocs.has(doc)) {
+          const iframe = container.querySelector('iframe');
+          const doc = iframe?.contentDocument;
+          if (!iframe || !doc) return;
+          if (!attachedDocs.has(doc)) {
             doc.addEventListener('wheel', handleZoomWheel, { passive: false });
             // Forward pointer activity inside the iframe so the chrome auto-hide timer
             // (which lives in the parent document) keeps resetting while reading EPUB.
@@ -340,6 +349,14 @@ export function EpubReader({ book }: Props) {
             }
             attachedDocs.add(doc);
           }
+          // Initial size + a follow-up after images/fonts settle. ResizeObserver on the
+          // body keeps it accurate if anything reflows later (e.g. font-size change).
+          sizeIframeToContent(iframe);
+          window.setTimeout(() => sizeIframeToContent(iframe), 250);
+          try {
+            const ro = new ResizeObserver(() => sizeIframeToContent(iframe));
+            ro.observe(doc.body);
+          } catch { /* old browsers — fall back to the setTimeout pass */ }
         });
 
         r.on('relocated', (location: unknown) => {

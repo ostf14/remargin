@@ -100,8 +100,10 @@
   font-size: var(--text-sm);
 }
 
-/* Scroll reading mode: let the flowing content grow the page and scroll, and restore the
-   scrollbar that paginated mode hides. Gated on .scrollMode, so paginated is untouched. */
+/* Scroll reading mode: the page/viewer/epub-container/iframe all grow to fit the
+   section's content height (sized manually in EpubReader's 'rendered' handler since
+   epub.js's default manager doesn't reliably call View.expand for scrolled-doc).
+   The outer .desk handles the actual vertical scroll. */
 .scrollMode .page {
   aspect-ratio: auto;
   height: auto;
@@ -109,18 +111,17 @@
   overflow: visible;
 }
 
-.scrollMode .viewer {
-  height: auto;
-}
-
 .scrollMode .viewer,
-.scrollMode .viewer :global(.epub-container) {
-  scrollbar-width: auto;
+.scrollMode .viewer :global(.epub-container),
+.scrollMode .viewer :global(.epub-view) {
+  height: auto !important;
+  overflow: visible !important;
 }
 
-.scrollMode .viewer::-webkit-scrollbar,
-.scrollMode .viewer :global(.epub-container)::-webkit-scrollbar {
-  display: block;
+.scrollMode .viewer iframe {
+  /* JS sets the exact pixel height per-section; reset overflow so nothing inside
+     the iframe needs its own scrollbar. */
+  overflow: visible;
 }
 
 /* ─────────────────────────── Mobile (≤600px): edge-to-edge ─────────────────────────── */
