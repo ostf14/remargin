@@ -387,6 +387,17 @@ export function EpubReader({ book }: Props) {
           };
           doc.addEventListener('mouseup', handleLiveSelection);
           doc.addEventListener('touchend', handleLiveSelection);
+          // Mobile fallback: Android Chrome fires touchend BEFORE the browser commits
+          // the selection, so window.getSelection() is still collapsed at that moment
+          // and handleLiveSelection bails. selectionchange fires through the lifetime
+          // of the gesture (a lot), so we debounce 300ms — the user has stopped
+          // dragging by then and the selection is final. setPopover dedupes by CFI so
+          // a duplicate fire after mouseup/touchend already shipped is a no-op.
+          let selTimer: number | null = null;
+          doc.addEventListener('selectionchange', () => {
+            if (selTimer !== null) window.clearTimeout(selTimer);
+            selTimer = window.setTimeout(handleLiveSelection, 300);
+          });
           if (doc.head && !doc.getElementById('remargin-reading-font')) {
             const fontLink = doc.createElement('link');
             fontLink.id = 'remargin-reading-font';
