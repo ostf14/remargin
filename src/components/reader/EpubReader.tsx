@@ -299,8 +299,11 @@ export function EpubReader({ book }: Props) {
       epubRef.current = epub;
 
       // On a *separate* (unrendered) copy of the book: count words for the reading-time
-      // estimate and build the locations index for accurate progress. Doing either on the
-      // rendition's own book corrupts live rendering and percentages, so we keep it apart.
+      // estimate AND build the global locations index for cross-section page numbering
+      // and accurate progress. Doing either on the rendition's own book corrupts live
+      // rendering and percentages, so we keep it apart. locations.generate is heavy
+      // (1-3s on big books) — we persist its result to localStorage keyed by book.id
+      // so subsequent opens load it instantly.
       (async () => {
         const buf = await getBookFile(book.id);
         if (!buf || cancelled) return;
@@ -326,20 +329,49 @@ export function EpubReader({ book }: Props) {
             /* leave wordCount undefined */
           }
         }
-        try {
-          await side.locations.generate(1200);
-        } catch {
-          /* progress falls back to epub.js' coarse percentage */
+        const locKey = `remargin_locations_${book.id}`;
+        const saved = (() => {
+          try { return localStorage.getItem(locKey); } catch { return null; }
+        })();
+        const locs = side.locations as unknown as {
+          load: (s: string) => unknown;
+          save: () => string;
+          generate: (chars: number) => Promise<string[]>;
+          locationFromCfi: (cfi: string) => number;
+          percentageFromCfi: (cfi: string) => number;
+          total: number;
+        };
+        if (saved) {
+          try { locs.load(saved); } catch { /* fall through to generate */ }
+        }
+        if (!locs.total) {
+          try {
+            await locs.generate(1024);
+            try { localStorage.setItem(locKey, locs.save()); } catch { /* quota; live without persistence */ }
+          } catch {
+            /* progress falls back to epub.js' coarse percentage; page text falls back to section-local */
+          }
         }
         if (cancelled) {
           side.destroy();
           return;
         }
         sideRef.current = side;
+        // Locations are ready now — refresh percent + global page text against the
+        // last known cfi so the bottom pill jumps from "..." (or section-local) to
+        // the real global numbering without waiting for the next page turn.
         const cfi = lastCfiRef.current;
         if (cfi) {
-          const p = side.locations.percentageFromCfi(cfi);
-          if (Number.isFinite(p)) setPercentage(Math.max(0, Math.min(100, Math.round(p * 100))));
+          try {
+            const p = locs.percentageFromCfi(cfi);
+            if (Number.isFinite(p)) setPercentage(Math.max(0, Math.min(100, Math.round(p * 100))));
+          } catch { /* skip */ }
+          if (locs.total > 0) {
+            try {
+              const idx = locs.locationFromCfi(cfi);
+              if (typeof idx === 'number' && idx >= 0) setPageText(`${idx + 1} / ${locs.total}`);
+            } catch { /* skip */ }
+          }
         }
       })();
 
@@ -414,19 +446,37 @@ export function EpubReader({ book }: Props) {
             const iframeRect = iframe?.getBoundingClientRect() || { left: 0, top: 0 };
             const x = rect.left + iframeRect.left + rect.width / 2;
             const y = rect.top + iframeRect.top;
-            // Snapshot the current section-local page number so the resulting
-            // annotation carries it. currentLocation() can throw before the manager
-            // is wired; guard like recomputeNotePositions does.
+            // Snapshot the current page number so the resulting annotation carries
+            // it. Prefer the GLOBAL number from side.locations (cross-section, real
+            // 'page 42 / 156'); fall back to the section-local displayed.page if
+            // locations haven't generated yet. Both reads are wrapped because epub.js
+            // can throw on either path before the manager / index is wired.
             let pageNum: number | undefined;
-            try {
-              const loc = r.currentLocation() as
-                | { start?: { displayed?: { page?: number } } }
-                | undefined
-                | null;
-              const p = loc?.start?.displayed?.page;
-              if (typeof p === 'number' && p > 0) pageNum = p;
-            } catch {
-              /* page stays undefined */
+            const side = sideRef.current as unknown as {
+              locations?: {
+                total: number;
+                locationFromCfi: (cfi: string) => number;
+              };
+            } | null;
+            if (side?.locations && side.locations.total > 0) {
+              try {
+                const idx = side.locations.locationFromCfi(cfiStr);
+                if (typeof idx === 'number' && idx >= 0) pageNum = idx + 1;
+              } catch {
+                /* fall through to section-local */
+              }
+            }
+            if (pageNum === undefined) {
+              try {
+                const loc = r.currentLocation() as
+                  | { start?: { displayed?: { page?: number } } }
+                  | undefined
+                  | null;
+                const p = loc?.start?.displayed?.page;
+                if (typeof p === 'number' && p > 0) pageNum = p;
+              } catch {
+                /* page stays undefined */
+              }
             }
             // Dedup against a stale state object if the same CFI is already shown
             // (e.g. mouseup followed by a touchend on the same commit) — avoids a
@@ -477,22 +527,43 @@ export function EpubReader({ book }: Props) {
             };
           };
           lastCfiRef.current = loc.start.cfi;
-          const side = sideRef.current;
+          const side = sideRef.current as unknown as {
+            locations?: {
+              total: number;
+              percentageFromCfi: (cfi: string) => number;
+              locationFromCfi: (cfi: string) => number;
+            };
+          } | null;
+          const hasGlobal = !!(side?.locations && side.locations.total > 0);
           let pct = Math.round((loc.start.percentage || 0) * 100);
-          if (side) {
-            const p = side.locations.percentageFromCfi(loc.start.cfi);
-            if (Number.isFinite(p)) pct = Math.round(p * 100);
+          if (hasGlobal) {
+            try {
+              const p = side!.locations!.percentageFromCfi(loc.start.cfi);
+              if (Number.isFinite(p)) pct = Math.round(p * 100);
+            } catch { /* keep coarse pct */ }
           }
           pct = Math.max(0, Math.min(100, pct));
           setPercentage(pct);
 
-          // epub.js gives us section-local page numbers via loc.start.displayed —
-          // global pagination would need a full locations.generate, which we already
-          // run on a side instance only for the progress-percentage estimate. The
-          // per-section indicator is informative enough for now.
-          const d = loc.start.displayed;
-          if (d && d.page && d.total) setPageText(`${d.page} / ${d.total}`);
-          else setPageText('');
+          // Global page number from the side instance's locations index (built once
+          // per book + cached in localStorage). Falls back to the section-local
+          // displayed.page until locations.generate finishes on first open.
+          if (hasGlobal) {
+            try {
+              const idx = side!.locations!.locationFromCfi(loc.start.cfi);
+              if (typeof idx === 'number' && idx >= 0) {
+                setPageText(`${idx + 1} / ${side!.locations!.total}`);
+              } else {
+                setPageText('');
+              }
+            } catch {
+              setPageText('');
+            }
+          } else {
+            const d = loc.start.displayed;
+            if (d && d.page && d.total) setPageText(`${d.page} / ${d.total}`);
+            else setPageText('');
+          }
 
           patchBook(book.id, {
             lastOpened: new Date().toISOString(),
