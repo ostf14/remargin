@@ -430,23 +430,23 @@ export function ReaderShell({
         />
       </div>
 
-      {/* Always-on progress pill (bottom-left), like a word count — never auto-hides. */}
-      {/* Bottom pill: percent | time-left | page-count. All three segments use the
-          styled '|' divider; the page segment is hidden on mobile (see .pillPageSegment
-          in the @media block) and the page count shows up in the separate
-          bottom-centre .pageIndicator instead. */}
+      {/* Always-on progress pill, bottom-left — never auto-hides.
+          Three segments, each wrapped in its own span for clear DOM structure:
+          {percent} | {time-left} | {page-count}. The page segment is hidden on
+          mobile (see .pillPageSegment in the @media block) and the page count
+          shows up in the separate bottom-centre .pageIndicator instead. */}
       <div className={styles.progressPill}>
-        {Math.round(progress)}%
+        <span>{Math.round(progress)}%</span>
         {timeLeft && (
           <>
-            <span className={styles.divider}>|</span>
-            {timeLeft} left
+            <span className={styles.divider} aria-hidden="true">|</span>
+            <span>{timeLeft} left</span>
           </>
         )}
         {pageText && (
           <span className={styles.pillPageSegment}>
-            <span className={styles.divider}>|</span>
-            {pageText}
+            <span className={styles.divider} aria-hidden="true">|</span>
+            <span>{pageText}</span>
           </span>
         )}
       </div>

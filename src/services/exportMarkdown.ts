@@ -26,6 +26,18 @@ function yamlString(value: string): string {
   return `"${escaped}"`;
 }
 
+/**
+ * Best-effort page number from an epubcfi. The CFI doesn't carry true page
+ * pagination (that depends on viewport/font), but its first step is the
+ * spine position — a stable monotonic locator across the book. We surface
+ * that as `page:` in the YAML so every annotation gets a numeric key.
+ * Falls back to 0 if the cfi is malformed.
+ */
+function pageFromEpubCfi(cfi: string): number {
+  const m = cfi.match(/^epubcfi\(\/(\d+)/);
+  return m ? Number(m[1]) : 0;
+}
+
 /** Date portion (YYYY-MM-DD) of a stored ISO timestamp. */
 function dateOnly(iso: string): string {
   return iso.slice(0, 10);
@@ -44,7 +56,10 @@ function annotationFilename(annotation: Annotation): string {
 /** Render one annotation as a Markdown document: YAML frontmatter + quote (+ note). */
 function annotationToMarkdown(book: Book, annotation: Annotation): string {
   const a = annotation.anchor;
-  const locLine = a.kind === 'pdf' ? `page: ${a.page}` : `chapter: ${yamlString(a.chapter)}`;
+  // EPUB used to emit `chapter: "..."`. Replace with a numeric `page:` (spine
+  // position derived from the cfi) so notes carry a stable numeric locator the
+  // same way PDF annotations do.
+  const locLine = a.kind === 'pdf' ? `page: ${a.page}` : `page: ${pageFromEpubCfi(a.cfi)}`;
   const quote = flatQuote(annotation.highlightedText);
 
   const frontmatter = [
