@@ -54,21 +54,15 @@
   color: var(--text-quaternary);
 }
 
-/* Continue-reading card — same size as the rest, set apart by a faint purple wash over
-   the surface, a slightly purple border, and the "Continue" badge on the cover. */
+/* Continue-reading card — visually identical to other cards now; the only thing that
+   sets it apart is the "Continue" badge on the cover (which carries var(--accent)). */
 .featuredCard {
   background-color: var(--bg-secondary);
-  background-image: linear-gradient(
-    135deg,
-    rgba(155, 107, 226, 0.08) 0%,
-    rgba(155, 107, 226, 0.03) 40%,
-    transparent 70%
-  );
-  border-color: rgba(155, 107, 226, 0.25);
+  border-color: var(--border);
 }
 
 .featuredCard:hover {
-  border-color: rgba(155, 107, 226, 0.4);
+  border-color: var(--border-strong);
 }
 
 /* "Continue" marker — top-left so the hover delete button (top-right) never covers it. */

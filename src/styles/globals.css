@@ -77,9 +77,9 @@
   --border-strong: rgba(255, 255, 255, 0.2);
   --border-subtle: rgba(255, 255, 255, 0.07);
 
-  --accent: #9b6be2;
-  --accent-hover: #b08ae8;
-  --accent-muted: rgba(155, 107, 226, 0.15);
+  --accent: #d97757;
+  --accent-hover: #c66648;
+  --accent-muted: rgba(217, 119, 87, 0.15);
   --accent-text: #ffffff;
 
   --danger: #d15c55;
@@ -279,7 +279,7 @@ select:focus-visible,
 /* In-book find: wrap each matched word on the (transparent) PDF text layer in a
    <mark> so only the word is tinted, not the whole line. */
 .textLayer mark.highlight-search {
-  background: rgba(155, 107, 226, 0.45);
+  background: rgba(217, 119, 87, 0.45);
   color: inherit;
   border-radius: 2px;
   padding: 0;
