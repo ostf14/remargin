@@ -208,10 +208,13 @@
 }
 
 /* ─────────────────────────── Settings dropdown ─────────────────────────── */
+/* Top equals the topBar's height so the drawer sits flush against its bottom edge,
+   no visible seam. Mobile override below uses 44 to match the shorter mobile bar. */
 .settings {
   position: absolute;
-  top: 54px;
+  top: 52px;
   right: 0;
+  margin-top: 0;
   background: var(--bg-secondary);
   border: 0.5px solid var(--border);
   border-radius: 0 0 0 8px;
@@ -363,7 +366,10 @@
   transition: width var(--duration-normal) var(--ease-out);
 }
 
-/* Always-on progress pill, bottom-left (like a word count) — not part of the chrome. */
+/* Always-on progress pill, bottom-left (like a word count) — not part of the chrome.
+   On desktop it carries percent + time-left + page count (separated by .divider);
+   on mobile the .pillPageSegment is hidden and the page count moves to the separate
+   .pageIndicator at the bottom-centre. */
 .progressPill {
   position: fixed;
   bottom: 12px;
@@ -378,6 +384,12 @@
   color: var(--text-tertiary);
   font-variant-numeric: tabular-nums;
   pointer-events: none;
+}
+
+.divider {
+  margin: 0 8px;
+  color: var(--text-quaternary);
+  opacity: 0.5;
 }
 
 /* Page indicator (e.g. "12 / 156"): sits between the progress pill on the left and
@@ -498,6 +510,23 @@
     height: 44px;
     padding: 0 10px;
   }
+  /* .backBtn only contains an icon and didn't justify-content:center like .iconBtn,
+     so its 16px arrow sat at the LEFT edge of the 44×44 touch box while the gear
+     icon was centred in its own 44×44 box — visually the back arrow ended up
+     ~14px closer to the edge than the gear. Centre both. */
+  .backBtn {
+    justify-content: center;
+  }
+  /* Drawer sits flush against the mobile header. */
+  .settings {
+    top: 44px;
+  }
+  /* Mobile keeps the bottom-centre page indicator as a standalone element; desktop
+     hides it (info merges into .progressPill there) — see the (min-width: 601px)
+     block below. */
+  .pillPageSegment {
+    display: none;
+  }
   .title {
     font-size: 12px;
   }
@@ -563,5 +592,13 @@
     bottom: calc(12px + env(safe-area-inset-bottom));
     font-size: 10px;
     opacity: 0.7;
+  }
+}
+
+/* Desktop (≥601px): the standalone .pageIndicator is hidden — page count is merged
+   into .progressPill (see the .pillPageSegment span in ReaderShell.tsx). */
+@media (min-width: 601px) {
+  .pageIndicator {
+    display: none;
   }
 }

@@ -431,7 +431,20 @@ export function ReaderShell({
       </div>
 
       {/* Always-on progress pill (bottom-left), like a word count — never auto-hides. */}
-      {progressText && <div className={styles.progressPill}>{progressText}</div>}
+      {progressText && (
+        <div className={styles.progressPill}>
+          {progressText}
+          {/* Desktop merges page count into this pill via a styled '|' divider; on
+              mobile .pillPageSegment is display:none and the page count lives in the
+              separate bottom-centre .pageIndicator instead. */}
+          {pageText && (
+            <span className={styles.pillPageSegment}>
+              <span className={styles.divider}>|</span>
+              {pageText}
+            </span>
+          )}
+        </div>
+      )}
 
       {/* Section-local page indicator — sits between progress pill (left) and action pill
           (right) on the same baseline. epub.js's displayed.page/total are within the
