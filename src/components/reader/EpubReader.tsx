@@ -189,10 +189,20 @@ export function EpubReader({ book }: Props) {
       setNotePositions([]);
       return;
     }
-    const loc = rendition.currentLocation() as
+    // Early calls fire before the rendition's manager is wired (between renderTo and
+    // the first display() resolving), at which point epub.js's currentLocation() reads
+    // a property on `undefined` and throws. Treat any failure as "no visible page yet"
+    // and exit cleanly — the next relocated/font-change tick will retry.
+    let loc:
       | { start?: { cfi: string }; end?: { cfi: string } }
       | undefined
       | null;
+    try {
+      loc = rendition.currentLocation() as typeof loc;
+    } catch {
+      setNotePositions([]);
+      return;
+    }
     const startCfi = loc?.start?.cfi;
     const endCfi = loc?.end?.cfi;
     if (!startCfi || !endCfi) {
