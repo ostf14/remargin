@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Search, Highlighter, ChevronDown, ChevronUp, FileDown, Download } from 'lucide-react';
 import type { Annotation } from '../../types';
-import { loadAnnotations } from '../../services/storage';
+import { loadAnnotations, saveAnnotation } from '../../services/storage';
 import { useLibrary } from '../../hooks/useLibrary';
 import { useReader } from '../../hooks/useReader';
 import {
@@ -56,6 +56,29 @@ export function NotesView() {
   const [annotations, setAnnotations] = useState<Annotation[] | null>(null);
   const [query, setQuery] = useState('');
   const [collapsed, setCollapsed] = useState<Set<string>>(() => new Set()); // empty = all open
+  // Inline note editor — opened by clicking the comment (or "Add a note…") on a card.
+  // editingId scopes to a single annotation; draft holds the in-flight text. Esc cancels.
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [draft, setDraft] = useState('');
+
+  const startEdit = (a: Annotation) => {
+    setEditingId(a.id);
+    setDraft(a.note);
+  };
+  const cancelEdit = () => {
+    setEditingId(null);
+    setDraft('');
+  };
+  const saveEdit = async (a: Annotation) => {
+    const updated: Annotation = { ...a, note: draft, updatedAt: new Date().toISOString() };
+    try {
+      await saveAnnotation(updated);
+      setAnnotations((prev) => prev?.map((x) => (x.id === a.id ? updated : x)) ?? null);
+    } catch (e) {
+      console.error('Failed to save annotation note', e);
+    }
+    cancelEdit();
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -217,37 +240,82 @@ export function NotesView() {
               </div>
 
               {!isCollapsed &&
-                anns.map((a) => (
-                  <div
-                    key={a.id}
-                    className={styles.card}
-                    onClick={() => openBook(book, a.anchor)}
-                    role="button"
-                    tabIndex={0}
-                  >
-                    <div className={styles.colorBar} style={{ background: COLOR_MAP[a.color] }} />
-                    <div className={styles.content}>
-                      <div className={styles.quote}>{a.highlightedText}</div>
-                      {a.note.trim() && <div className={styles.comment}>{a.note}</div>}
-                      <div className={styles.footer}>
-                        <span className={styles.footMeta}>
-                          {anchorLabel(a)} · {formatDate(a.createdAt)}
-                        </span>
-                        <button
-                          className={styles.noteExport}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            exportSingleAnnotation(book, a);
-                          }}
-                          title="Export note (.md)"
-                          aria-label="Export note"
+                anns.map((a) => {
+                  const isEditing = editingId === a.id;
+                  return (
+                    <div key={a.id} className={styles.card}>
+                      <div className={styles.colorBar} style={{ background: COLOR_MAP[a.color] }} />
+                      <div className={styles.content}>
+                        {/* The quote stays the "jump to the highlight in the book"
+                            affordance — clicking it opens the reader at this CFI. */}
+                        <div
+                          className={styles.quote}
+                          onClick={() => openBook(book, a.anchor)}
+                          role="button"
+                          tabIndex={0}
                         >
-                          <Download size={12} />
-                        </button>
+                          {a.highlightedText}
+                        </div>
+
+                        {isEditing ? (
+                          <div className={styles.editor}>
+                            <textarea
+                              className={styles.editArea}
+                              autoFocus
+                              value={draft}
+                              onChange={(e) => setDraft(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Escape') {
+                                  e.preventDefault();
+                                  cancelEdit();
+                                }
+                              }}
+                              placeholder="Add a note…"
+                            />
+                            <div className={styles.editActions}>
+                              <button className={styles.cancelBtn} onClick={cancelEdit}>
+                                Cancel
+                              </button>
+                              <button className={styles.saveBtn} onClick={() => void saveEdit(a)}>
+                                Save
+                              </button>
+                            </div>
+                          </div>
+                        ) : a.note.trim() ? (
+                          <div
+                            className={styles.comment}
+                            onClick={() => startEdit(a)}
+                            role="button"
+                            tabIndex={0}
+                          >
+                            {a.note}
+                          </div>
+                        ) : (
+                          <button className={styles.addNote} onClick={() => startEdit(a)}>
+                            Add a note…
+                          </button>
+                        )}
+
+                        <div className={styles.footer}>
+                          <span className={styles.footMeta}>
+                            {anchorLabel(a)} · {formatDate(a.createdAt)}
+                          </span>
+                          <button
+                            className={styles.noteExport}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              exportSingleAnnotation(book, a);
+                            }}
+                            title="Export note (.md)"
+                            aria-label="Export note"
+                          >
+                            <Download size={12} />
+                          </button>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
             </div>
           );
         })

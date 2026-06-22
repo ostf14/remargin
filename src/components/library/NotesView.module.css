@@ -160,6 +160,11 @@
 }
 
 /* ─────────────────────────── Annotation card ─────────────────────────── */
+/* The card itself isn't a single click target anymore — its inner pieces split
+   intent: .quote opens the book at this CFI, .comment / .addNote enters edit
+   mode, .noteExport exports the .md. We still tint the whole card on hover
+   to signal clickability, and use :active for the same on touch where :hover
+   doesn't fire. */
 .card {
   display: flex;
   gap: 10px;
@@ -168,11 +173,13 @@
   border-radius: 6px;
   padding: 14px 16px;
   margin-bottom: 6px;
-  cursor: pointer;
-  transition: border-color var(--duration-fast) var(--ease-out);
+  transition: background 150ms var(--ease-out),
+    border-color 150ms var(--ease-out);
 }
 
-.card:hover {
+.card:hover,
+.card:active {
+  background: var(--bg-tertiary);
   border-color: var(--border-strong);
 }
 
@@ -189,7 +196,9 @@
 }
 
 /* Full text, no clamp — long notes just make the card taller. break-word stops
-   long unbroken strings (URLs etc.) from spilling past the card edge. */
+   long unbroken strings (URLs etc.) from spilling past the card edge. Quote +
+   comment carry their own cursor:pointer since the parent card no longer has
+   onClick — each is an independent click target (open vs edit). */
 .quote {
   font-size: 13px;
   color: var(--text-secondary);
@@ -197,6 +206,7 @@
   font-style: italic;
   overflow-wrap: break-word;
   word-break: break-word;
+  cursor: pointer;
 }
 
 .comment {
@@ -207,6 +217,91 @@
   white-space: pre-wrap;
   overflow-wrap: break-word;
   word-break: break-word;
+  cursor: pointer;
+}
+
+/* "Add a note…" placeholder — shows when annotation.note is empty, swaps for
+   the textarea editor on click. */
+.addNote {
+  margin-top: 4px;
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 0;
+  background: transparent;
+  border: none;
+  font-size: 12px;
+  font-family: inherit;
+  color: var(--text-quaternary);
+  cursor: pointer;
+}
+
+.addNote:hover {
+  color: var(--text-tertiary);
+}
+
+/* Inline note editor — opens in-place when the user clicks an existing comment
+   or the "Add a note…" placeholder. Save persists via saveAnnotation; Cancel
+   discards the draft; Escape inside the textarea also cancels. */
+.editor {
+  margin-top: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.editArea {
+  width: 100%;
+  min-height: 60px;
+  padding: 8px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 12px;
+  line-height: 1.5;
+  resize: vertical;
+}
+
+.editArea:focus,
+.editArea:focus-visible {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.editActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.cancelBtn,
+.saveBtn {
+  padding: 4px 12px;
+  font-size: 11px;
+  font-weight: var(--weight-medium);
+  border-radius: var(--radius-full);
+  border: 0.5px solid var(--border);
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.cancelBtn:hover {
+  border-color: var(--border-strong);
+  color: var(--text-primary);
+}
+
+.saveBtn {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-text);
+}
+
+.saveBtn:hover {
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
 }
 
 .footer {

@@ -60,7 +60,8 @@
   transition: background var(--transition-fast);
 }
 
-.item:hover {
+.item:hover,
+.item:active {
   background: var(--bg-elevated);
 }
 
