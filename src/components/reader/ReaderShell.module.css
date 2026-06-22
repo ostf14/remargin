@@ -533,7 +533,8 @@
     height: 44px;
   }
   .progressPill {
-    bottom: calc(env(safe-area-inset-bottom) + 4px);
+    /* Match .actionPill's bottom so the two pills sit on the same baseline. */
+    bottom: calc(12px + env(safe-area-inset-bottom));
     font-size: 10px;
     padding: 3px 8px;
     opacity: 0.7;
