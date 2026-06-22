@@ -246,8 +246,7 @@ export function NotesView() {
                     <div key={a.id} className={styles.card}>
                       <div className={styles.colorBar} style={{ background: COLOR_MAP[a.color] }} />
                       <div className={styles.content}>
-                        {/* The quote stays the "jump to the highlight in the book"
-                            affordance — clicking it opens the reader at this CFI. */}
+                        {/* Quote = jump-to-highlight affordance. Italic + click → openBook. */}
                         <div
                           className={styles.quote}
                           onClick={() => openBook(book, a.anchor)}
@@ -257,44 +256,45 @@ export function NotesView() {
                           {a.highlightedText}
                         </div>
 
-                        {isEditing ? (
-                          <div className={styles.editor}>
+                        {/* Note input box: ALWAYS rendered, even when empty, so the
+                            edit affordance is unmistakable and the click zone is far
+                            from the quote. Clicking the box swaps the display div for
+                            a real textarea (autofocus); blur, Enter, or Escape close
+                            it. stopPropagation isolates clicks from any future parent
+                            handler on the card. */}
+                        <div
+                          className={styles.noteInputWrap}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (!isEditing) startEdit(a);
+                          }}
+                        >
+                          {isEditing ? (
                             <textarea
-                              className={styles.editArea}
+                              className={styles.noteInput}
                               autoFocus
                               value={draft}
                               onChange={(e) => setDraft(e.target.value)}
+                              onBlur={() => void saveEdit(a)}
                               onKeyDown={(e) => {
                                 if (e.key === 'Escape') {
                                   e.preventDefault();
                                   cancelEdit();
+                                } else if (e.key === 'Enter' && !e.shiftKey) {
+                                  e.preventDefault();
+                                  // Defer so React commits draft state before save reads it
+                                  // via the function closure (already in sync via state).
+                                  void saveEdit(a);
                                 }
                               }}
                               placeholder="Add a note…"
                             />
-                            <div className={styles.editActions}>
-                              <button className={styles.cancelBtn} onClick={cancelEdit}>
-                                Cancel
-                              </button>
-                              <button className={styles.saveBtn} onClick={() => void saveEdit(a)}>
-                                Save
-                              </button>
-                            </div>
-                          </div>
-                        ) : a.note.trim() ? (
-                          <div
-                            className={styles.comment}
-                            onClick={() => startEdit(a)}
-                            role="button"
-                            tabIndex={0}
-                          >
-                            {a.note}
-                          </div>
-                        ) : (
-                          <button className={styles.addNote} onClick={() => startEdit(a)}>
-                            Add a note…
-                          </button>
-                        )}
+                          ) : a.note.trim() ? (
+                            <div className={styles.noteText}>{a.note}</div>
+                          ) : (
+                            <div className={styles.notePlaceholder}>Add a note…</div>
+                          )}
+                        </div>
 
                         <div className={styles.footer}>
                           <span className={styles.footMeta}>

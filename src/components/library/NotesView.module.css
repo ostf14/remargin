@@ -179,7 +179,6 @@
 
 .card:hover,
 .card:active {
-  background: var(--bg-tertiary);
   border-color: var(--border-strong);
 }
 
@@ -195,10 +194,8 @@
   min-width: 0;
 }
 
-/* Full text, no clamp — long notes just make the card taller. break-word stops
-   long unbroken strings (URLs etc.) from spilling past the card edge. Quote +
-   comment carry their own cursor:pointer since the parent card no longer has
-   onClick — each is an independent click target (open vs edit). */
+/* Quote = jump-to-highlight target. Italic, click → openBook. Hover dims slightly
+   to signal interactivity separately from the note box below. */
 .quote {
   font-size: 13px;
   color: var(--text-secondary);
@@ -207,56 +204,44 @@
   overflow-wrap: break-word;
   word-break: break-word;
   cursor: pointer;
+  transition: opacity 150ms var(--ease-out);
 }
 
-.comment {
-  margin-top: 4px;
-  font-size: 12px;
-  color: var(--text-tertiary);
-  line-height: 1.5;
-  white-space: pre-wrap;
-  overflow-wrap: break-word;
-  word-break: break-word;
-  cursor: pointer;
+.quote:hover {
+  opacity: 0.8;
 }
 
-/* "Add a note…" placeholder — shows when annotation.note is empty, swaps for
-   the textarea editor on click. */
-.addNote {
-  margin-top: 4px;
-  display: block;
+/* Note input box: a textarea-shaped container always present under the quote,
+   even when the annotation has no note yet. Visually unambiguous as an input
+   field (border, tinted bg, focusable). Click swaps the read-only display for
+   a real textarea (autofocus); blur, Enter, or Escape close it. */
+.noteInputWrap {
+  margin-top: 6px;
+  padding: 8px 10px;
+  background: var(--bg-tertiary);
+  border: 0.5px solid var(--border);
+  border-radius: 6px;
+  min-height: 36px;
+  cursor: text;
+  transition: border-color 150ms var(--ease-out);
+}
+
+.noteInputWrap:hover {
+  border-color: var(--border-strong);
+}
+
+.noteInputWrap:focus-within {
+  border-color: var(--accent);
+}
+
+.noteInput {
   width: 100%;
-  text-align: left;
+  min-height: 24px;
+  margin: 0;
   padding: 0;
   background: transparent;
   border: none;
-  font-size: 12px;
-  font-family: inherit;
-  color: var(--text-quaternary);
-  cursor: pointer;
-}
-
-.addNote:hover {
-  color: var(--text-tertiary);
-}
-
-/* Inline note editor — opens in-place when the user clicks an existing comment
-   or the "Add a note…" placeholder. Save persists via saveAnnotation; Cancel
-   discards the draft; Escape inside the textarea also cancels. */
-.editor {
-  margin-top: 6px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.editArea {
-  width: 100%;
-  min-height: 60px;
-  padding: 8px;
-  background: var(--bg-tertiary);
-  border: 1px solid var(--border-strong);
-  border-radius: 6px;
+  outline: none;
   color: var(--text-primary);
   font-family: inherit;
   font-size: 12px;
@@ -264,44 +249,19 @@
   resize: vertical;
 }
 
-.editArea:focus,
-.editArea:focus-visible {
-  outline: none;
-  border-color: var(--accent);
-}
-
-.editActions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 6px;
-}
-
-.cancelBtn,
-.saveBtn {
-  padding: 4px 12px;
-  font-size: 11px;
-  font-weight: var(--weight-medium);
-  border-radius: var(--radius-full);
-  border: 0.5px solid var(--border);
-  background: transparent;
+.noteText {
+  font-size: 12px;
   color: var(--text-secondary);
-  cursor: pointer;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  word-break: break-word;
 }
 
-.cancelBtn:hover {
-  border-color: var(--border-strong);
-  color: var(--text-primary);
-}
-
-.saveBtn {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: var(--accent-text);
-}
-
-.saveBtn:hover {
-  background: var(--accent-hover);
-  border-color: var(--accent-hover);
+.notePlaceholder {
+  font-size: 12px;
+  color: var(--text-quaternary);
+  font-style: italic;
 }
 
 .footer {
