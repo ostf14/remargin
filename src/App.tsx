@@ -12,10 +12,12 @@ const hasFiles = (e: DragEvent) =>
 // lands on a populated shelf instead of the empty-state import prompt. Honours the
 // localStorage flag: once seeding actually succeeds (or the user already has any
 // book), we never re-seed — deleting demos doesn't bring them back.
-// Key bumped to _v2: an earlier version set the flag synchronously BEFORE fetching,
-// so users who visited before the EPUB files were deployed got the flag set on an
-// empty seed and never retried. _v2 forces those users through the retry path.
-const SEED_KEY = 'remargin_seeded_v2';
+// Key bumped to _v3: two previous variants (no suffix, then _v2) both had a bug
+// where the flag could be set on an empty seed (sync-before-fetch in v1; silently-
+// swallowed-importFiles error in v2), leaving users locked out without books. The
+// post-import library check below now guards against re-occurrence, and _v3 forces
+// stuck users through the retry path one more time.
+const SEED_KEY = 'remargin_seeded_v3';
 const SEED_FILES = [
   '/The Prince.epub',
   '/The Art Of War.epub',
