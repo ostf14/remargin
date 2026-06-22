@@ -104,10 +104,12 @@
 
 /* ─────────────────────────── Mobile (≤600px): edge-to-edge ─────────────────────────── */
 @media (max-width: 600px) {
-  /* Bottom padding reserves room for the floating actionPill so the page never sits
-     under it. 76px = pill height (~52) + breathing room + safe-area. */
+  /* Page background extends to the very bottom of the viewport — the floating
+     actionPill / progressPill are position:fixed and sit OVER the page, so we don't
+     need to carve a reserve out of the desk for them. Clearance for the last text
+     line is handled inside the iframe body via surfaceTheme()'s mobile padding-bottom. */
   .desk {
-    padding: 44px 0 calc(76px + env(safe-area-inset-bottom));
+    padding: 44px 0 0;
   }
   /* .page fills the desk's content box — the pill reserve already sits in the desk's
      bottom padding, so subtracting it again here would leave a dead band of empty
