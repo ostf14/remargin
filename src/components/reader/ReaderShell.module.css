@@ -335,16 +335,20 @@
 }
 
 /* ─────────────────────────── Progress + bottom info ─────────────────────────── */
-/* Thin full-width progress strip just under the top bar. Part of the auto-hide chrome,
-   so it fades in and out together with everything else. */
+/* Thin full-width progress strip pinned to the very bottom edge of the viewport.
+   Part of the auto-hide chrome on desktop (fades with everything else); on mobile
+   the @media block forces it permanently visible. */
 .progressTrack {
-  position: absolute;
-  top: 52px;
+  position: fixed;
+  bottom: 0;
   left: 0;
   right: 0;
-  height: 2px;
+  height: 3px;
+  margin: 0;
+  padding: 0;
+  border-radius: 0;
   background: var(--border);
-  z-index: 21;
+  z-index: 200;
   opacity: 0;
   transition: opacity 0.4s cubic-bezier(0.16, 1, 0.3, 1);
 }
