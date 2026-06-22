@@ -508,7 +508,11 @@
 
   .topBar {
     height: 44px;
-    padding: 0 10px;
+    /* Match the inset of the bottom pills (.progressPill / .actionPill at 12px from
+       the edge with their own internal padding) — 8px here brings the centred 44×44
+       icon buttons to roughly the same visual distance from the screen edge as the
+       icons inside the bottom pills. */
+    padding: 0 8px;
   }
   /* .backBtn only contains an icon and didn't justify-content:center like .iconBtn,
      so its 16px arrow sat at the LEFT edge of the 44×44 touch box while the gear
