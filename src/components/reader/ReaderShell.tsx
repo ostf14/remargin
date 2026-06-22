@@ -165,21 +165,57 @@ export function ReaderShell({
   }, [settingsOpen, bump]);
 
   // Click / tap anywhere outside the drawer (and not on its toggle) closes it.
-  // Listening on mousedown/touchstart so the dismiss feels immediate; the toggle's
-  // own onClick still runs because we only check containment, not preventDefault.
+  // Two subtleties handled here:
+  //   1. Defer the listener by one tick — without the setTimeout, the click that
+  //      OPENED the drawer can race the same listener (it bubbles to document after
+  //      our state update commits, and we'd close immediately).
+  //   2. Iframe isolation — the EPUB text lives in an iframe whose pointer events
+  //      never bubble to the parent document. Attach the same handler to any
+  //      iframe.contentDocument currently in the reader so taps on the text also
+  //      dismiss the drawer. Using click/touchend so the handler runs after the
+  //      iframe's own event pipeline has had its chance.
+  const cleanupClickOutsideRef = useRef<(() => void) | null>(null);
   useEffect(() => {
     if (!settingsOpen) return;
-    const onPointerDown = (e: MouseEvent | TouchEvent) => {
-      const target = e.target as Node;
-      if (settingsDrawerRef.current?.contains(target)) return;
-      if (settingsBtnRef.current?.contains(target)) return;
-      setSettingsOpen(false);
-    };
-    document.addEventListener('mousedown', onPointerDown);
-    document.addEventListener('touchstart', onPointerDown);
+    const timer = window.setTimeout(() => {
+      const onPointerUp = (e: Event) => {
+        const target = e.target as Node | null;
+        if (!target) return;
+        if (settingsDrawerRef.current?.contains(target)) return;
+        if (settingsBtnRef.current?.contains(target)) return;
+        setSettingsOpen(false);
+      };
+      document.addEventListener('click', onPointerUp);
+      document.addEventListener('touchend', onPointerUp);
+      const iframeDocs: Document[] = [];
+      document.querySelectorAll('iframe').forEach((f) => {
+        try {
+          const d = (f as HTMLIFrameElement).contentDocument;
+          if (!d) return;
+          d.addEventListener('click', onPointerUp);
+          d.addEventListener('touchend', onPointerUp);
+          iframeDocs.push(d);
+        } catch {
+          /* cross-origin iframe — skip */
+        }
+      });
+      cleanupClickOutsideRef.current = () => {
+        document.removeEventListener('click', onPointerUp);
+        document.removeEventListener('touchend', onPointerUp);
+        for (const d of iframeDocs) {
+          try {
+            d.removeEventListener('click', onPointerUp);
+            d.removeEventListener('touchend', onPointerUp);
+          } catch {
+            /* doc may have gone away */
+          }
+        }
+      };
+    }, 10);
     return () => {
-      document.removeEventListener('mousedown', onPointerDown);
-      document.removeEventListener('touchstart', onPointerDown);
+      window.clearTimeout(timer);
+      cleanupClickOutsideRef.current?.();
+      cleanupClickOutsideRef.current = null;
     };
   }, [settingsOpen]);
 
