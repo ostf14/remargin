@@ -109,9 +109,12 @@
   .desk {
     padding: 44px 0 calc(76px + env(safe-area-inset-bottom));
   }
+  /* .page fills the desk's content box — the pill reserve already sits in the desk's
+     bottom padding, so subtracting it again here would leave a dead band of empty
+     surface above the pill. height:100% claims the full available area. */
   .page {
     aspect-ratio: auto;
-    height: calc(100% - 76px - env(safe-area-inset-bottom));
+    height: 100%;
     width: 100%;
     max-width: 100%;
     border-radius: 0;
