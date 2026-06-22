@@ -9,7 +9,7 @@ import {
   ArrowUpDown,
   X,
   LayoutGrid,
-  MessageSquareText,
+  PenTool,
 } from 'lucide-react';
 import type { Book, LibraryView } from '../../types';
 import { useLibrary } from '../../hooks/useLibrary';
@@ -334,7 +334,7 @@ export function BookGrid() {
             title="Notes view"
             aria-label="Notes view"
           >
-            <MessageSquareText size={16} />
+            <PenTool size={16} />
           </button>
         </div>
       )}
