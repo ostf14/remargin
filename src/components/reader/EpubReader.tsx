@@ -136,6 +136,7 @@ export function EpubReader({ book }: Props) {
   annotationsRef.current = annotations;
   const [chapter, setChapter] = useState('');
   const [percentage, setPercentage] = useState(book.progress ?? 0);
+  const [pageText, setPageText] = useState('');
   const [loading, setLoading] = useState(true);
   const [wordCount, setWordCount] = useState(book.wordCount);
   const [popover, setPopover] = useState<PopoverState | null>(null);
@@ -415,7 +416,14 @@ export function EpubReader({ book }: Props) {
         });
 
         r.on('relocated', (location: unknown) => {
-          const loc = location as { start: { cfi: string; href: string; percentage: number } };
+          const loc = location as {
+            start: {
+              cfi: string;
+              href: string;
+              percentage: number;
+              displayed?: { page?: number; total?: number };
+            };
+          };
           lastCfiRef.current = loc.start.cfi;
           const side = sideRef.current;
           let pct = Math.round((loc.start.percentage || 0) * 100);
@@ -425,6 +433,14 @@ export function EpubReader({ book }: Props) {
           }
           pct = Math.max(0, Math.min(100, pct));
           setPercentage(pct);
+
+          // epub.js gives us section-local page numbers via loc.start.displayed —
+          // global pagination would need a full locations.generate, which we already
+          // run on a side instance only for the progress-percentage estimate. The
+          // per-section indicator is informative enough for now.
+          const d = loc.start.displayed;
+          if (d && d.page && d.total) setPageText(`${d.page} / ${d.total}`);
+          else setPageText('');
 
           patchBook(book.id, {
             lastOpened: new Date().toISOString(),
@@ -943,6 +959,7 @@ export function EpubReader({ book }: Props) {
       subtitle={chapter || 'Chapter'}
       progress={percentage}
       progressText={progressText}
+      pageText={pageText}
       onPrev={() => renditionRef.current?.prev()}
       onNext={() => renditionRef.current?.next()}
       search={{

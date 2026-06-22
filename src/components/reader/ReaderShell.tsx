@@ -36,6 +36,7 @@ interface Props {
   subtitle?: string; // chapter (EPUB)
   progress: number; // 0–100
   progressText: string; // "22% · ~4h 50m left" — shown in the always-on bottom pill
+  pageText?: string; // "12 / 156" — bottom-centre page indicator, hidden when empty
   onPrev: () => void;
   onNext: () => void;
   search?: SearchControls; // in-book find, always shown inline in the header
@@ -64,6 +65,7 @@ export function ReaderShell({
   subtitle,
   progress,
   progressText,
+  pageText,
   onPrev,
   onNext,
   search,
@@ -356,6 +358,11 @@ export function ReaderShell({
 
       {/* Always-on progress pill (bottom-left), like a word count — never auto-hides. */}
       {progressText && <div className={styles.progressPill}>{progressText}</div>}
+
+      {/* Section-local page indicator — sits between progress pill (left) and action pill
+          (right) on the same baseline. epub.js's displayed.page/total are within the
+          current spine section, not global, but reset on every page turn. */}
+      {pageText && <div className={styles.pageIndicator}>{pageText}</div>}
 
       {/* Mobile-only bottom-right action pill — replaces the search toggle + annotations
           icon in the header to keep the small header uncluttered. Hidden on desktop. */}

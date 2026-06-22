@@ -376,6 +376,21 @@
   pointer-events: none;
 }
 
+/* Page indicator (e.g. "12 / 156"): sits between the progress pill on the left and
+   the action pill on the right, on the same baseline. No background — just text. */
+.pageIndicator {
+  position: fixed;
+  bottom: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 50;
+  font-size: 11px;
+  color: var(--text-quaternary);
+  font-family: var(--font-body);
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+}
+
 /* ─────────────────────────── Floating action pill (mobile reader) ───────────────────────────
    Holds the Search-open + Annotations buttons so the small mobile header doesn't get
    crowded. Same colours / shadow as the library's view pill on the opposite corner. */
@@ -537,6 +552,12 @@
     bottom: calc(12px + env(safe-area-inset-bottom));
     font-size: 10px;
     padding: 3px 8px;
+    opacity: 0.7;
+  }
+  .pageIndicator {
+    /* Same baseline as .progressPill + .actionPill. */
+    bottom: calc(12px + env(safe-area-inset-bottom));
+    font-size: 10px;
     opacity: 0.7;
   }
 }
