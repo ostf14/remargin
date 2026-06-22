@@ -34,9 +34,9 @@ interface SearchControls {
 interface Props {
   title: string;
   subtitle?: string; // chapter (EPUB)
-  progress: number; // 0–100
-  progressText: string; // "22% · ~4h 50m left" — shown in the always-on bottom pill
-  pageText?: string; // "12 / 156" — bottom-centre page indicator, hidden when empty
+  progress: number; // 0–100 — percentage component of the bottom pill
+  timeLeft?: string | null; // e.g. "4h 50m" — appears after a '|' divider, dropped when null
+  pageText?: string; // "12 / 156" — appended after another '|' on desktop, hidden on mobile (the standalone .pageIndicator carries it there instead)
   onPrev: () => void;
   onNext: () => void;
   search?: SearchControls; // in-book find, always shown inline in the header
@@ -64,7 +64,7 @@ export function ReaderShell({
   title,
   subtitle,
   progress,
-  progressText,
+  timeLeft,
   pageText,
   onPrev,
   onNext,
@@ -431,20 +431,25 @@ export function ReaderShell({
       </div>
 
       {/* Always-on progress pill (bottom-left), like a word count — never auto-hides. */}
-      {progressText && (
-        <div className={styles.progressPill}>
-          {progressText}
-          {/* Desktop merges page count into this pill via a styled '|' divider; on
-              mobile .pillPageSegment is display:none and the page count lives in the
-              separate bottom-centre .pageIndicator instead. */}
-          {pageText && (
-            <span className={styles.pillPageSegment}>
-              <span className={styles.divider}>|</span>
-              {pageText}
-            </span>
-          )}
-        </div>
-      )}
+      {/* Bottom pill: percent | time-left | page-count. All three segments use the
+          styled '|' divider; the page segment is hidden on mobile (see .pillPageSegment
+          in the @media block) and the page count shows up in the separate
+          bottom-centre .pageIndicator instead. */}
+      <div className={styles.progressPill}>
+        {Math.round(progress)}%
+        {timeLeft && (
+          <>
+            <span className={styles.divider}>|</span>
+            {timeLeft} left
+          </>
+        )}
+        {pageText && (
+          <span className={styles.pillPageSegment}>
+            <span className={styles.divider}>|</span>
+            {pageText}
+          </span>
+        )}
+      </div>
 
       {/* Section-local page indicator — sits between progress pill (left) and action pill
           (right) on the same baseline. epub.js's displayed.page/total are within the

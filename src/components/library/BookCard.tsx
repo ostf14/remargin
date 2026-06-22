@@ -27,7 +27,7 @@ export function BookCard({ book, featured, enriching, onClick, onContextMenu }: 
   const touchStartRef = useRef<{ x: number; y: number } | null>(null);
   const longPressFiredRef = useRef(false);
 
-  // Estimated reading time remaining, for the foot ("22% · ~5h left").
+  // Estimated reading time remaining, for the foot ("22% · 5h left").
   const timeLeft = book.wordCount
     ? formatDuration(readingMinutes(book.wordCount * (1 - progress / 100)))
     : null;
@@ -35,7 +35,7 @@ export function BookCard({ book, featured, enriching, onClick, onContextMenu }: 
   // Progress + time-left on any started/opened book (not just the continue card).
   const footProgress =
     book.lastOpened || progress > 0
-      ? `${progress}%${timeLeft ? ` · ~${timeLeft} left` : ''}`
+      ? `${progress}%${timeLeft ? ` · ${timeLeft} left` : ''}`
       : '';
 
   const clearLongPress = () => {

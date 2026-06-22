@@ -1002,14 +1002,13 @@ export function EpubReader({ book }: Props) {
   const timeLeft = wordCount
     ? formatDuration(readingMinutes(Math.max(0, wordCount * (1 - percentage / 100))))
     : null;
-  const progressText = `${Math.round(percentage)}%${timeLeft ? ` · ~${timeLeft} left` : ''}`;
 
   return (
     <ReaderShell
       title={book.title}
       subtitle={chapter || 'Chapter'}
       progress={percentage}
-      progressText={progressText}
+      timeLeft={timeLeft}
       pageText={pageText}
       onPrev={() => renditionRef.current?.prev()}
       onNext={() => renditionRef.current?.next()}
