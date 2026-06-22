@@ -1,4 +1,5 @@
 import { useCallback, useState } from 'react';
+import ePub, { type Book as EpubBook } from 'epubjs';
 import type { Book } from '../types';
 import { parseEpub } from '../services/epubParser';
 import { fetchBookMetadata } from '../services/googleBooks';
@@ -6,6 +7,35 @@ import { fetchOpenLibraryCover } from '../services/openLibrary';
 import { countWordsFromData } from '../services/wordCount';
 import { saveBookFile } from '../services/storage';
 import { useLibrary } from './useLibrary';
+
+// Pre-generate the global locations index at import time and cache it under
+// remargin_locations_<bookId> so EpubReader can load it instantly on first open
+// instead of paying a 1–3s generate() cost in the reader's side instance. The
+// reader keeps its own lazy generation as a fallback for books imported before
+// this feature shipped, or for clients whose localStorage was cleared.
+async function pregenerateLocations(bookId: string, data: ArrayBuffer): Promise<void> {
+  const key = `remargin_locations_${bookId}`;
+  try {
+    if (localStorage.getItem(key)) return;
+  } catch {
+    return; // storage denied — nothing to cache against
+  }
+  let book: EpubBook | null = null;
+  try {
+    book = ePub(data.slice(0));
+    await book.ready;
+    const locs = book.locations as unknown as {
+      generate: (chars: number) => Promise<string[]>;
+      save: () => string;
+    };
+    await locs.generate(1024);
+    try { localStorage.setItem(key, locs.save()); } catch { /* quota — reader will regen */ }
+  } catch {
+    /* reader's lazy fallback handles it */
+  } finally {
+    try { book?.destroy(); } catch { /* fine */ }
+  }
+}
 
 const titleIsBad = (b: Book) => {
   const t = b.title.trim().toLowerCase();
@@ -88,6 +118,11 @@ export function useImport() {
             if (!window.confirm('This book already exists. Import anyway?')) continue;
           }
           await saveBookFile(parsed.book.id, parsed.data);
+          // Generate + cache the global locations index BEFORE the book shows up in
+          // the shelf — this way the card never appears in a "click-me-and-wait"
+          // state. Awaiting adds ~1–3s per book to perceived import time but
+          // guarantees instant page numbers on first open.
+          await pregenerateLocations(parsed.book.id, parsed.data);
           addBook(parsed.book);
           // Book is in the library now; enrich metadata + count words in the background.
           if (titleIsBad(parsed.book) || authorIsBad(parsed.book) || needsCover(parsed.book)) {
