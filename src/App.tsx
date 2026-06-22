@@ -88,12 +88,9 @@ export default function App() {
       try {
         const files: File[] = [];
         for (const url of SEED_FILES) {
-          // eslint-disable-next-line no-console
-          console.log('[seed] fetching', url);
           try {
             const res = await fetch(encodeURI(url));
             if (!res.ok) {
-              // eslint-disable-next-line no-console
               console.error('[seed] fetch not OK:', url, res.status);
               continue;
             }
@@ -105,19 +102,25 @@ export default function App() {
           }
         }
         if (files.length === 0) {
-          // eslint-disable-next-line no-console
-          console.log('[seed] no files fetched — will retry on next visit');
+          // Nothing reachable — leave the flag absent so the next mount retries.
           seedInFlight = false;
           return;
         }
-        // eslint-disable-next-line no-console
-        console.log('[seed] importing', files.length, 'demo books');
         await importFiles(files);
-        localStorage.setItem(SEED_KEY, '1');
-        // eslint-disable-next-line no-console
-        console.log('[seed] done');
+        // importFiles has its own internal try/catch that swallows errors and
+        // resolves cleanly even when no book was actually added. Verify the
+        // library actually got something before locking out future retries.
+        const after = localStorage.getItem('remargin_books');
+        const addedCount =
+          after && after !== '[]' ? (JSON.parse(after) as unknown[]).length : 0;
+        if (addedCount > 0) {
+          localStorage.setItem(SEED_KEY, '1');
+        } else {
+          console.error('[seed] importFiles resolved but library is empty — will retry');
+          seedInFlight = false;
+        }
       } catch (e) {
-        console.error('[seed] import failed:', e);
+        console.error('[seed] crashed:', e);
         seedInFlight = false;
       }
     })();
