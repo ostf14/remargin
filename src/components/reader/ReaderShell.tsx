@@ -90,6 +90,11 @@ export function ReaderShell({
   const timerRef = useRef<number | null>(null);
   const settingsRef = useRef(settingsOpen);
   settingsRef.current = settingsOpen;
+  // DOM refs for the click-outside / escape closer below. settingsRef above tracks
+  // the open boolean for the auto-hide timer; these point at the actual nodes so we
+  // can decide whether a pointer event landed inside the drawer or on its toggle.
+  const settingsDrawerRef = useRef<HTMLDivElement>(null);
+  const settingsBtnRef = useRef<HTMLButtonElement>(null);
   const searchActive = !!search?.query; // a non-empty query keeps the chrome up
   const searchRef = useRef(searchActive);
   searchRef.current = searchActive;
@@ -158,6 +163,35 @@ export function ReaderShell({
   useEffect(() => {
     if (settingsOpen) bump();
   }, [settingsOpen, bump]);
+
+  // Click / tap anywhere outside the drawer (and not on its toggle) closes it.
+  // Listening on mousedown/touchstart so the dismiss feels immediate; the toggle's
+  // own onClick still runs because we only check containment, not preventDefault.
+  useEffect(() => {
+    if (!settingsOpen) return;
+    const onPointerDown = (e: MouseEvent | TouchEvent) => {
+      const target = e.target as Node;
+      if (settingsDrawerRef.current?.contains(target)) return;
+      if (settingsBtnRef.current?.contains(target)) return;
+      setSettingsOpen(false);
+    };
+    document.addEventListener('mousedown', onPointerDown);
+    document.addEventListener('touchstart', onPointerDown);
+    return () => {
+      document.removeEventListener('mousedown', onPointerDown);
+      document.removeEventListener('touchstart', onPointerDown);
+    };
+  }, [settingsOpen]);
+
+  // Escape closes the drawer too — mirrors how most native dropdowns behave.
+  useEffect(() => {
+    if (!settingsOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setSettingsOpen(false);
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [settingsOpen]);
 
   useEffect(() => {
     if (searchActive) bump();
@@ -292,6 +326,7 @@ export function ReaderShell({
             <PenTool size={16} />
           </button>
           <button
+            ref={settingsBtnRef}
             className={`${styles.iconBtn} ${settingsOpen ? styles.iconBtnActive : ''}`}
             onClick={() => setSettingsOpen((o) => !o)}
             title="Settings"
@@ -300,7 +335,10 @@ export function ReaderShell({
             <Settings size={16} />
           </button>
 
-          <div className={`${styles.settings} ${settingsOpen ? styles.settingsOpen : ''}`}>
+          <div
+            ref={settingsDrawerRef}
+            className={`${styles.settings} ${settingsOpen ? styles.settingsOpen : ''}`}
+          >
             {font && (
               <div className={styles.row}>
                 <span className={styles.label}>Font</span>
