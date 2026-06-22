@@ -161,7 +161,7 @@ export function BookGrid() {
               title="Search"
               aria-label="Open search"
             >
-              <Search size={20} />
+              <Search size={18} strokeWidth={1.5} />
             </button>
           )}
           {hasBooks && view !== 'notes' && (
@@ -176,7 +176,7 @@ export function BookGrid() {
                   {SORT_OPTIONS.find((o) => o.value === sort)?.label}
                   <ChevronDown size={12} />
                 </span>
-                <ArrowUpDown className={styles.sortIcon} size={20} />
+                <ArrowUpDown className={styles.sortIcon} size={18} strokeWidth={1.5} />
               </button>
               {sortOpen && (
                 <div className={styles.sortMenu}>
@@ -211,7 +211,11 @@ export function BookGrid() {
             title={theme === 'dark' ? 'Light theme' : 'Dark theme'}
             aria-label="Toggle theme"
           >
-            {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
+            {theme === 'dark' ? (
+              <Sun size={17} strokeWidth={1.5} />
+            ) : (
+              <Moon size={17} strokeWidth={1.5} />
+            )}
           </button>
         </div>
 
