@@ -65,7 +65,7 @@ function surfaceTheme(surface: ReadingSurface): Record<string, Record<string, st
     body: {
       background: 'transparent !important',
       color: `${ink} !important`,
-      'font-family': "'Literata', Georgia, serif !important",
+      'font-family': "'Satoshi', system-ui, sans-serif !important",
       'line-height': '1.7 !important',
       padding: isMobile ? '0 0 55px 0 !important' : '0 !important',
       '-webkit-user-select': 'text !important',
@@ -363,7 +363,7 @@ export function EpubReader({ book }: Props) {
         r.on('displayed', () => setLoading(false));
 
         // Per-iframe setup: Ctrl+wheel zoom, parent-document activity ping (for chrome
-        // auto-hide), Literata font injection, and our own selection→popover handler.
+        // auto-hide), Satoshi font injection, and our own selection→popover handler.
         // Done once per fresh document.
         const attachedDocs = new Set<Document>();
         r.on('rendered', () => {
@@ -446,7 +446,7 @@ export function EpubReader({ book }: Props) {
             fontLink.id = 'remargin-reading-font';
             fontLink.rel = 'stylesheet';
             fontLink.href =
-              'https://fonts.googleapis.com/css2?family=Literata:ital,wght@0,400;0,700;1,400&display=swap';
+              'https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700&display=swap';
             doc.head.appendChild(fontLink);
           }
           attachedDocs.add(doc);

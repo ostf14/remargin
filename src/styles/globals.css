@@ -2,7 +2,7 @@
   /* ═══════════════════════ TYPOGRAPHY ═══════════════════════ */
   --font-display: 'DM Serif Display', Georgia, serif;          /* logo only */
   --font-body: 'Satoshi', system-ui, -apple-system, sans-serif; /* everything else */
-  --font-reading: 'Literata', Georgia, 'Times New Roman', serif; /* EPUB body text */
+  --font-reading: 'Satoshi', system-ui, -apple-system, sans-serif; /* EPUB body text */
   --font-mono: 'JetBrains Mono', 'Fira Code', monospace;        /* code, metadata, key hints */
   --font-sans: var(--font-body);   /* legacy alias */
   --font-serif: var(--font-reading); /* legacy alias */
