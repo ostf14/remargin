@@ -13,7 +13,7 @@ export async function parseEpub(file: File): Promise<{ book: Book; data: ArrayBu
   const metaTitle = (meta.title || '').trim();
   const metaAuthor = (meta.creator || '').trim();
   const title = metaTitle && metaTitle.toLowerCase() !== 'untitled' ? metaTitle : fromName.title;
-  const author = metaAuthor || fromName.author || 'Unknown Author';
+  const author = metaAuthor || fromName.author || '';
 
   let coverUrl: string | null = null;
   try {

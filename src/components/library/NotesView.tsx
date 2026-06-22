@@ -21,7 +21,12 @@ const COLOR_MAP: Record<string, string> = {
 };
 
 function anchorLabel(a: Annotation): string {
-  return a.anchor.kind === 'epub' ? a.anchor.chapter : `Page ${a.anchor.page}`;
+  // Show "Page N" if the annotation carries one (PDFs always do; newer EPUB
+  // highlights capture the section-local page at creation time). Older EPUB
+  // highlights with no page field render as an empty label — the date next to
+  // it still locates the note.
+  if (a.anchor.kind === 'pdf') return `Page ${a.anchor.page}`;
+  return a.anchor.page ? `Page ${a.anchor.page}` : '';
 }
 
 function formatDate(iso: string): string {

@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useReader } from './hooks/useReader';
 import { useImport } from './hooks/useImport';
-import { useLibrary } from './hooks/useLibrary';
 import { BookGrid } from './components/library/BookGrid';
 import { DropOverlay } from './components/library/DropOverlay';
 import { EpubReader } from './components/reader/EpubReader';
@@ -11,19 +10,24 @@ const hasFiles = (e: DragEvent) =>
 
 // First-visit seed. Three public-domain EPUBs ship in /public so a brand-new user
 // lands on a populated shelf instead of the empty-state import prompt. Honours the
-// localStorage flag: if seeding ever completed (or the user already had any book),
-// we never re-seed — deleting demos doesn't bring them back.
-const SEED_KEY = 'remargin_seeded';
+// localStorage flag: once seeding actually succeeds (or the user already has any
+// book), we never re-seed — deleting demos doesn't bring them back.
+// Key bumped to _v2: an earlier version set the flag synchronously BEFORE fetching,
+// so users who visited before the EPUB files were deployed got the flag set on an
+// empty seed and never retried. _v2 forces those users through the retry path.
+const SEED_KEY = 'remargin_seeded_v2';
 const SEED_FILES = [
   '/The Prince.epub',
   '/The Art Of War.epub',
   '/Beyond Good and Evil.epub',
 ];
+// Module-level guard: React 19 StrictMode mounts twice in dev. Without this both
+// mounts would race the same fetches and call importFiles in parallel.
+let seedInFlight = false;
 
 export default function App() {
   const { viewMode, currentBook } = useReader();
   const { importFiles } = useImport();
-  const { books } = useLibrary();
   const [dragging, setDragging] = useState(false);
   // dragenter/dragleave fire per element; count depth so the overlay only hides
   // once the cursor has actually left the window.
@@ -65,34 +69,59 @@ export default function App() {
     };
   }, [importFiles]);
 
-  // Seed-on-first-visit. Set the flag synchronously BEFORE the async fetch so
-  // StrictMode's double-mount can't kick off two parallel seeds, and so a tab
-  // closed mid-seed doesn't re-trigger on next open. Fires once per browser.
+  // Seed-on-first-visit. The flag is set ONLY after at least one file successfully
+  // imports — if every fetch 404s (files not deployed yet), no flag, retry next
+  // mount. Module-level `seedInFlight` guards against StrictMode's double-mount
+  // racing the same fetches. Hits localStorage directly for the books check so we
+  // don't depend on useLibrary's render-time state being populated yet.
   useEffect(() => {
+    if (seedInFlight) return;
     if (localStorage.getItem(SEED_KEY)) return;
-    if (books.length > 0) {
-      // User already has books (manual import in an older session before this
-      // feature shipped, or a different seed run) — skip and mark done.
+    const stored = localStorage.getItem('remargin_books');
+    const hasBooks = !!(stored && stored !== '[]' && JSON.parse(stored).length > 0);
+    if (hasBooks) {
       localStorage.setItem(SEED_KEY, '1');
       return;
     }
-    localStorage.setItem(SEED_KEY, '1');
+    seedInFlight = true;
     (async () => {
-      const files: File[] = [];
-      for (const url of SEED_FILES) {
-        try {
-          const res = await fetch(encodeURI(url));
-          if (!res.ok) continue;
-          const blob = await res.blob();
-          const name = url.split('/').pop() ?? 'book.epub';
-          files.push(new File([blob], name, { type: 'application/epub+zip' }));
-        } catch (e) {
-          console.error('[seed] fetch failed:', url, e);
+      try {
+        const files: File[] = [];
+        for (const url of SEED_FILES) {
+          // eslint-disable-next-line no-console
+          console.log('[seed] fetching', url);
+          try {
+            const res = await fetch(encodeURI(url));
+            if (!res.ok) {
+              // eslint-disable-next-line no-console
+              console.error('[seed] fetch not OK:', url, res.status);
+              continue;
+            }
+            const blob = await res.blob();
+            const name = url.split('/').pop() ?? 'book.epub';
+            files.push(new File([blob], name, { type: 'application/epub+zip' }));
+          } catch (e) {
+            console.error('[seed] fetch error:', url, e);
+          }
         }
+        if (files.length === 0) {
+          // eslint-disable-next-line no-console
+          console.log('[seed] no files fetched — will retry on next visit');
+          seedInFlight = false;
+          return;
+        }
+        // eslint-disable-next-line no-console
+        console.log('[seed] importing', files.length, 'demo books');
+        await importFiles(files);
+        localStorage.setItem(SEED_KEY, '1');
+        // eslint-disable-next-line no-console
+        console.log('[seed] done');
+      } catch (e) {
+        console.error('[seed] import failed:', e);
+        seedInFlight = false;
       }
-      if (files.length > 0) await importFiles(files);
     })();
-    // Mount-only — importFiles changes per render but seeding only happens once.
+    // Mount-only.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

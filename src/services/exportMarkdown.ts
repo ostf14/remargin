@@ -26,18 +26,6 @@ function yamlString(value: string): string {
   return `"${escaped}"`;
 }
 
-/**
- * Best-effort page number from an epubcfi. The CFI doesn't carry true page
- * pagination (that depends on viewport/font), but its first step is the
- * spine position — a stable monotonic locator across the book. We surface
- * that as `page:` in the YAML so every annotation gets a numeric key.
- * Falls back to 0 if the cfi is malformed.
- */
-function pageFromEpubCfi(cfi: string): number {
-  const m = cfi.match(/^epubcfi\(\/(\d+)/);
-  return m ? Number(m[1]) : 0;
-}
-
 /** Date portion (YYYY-MM-DD) of a stored ISO timestamp. */
 function dateOnly(iso: string): string {
   return iso.slice(0, 10);
@@ -56,10 +44,12 @@ function annotationFilename(annotation: Annotation): string {
 /** Render one annotation as a Markdown document: YAML frontmatter + quote (+ note). */
 function annotationToMarkdown(book: Book, annotation: Annotation): string {
   const a = annotation.anchor;
-  // EPUB used to emit `chapter: "..."`. Replace with a numeric `page:` (spine
-  // position derived from the cfi) so notes carry a stable numeric locator the
-  // same way PDF annotations do.
-  const locLine = a.kind === 'pdf' ? `page: ${a.page}` : `page: ${pageFromEpubCfi(a.cfi)}`;
+  // PDF anchors always carry a page; EPUB anchors carry one only on newer
+  // annotations (captured at highlight-creation time). Older EPUB annotations
+  // without a page field omit the locator line entirely.
+  let locLine: string | null = null;
+  if (a.kind === 'pdf') locLine = `page: ${a.page}`;
+  else if (typeof a.page === 'number') locLine = `page: ${a.page}`;
   const quote = flatQuote(annotation.highlightedText);
 
   const frontmatter = [
@@ -71,7 +61,9 @@ function annotationToMarkdown(book: Book, annotation: Annotation): string {
     `date: ${dateOnly(annotation.createdAt)}`,
     `book_title: ${yamlString(book.title)}`,
     '---',
-  ].join('\n');
+  ]
+    .filter((line): line is string => line !== null)
+    .join('\n');
 
   const body = annotation.note.trim()
     ? `> ${quote}\n\n${annotation.note.trim()}\n`

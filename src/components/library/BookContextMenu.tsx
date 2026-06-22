@@ -1,9 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
-import { Upload, ImageDown, FileDown, Trash2 } from 'lucide-react';
+import { Upload, FileDown, Trash2 } from 'lucide-react';
 import type { Book } from '../../types';
 import { useLibrary } from '../../hooks/useLibrary';
-import { fetchBookMetadata } from '../../services/googleBooks';
-import { fetchOpenLibraryCover } from '../../services/openLibrary';
 import { loadAnnotations } from '../../services/storage';
 import { exportAllAnnotations } from '../../services/exportMarkdown';
 import styles from './BookContextMenu.module.css';
@@ -43,13 +41,12 @@ function fileToCoverDataUrl(file: File): Promise<string> {
   });
 }
 
-// Right-click menu for a library book: set its cover (upload / auto-find), export its
-// annotations, or delete it. Closes on outside click or Escape.
+// Right-click menu for a library book: upload a cover, export annotations, or delete.
+// Closes on outside click or Escape.
 export function BookContextMenu({ book, x, y, onClose, onDelete }: Props) {
   const { patchBook } = useLibrary();
   const ref = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
-  const [finding, setFinding] = useState(false);
   const [hasNotes, setHasNotes] = useState(false);
 
   useEffect(() => {
@@ -90,18 +87,6 @@ export function BookContextMenu({ book, x, y, onClose, onDelete }: Props) {
     onClose();
   };
 
-  const findCover = async () => {
-    setFinding(true);
-    try {
-      const meta = await fetchBookMetadata(book.title, book.author);
-      const url = meta.coverUrl || (await fetchOpenLibraryCover(book.title, book.author));
-      if (url) patchBook(book.id, { coverUrl: url });
-    } finally {
-      setFinding(false);
-      onClose();
-    }
-  };
-
   const exportAnnotations = async () => {
     const anns = await loadAnnotations(book.id);
     if (anns.length) await exportAllAnnotations(book, anns);
@@ -117,10 +102,6 @@ export function BookContextMenu({ book, x, y, onClose, onDelete }: Props) {
       <button className={styles.item} onClick={() => fileRef.current?.click()} role="menuitem">
         <Upload size={14} aria-hidden="true" />
         Upload cover
-      </button>
-      <button className={styles.item} onClick={findCover} disabled={finding} role="menuitem">
-        {finding ? <span className={styles.spinner} /> : <ImageDown size={14} aria-hidden="true" />}
-        {finding ? 'Searching…' : 'Find cover'}
       </button>
       {hasNotes && (
         <button className={styles.item} onClick={() => void exportAnnotations()} role="menuitem">

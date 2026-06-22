@@ -1,6 +1,7 @@
 // Format a selected passage as a copyable citation:
 //   "quote" — Author, *Title*, locator
-// Locator is reader-specific: "с. 42" for PDF pages, the chapter name for EPUB.
+// Locator is reader-specific: "p. 42" for paginated pages (EPUB section-local or PDF
+// page). Empty locator is filtered out below.
 export function formatCitation(
   rawText: string,
   book: { author: string; title: string },

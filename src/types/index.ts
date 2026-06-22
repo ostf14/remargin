@@ -15,6 +15,7 @@ export interface EpubAnchor {
   kind: 'epub';
   cfi: string;
   chapter: string;
+  page?: number; // section-local page captured at highlight-creation time (newer annotations only)
 }
 
 export interface PdfAnchor {

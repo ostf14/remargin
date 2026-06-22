@@ -19,7 +19,8 @@ const COLOR_MAP: Record<string, string> = {
 };
 
 function anchorLabel(a: Annotation): string {
-  return a.anchor.kind === 'epub' ? a.anchor.chapter : `Page ${a.anchor.page}`;
+  if (a.anchor.kind === 'pdf') return `Page ${a.anchor.page}`;
+  return a.anchor.page ? `Page ${a.anchor.page}` : '';
 }
 
 export function AnnotationPanel({ annotations, book, onUpdate, onDelete }: Props) {

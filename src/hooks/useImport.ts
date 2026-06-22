@@ -11,10 +11,7 @@ const titleIsBad = (b: Book) => {
   const t = b.title.trim().toLowerCase();
   return !t || t === 'untitled';
 };
-const authorIsBad = (b: Book) => {
-  const a = b.author.trim();
-  return !a || a === 'Unknown Author';
-};
+const authorIsBad = (b: Book) => !b.author.trim();
 const needsCover = (b: Book) => !b.coverUrl;
 
 // Same title + author (case-insensitive) counts as the same book already in the library.

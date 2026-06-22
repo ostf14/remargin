@@ -109,6 +109,7 @@ interface PopoverState {
   text: string;
   cfiRange: string;
   chapter: string;
+  page?: number;
 }
 
 export function EpubReader({ book }: Props) {
@@ -413,13 +414,27 @@ export function EpubReader({ book }: Props) {
             const iframeRect = iframe?.getBoundingClientRect() || { left: 0, top: 0 };
             const x = rect.left + iframeRect.left + rect.width / 2;
             const y = rect.top + iframeRect.top;
+            // Snapshot the current section-local page number so the resulting
+            // annotation carries it. currentLocation() can throw before the manager
+            // is wired; guard like recomputeNotePositions does.
+            let pageNum: number | undefined;
+            try {
+              const loc = r.currentLocation() as
+                | { start?: { displayed?: { page?: number } } }
+                | undefined
+                | null;
+              const p = loc?.start?.displayed?.page;
+              if (typeof p === 'number' && p > 0) pageNum = p;
+            } catch {
+              /* page stays undefined */
+            }
             // Dedup against a stale state object if the same CFI is already shown
             // (e.g. mouseup followed by a touchend on the same commit) — avoids a
             // useless re-render.
             setPopover((prev) =>
               prev && prev.cfiRange === cfiStr
                 ? prev
-                : { x, y, text, cfiRange: cfiStr, chapter: chapter || 'Unknown' },
+                : { x, y, text, cfiRange: cfiStr, chapter, page: pageNum },
             );
           };
           doc.addEventListener('mouseup', handleLiveSelection);
@@ -731,7 +746,12 @@ export function EpubReader({ book }: Props) {
 
   const handleHighlight = (color: HighlightColor = 'yellow') => {
     if (!popover) return;
-    const anchor: EpubAnchor = { kind: 'epub', cfi: popover.cfiRange, chapter: popover.chapter };
+    const anchor: EpubAnchor = {
+      kind: 'epub',
+      cfi: popover.cfiRange,
+      chapter: popover.chapter,
+      page: popover.page,
+    };
     const cfi = popover.cfiRange;
     addAnnotation(popover.text, anchor, color);
     closePopover();
@@ -740,7 +760,12 @@ export function EpubReader({ book }: Props) {
 
   const handleNote = () => {
     if (!popover) return;
-    const anchor: EpubAnchor = { kind: 'epub', cfi: popover.cfiRange, chapter: popover.chapter };
+    const anchor: EpubAnchor = {
+      kind: 'epub',
+      cfi: popover.cfiRange,
+      chapter: popover.chapter,
+      page: popover.page,
+    };
     const cfi = popover.cfiRange;
     const ann = addAnnotation(popover.text, anchor, 'yellow');
     closePopover();
@@ -751,7 +776,12 @@ export function EpubReader({ book }: Props) {
   // Mobile bottom sheet: create the highlight and save the note text inline.
   const handleSaveNoteFromPopover = (text: string) => {
     if (!popover) return;
-    const anchor: EpubAnchor = { kind: 'epub', cfi: popover.cfiRange, chapter: popover.chapter };
+    const anchor: EpubAnchor = {
+      kind: 'epub',
+      cfi: popover.cfiRange,
+      chapter: popover.chapter,
+      page: popover.page,
+    };
     const cfi = popover.cfiRange;
     const ann = addAnnotation(popover.text, anchor, 'yellow');
     closePopover();
@@ -762,7 +792,8 @@ export function EpubReader({ book }: Props) {
   // Copy a formatted citation from the popover (used by the mobile bottom sheet).
   const handleCopyCitationFromPopover = () => {
     if (!popover) return;
-    const citation = formatCitation(popover.text, book, popover.chapter || chapter || 'Chapter');
+    const locator = popover.page ? `p. ${popover.page}` : '';
+    const citation = formatCitation(popover.text, book, locator);
     navigator.clipboard
       .writeText(citation)
       .then(() => showToast('Copied citation'))
@@ -1006,7 +1037,7 @@ export function EpubReader({ book }: Props) {
   return (
     <ReaderShell
       title={book.title}
-      subtitle={chapter || 'Chapter'}
+      subtitle={pageText || undefined}
       progress={percentage}
       timeLeft={timeLeft}
       pageText={pageText}
@@ -1089,7 +1120,8 @@ export function EpubReader({ book }: Props) {
           onCopyCitation={() => {
             const a = annotations.find((x) => x.id === savedPopover.id);
             if (!a || a.anchor.kind !== 'epub') return;
-            const citation = formatCitation(a.highlightedText, book, a.anchor.chapter || chapter);
+            const locator = a.anchor.page ? `p. ${a.anchor.page}` : '';
+            const citation = formatCitation(a.highlightedText, book, locator);
             navigator.clipboard
               .writeText(citation)
               .then(() => showToast('Copied citation'))
