@@ -56,13 +56,18 @@ function surfaceInk(surface: ReadingSurface): string {
 function surfaceTheme(surface: ReadingSurface): Record<string, Record<string, string>> {
   const ink = surfaceInk(surface);
   const link = surface === 'dark' ? '#9b9bff' : '#8e5cd6';
+  // On narrow viewports the textZone hugs the page edges (16/12px paddings) and the
+  // bottom of the page sits right above the action pill — without extra room inside
+  // the iframe itself the last paginated line nearly touches the page's bottom edge.
+  // Give the iframe body a 20px bottom pad on mobile so there's breathing space.
+  const isMobile = typeof window !== 'undefined' && window.innerWidth <= 600;
   return {
     body: {
       background: 'transparent !important',
       color: `${ink} !important`,
       'font-family': "'Literata', Georgia, serif !important",
       'line-height': '1.7 !important',
-      padding: '0 !important',
+      padding: isMobile ? '0 0 20px 0 !important' : '0 !important',
       '-webkit-user-select': 'text !important',
       'user-select': 'text !important',
       // Block the Chrome Android long-press "Google search" callout while preserving
