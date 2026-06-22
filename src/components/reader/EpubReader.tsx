@@ -184,6 +184,37 @@ export function EpubReader({ book }: Props) {
     setZoom((z) => clampZoom(z - e.deltaY * 0.002));
   }, []);
 
+  // Swipe-to-turn-pages. Attached both to the .page wrapper (for taps that land on
+  // its margins / chrome) and to each rendered iframe document (where the EPUB text
+  // actually sits — touch events inside the iframe do not bubble to the parent).
+  // Passive listeners so vertical scrolling stays smooth; the thresholds in onSwipeEnd
+  // filter out scrolls, taps, and the long-press-then-drag that starts text selection.
+  const swipeStartRef = useRef<{ x: number; y: number; t: number } | null>(null);
+  const onSwipeStart = useCallback((e: TouchEvent) => {
+    if (e.touches.length !== 1) {
+      swipeStartRef.current = null;
+      return;
+    }
+    swipeStartRef.current = {
+      x: e.touches[0].clientX,
+      y: e.touches[0].clientY,
+      t: Date.now(),
+    };
+  }, []);
+  const onSwipeEnd = useCallback((e: TouchEvent) => {
+    const s = swipeStartRef.current;
+    swipeStartRef.current = null;
+    if (!s || e.changedTouches.length !== 1) return;
+    const dx = e.changedTouches[0].clientX - s.x;
+    const dy = e.changedTouches[0].clientY - s.y;
+    const dt = Date.now() - s.t;
+    // Need a decisive horizontal flick: ≥50px horizontal, more horizontal than
+    // vertical (else it's a scroll), and under 500ms (else it's a long press).
+    if (Math.abs(dx) < 50 || Math.abs(dy) > Math.abs(dx) || dt > 500) return;
+    if (dx < 0) renditionRef.current?.next();
+    else renditionRef.current?.prev();
+  }, []);
+
   // Position margin notes opposite their highlight. Filter to the currently visible
   // page via CFI compare against rendition.currentLocation()'s start/end CFIs — the
   // older geometric viewport check (range bounding-rect vs iframe size) leaked notes
@@ -393,6 +424,12 @@ export function EpubReader({ book }: Props) {
           };
           doc.addEventListener('mouseup', handleLiveSelection);
           doc.addEventListener('touchend', handleLiveSelection);
+          // Swipe-to-turn-pages on the EPUB text itself — iframe events don't bubble
+          // to the parent .page, so the wrapper-level listener can't see them. Same
+          // handler, passive listeners; the thresholds in onSwipeEnd keep selection
+          // gestures (long-press + drag) and pure scrolls from triggering a turn.
+          doc.addEventListener('touchstart', onSwipeStart, { passive: true });
+          doc.addEventListener('touchend', onSwipeEnd, { passive: true });
           // Mobile fallback: Android Chrome fires touchend BEFORE the browser commits
           // the selection, so window.getSelection() is still collapsed at that moment
           // and handleLiveSelection bails. selectionchange fires through the lifetime
@@ -656,6 +693,20 @@ export function EpubReader({ book }: Props) {
 
   // Two-finger pinch zoom on touch screens. The hook clamps internally.
   usePinchZoom(deskRef, zoomRef, setZoom, { min: ZOOM_MIN, max: ZOOM_MAX });
+
+  // Swipe handler on .page itself — catches taps on the page's margin / chrome areas.
+  // The iframe doc gets the same handler attached inside r.on('rendered') so swipes
+  // over the actual EPUB text are also picked up.
+  useEffect(() => {
+    const el = pageElRef.current;
+    if (!el) return;
+    el.addEventListener('touchstart', onSwipeStart, { passive: true });
+    el.addEventListener('touchend', onSwipeEnd, { passive: true });
+    return () => {
+      el.removeEventListener('touchstart', onSwipeStart);
+      el.removeEventListener('touchend', onSwipeEnd);
+    };
+  }, [onSwipeStart, onSwipeEnd]);
 
   const drawHighlight = (cfi: string, color: HighlightColor) => {
     renditionRef.current?.annotations.highlight(cfi, {}, () => {}, 'hl', {
