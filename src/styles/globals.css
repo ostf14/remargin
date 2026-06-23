@@ -1,9 +1,9 @@
 :root {
   /* ═══════════════════════ TYPOGRAPHY ═══════════════════════ */
-  --font-display: 'DM Serif Display', Georgia, serif;          /* logo only */
-  --font-body: 'Satoshi', system-ui, -apple-system, sans-serif; /* everything else */
-  --font-reading: 'Satoshi', system-ui, -apple-system, sans-serif; /* EPUB body text */
-  --font-mono: 'JetBrains Mono', 'Fira Code', monospace;        /* code, metadata, key hints */
+  --font-display: 'DM Serif Display', Georgia, serif;            /* logo only */
+  --font-body: 'Space Grotesk', system-ui, -apple-system, sans-serif; /* everything else */
+  --font-reading: 'Newsreader', Georgia, serif;                  /* EPUB body text */
+  --font-mono: 'JetBrains Mono', 'Fira Code', monospace;         /* code, metadata, key hints */
   --font-sans: var(--font-body);   /* legacy alias */
   --font-serif: var(--font-reading); /* legacy alias */
 
@@ -21,7 +21,7 @@
 
   --weight-normal: 400;
   --weight-medium: 500;
-  --weight-bold: 500; /* design caps at 500 (Satoshi 400/500 only — no 600/700) */
+  --weight-bold: 500; /* design caps at 500 — Space Grotesk 700 is loaded but unused by tokens */
 
   /* ═══════════════════════ SPACING (4px grid) ═══════════════════════ */
   --space-1: 4px;
