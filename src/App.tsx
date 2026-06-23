@@ -20,7 +20,6 @@ const hasFiles = (e: DragEvent) =>
 const SEED_KEY = 'remargin_seeded_v3';
 const SEED_FILES = [
   '/The Prince.epub',
-  '/The Art Of War.epub',
   '/Beyond Good and Evil.epub',
 ];
 // Module-level guard: React 19 StrictMode mounts twice in dev. Without this both
