@@ -217,10 +217,17 @@ export function EpubReader({ book }: Props) {
   }, []);
 
   // Position margin notes opposite their highlight. Filter to the currently visible
-  // page via CFI compare against rendition.currentLocation()'s start/end CFIs — the
-  // older geometric viewport check (range bounding-rect vs iframe size) leaked notes
-  // from off-screen columns onto every page. Then resolve the cfi to a live Range to
-  // compute its vertical position for the card's anchorTop.
+  // page via TWO filters:
+  //   1. CFI window — annotation.cfi must sit between currentLocation().start.cfi and
+  //      .end.cfi. Cheap, cross-section accurate. But in paginated flow epub.js
+  //      sometimes reports the same start/end CFIs for several consecutive column
+  //      turns inside one section, so this alone leaks the same note onto every
+  //      visual page of the section.
+  //   2. iframe-viewport rect intersection — annotation's range.getBoundingClientRect
+  //      is in the iframe document's viewport (a single column for paginated mode);
+  //      ranges that live in off-screen columns sit at negative-x or x > iw and get
+  //      dropped. This is the per-visual-page guard the CFI window can't give us.
+  // Both together: cross-section bug-resistant AND one-note-per-visual-page.
   const recomputeNotePositions = useCallback(() => {
     const rendition = renditionRef.current;
     if (!rendition) {
@@ -247,6 +254,9 @@ export function EpubReader({ book }: Props) {
       setNotePositions([]);
       return;
     }
+    const iframe = viewerRef.current?.querySelector('iframe');
+    const iw = iframe?.clientWidth ?? 0;
+    const ih = iframe?.clientHeight ?? 0;
     const result: PositionedNote[] = [];
     for (const a of annotationsRef.current) {
       if (a.anchor.kind !== 'epub') continue;
@@ -266,6 +276,13 @@ export function EpubReader({ book }: Props) {
       if (!range) continue;
       const r = range.getBoundingClientRect();
       if (!r) continue;
+      // Viewport intersection: drop annotations whose range sits entirely in an
+      // off-screen column of the current section. Only runs once iframe metrics
+      // are known (iw/ih > 0) — early frames where the iframe hasn't laid out
+      // yet skip the geometric guard rather than reject everything.
+      if (iw > 0 && ih > 0) {
+        if (r.right < 0 || r.left > iw || r.bottom < 0 || r.top > ih) continue;
+      }
       result.push({ id: a.id, anchorTop: EPUB_PAD_TOP + r.top, note: a.note, color: a.color });
     }
     setNotePositions(result);
