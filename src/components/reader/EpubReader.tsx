@@ -177,11 +177,6 @@ export function EpubReader({ book }: Props) {
   const searchSeqRef = useRef(0);
   const searchCacheRef = useRef<{ query: string; matches: EpubSearchMatch[] } | null>(null);
   const searchHighlightRef = useRef<string | null>(null);
-  // The cfi the user was reading at the moment they entered search mode. Snapshotted
-  // ONCE on the first match navigation (when searchFlowRef flips false→true) so
-  // jumping between matches doesn't overwrite it. Restored on search close to put
-  // the reader back where the user was before searching.
-  const preSearchCfiRef = useRef<string | null>(null);
 
   // Ctrl + wheel = continuous visual zoom (blocks the browser's own page zoom).
   const handleZoomWheel = useCallback((e: WheelEvent) => {
@@ -1035,13 +1030,12 @@ export function EpubReader({ book }: Props) {
   useEffect(() => {
     const rendition = renditionRef.current;
     if (!rendition || !searchFlowRef.current || debouncedSearch.trim() !== '') return;
-    // Restore the pre-search position, not currentLocation() — the latter would
-    // leave the user parked on the last match they jumped to.
-    const cfi = preSearchCfiRef.current ?? rendition.currentLocation()?.start?.cfi;
+    // Stay on the match page the user was looking at when they closed search —
+    // that's "the page that was visible at search time" the spec asks for.
+    const cfi = rendition.currentLocation()?.start?.cfi;
     rendition.flow('paginated');
     if (cfi) rendition.display(cfi);
     searchFlowRef.current = false;
-    preSearchCfiRef.current = null;
   }, [debouncedSearch]);
 
   // Centre the active match in the visible reading viewport. Search switches flow to
@@ -1071,11 +1065,8 @@ export function EpubReader({ book }: Props) {
       const rendition = renditionRef.current;
       if (!rendition) return;
       // Lazily switch to scrolled-doc on the first jump (see the flow effect) so the
-      // reflow happens during the jump, not the instant search opened. Snapshot
-      // the cfi the user was reading BEFORE the first jump so we can restore it on
-      // search close; subsequent match jumps don't overwrite this snapshot.
+      // reflow happens during the jump, not the instant search opened.
       if (!searchFlowRef.current) {
-        preSearchCfiRef.current = lastCfiRef.current;
         rendition.flow('scrolled-doc');
         searchFlowRef.current = true;
       }
