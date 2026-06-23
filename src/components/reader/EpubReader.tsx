@@ -177,6 +177,11 @@ export function EpubReader({ book }: Props) {
   const searchSeqRef = useRef(0);
   const searchCacheRef = useRef<{ query: string; matches: EpubSearchMatch[] } | null>(null);
   const searchHighlightRef = useRef<string | null>(null);
+  // cfi of the last match the user navigated to. Used by the close-effect to
+  // restore the exact position the user saw before clicking X — currentLocation
+  // returns the top-of-viewport cfi in scrolled-doc, which after flow change to
+  // paginated paginates from there and pushes the match a column or two down.
+  const lastMatchCfiRef = useRef<string | null>(null);
 
   // Ctrl + wheel = continuous visual zoom (blocks the browser's own page zoom).
   const handleZoomWheel = useCallback((e: WheelEvent) => {
@@ -1030,12 +1035,16 @@ export function EpubReader({ book }: Props) {
   useEffect(() => {
     const rendition = renditionRef.current;
     if (!rendition || !searchFlowRef.current || debouncedSearch.trim() !== '') return;
-    // Stay on the match page the user was looking at when they closed search —
-    // that's "the page that was visible at search time" the spec asks for.
-    const cfi = rendition.currentLocation()?.start?.cfi;
+    // Stay on the exact match page the user was looking at when they closed
+    // search. Prefer the last navigated match cfi over currentLocation, because
+    // currentLocation in scrolled-doc returns the top-of-viewport cfi while the
+    // match itself is scrolled into the middle via centerMatch() — paginating
+    // from the top-of-viewport pushes the match a column or two down.
+    const cfi = lastMatchCfiRef.current ?? rendition.currentLocation()?.start?.cfi;
     rendition.flow('paginated');
     if (cfi) rendition.display(cfi);
     searchFlowRef.current = false;
+    lastMatchCfiRef.current = null;
   }, [debouncedSearch]);
 
   // Centre the active match in the visible reading viewport. Search switches flow to
@@ -1088,6 +1097,10 @@ export function EpubReader({ book }: Props) {
         } catch {
           /* highlight failed (e.g. cfi no longer resolvable) — navigation still happened */
         }
+        // Remember the actual match cfi for the close-effect restore (separate
+        // from searchHighlightRef which clearSearch nulls out before the close
+        // effect fires).
+        lastMatchCfiRef.current = cfi;
         centerMatch();
       });
     },
