@@ -4,7 +4,7 @@
 
 .textarea {
   width: 100%;
-  min-height: 60px;
+  min-height: 36px;
   padding: var(--space-sm);
   background: var(--bg-primary);
   border: 1px solid var(--border);
@@ -12,7 +12,10 @@
   color: var(--text-primary);
   font-size: var(--text-sm);
   font-family: var(--font-body);
-  resize: vertical;
+  /* JS auto-sizes height to scrollHeight; disable manual resize + hide the inner
+     scrollbar so the box just grows under the content. */
+  resize: none;
+  overflow: hidden;
   line-height: var(--leading-normal);
   transition: border-color var(--duration-fast) var(--ease-out);
 }

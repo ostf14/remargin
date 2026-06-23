@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Search, Highlighter, ChevronDown, ChevronUp, FileDown, Download } from 'lucide-react';
 import type { Annotation } from '../../types';
 import { loadAnnotations, saveAnnotation } from '../../services/storage';
@@ -60,6 +60,17 @@ export function NotesView() {
   // editingId scopes to a single annotation; draft holds the in-flight text. Esc cancels.
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draft, setDraft] = useState('');
+  // Auto-size the editing textarea to fit its content — same JS pattern as
+  // NoteEditor in the reader sidebar, so library and reader behave identically.
+  const editAreaRef = useRef<HTMLTextAreaElement>(null);
+  const autoSize = () => {
+    const el = editAreaRef.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = `${el.scrollHeight}px`;
+  };
+  useLayoutEffect(autoSize, [editingId]);
+  useEffect(autoSize, [draft]);
 
   const startEdit = (a: Annotation) => {
     setEditingId(a.id);
@@ -271,6 +282,7 @@ export function NotesView() {
                         >
                           {isEditing ? (
                             <textarea
+                              ref={editAreaRef}
                               className={styles.noteInput}
                               autoFocus
                               value={draft}

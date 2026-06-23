@@ -246,7 +246,10 @@
   font-family: inherit;
   font-size: 12px;
   line-height: 1.5;
-  resize: vertical;
+  /* JS auto-sizes height to scrollHeight on every change; no manual resize
+     handle, no inner scrollbar. */
+  resize: none;
+  overflow: hidden;
 }
 
 .noteText {
