@@ -194,13 +194,15 @@
   min-width: 0;
 }
 
-/* Quote = jump-to-highlight target. Italic, click → openBook. Hover dims slightly
-   to signal interactivity separately from the note box below. */
+/* Quote = jump-to-highlight target. Click → openBook. Uses the reading font
+   (Newsreader) so the excerpt reads like the book it came from, but upright —
+   italic was hard to scan in the dark theme. Hover dims slightly to signal
+   interactivity separately from the note box below. */
 .quote {
+  font-family: var(--font-reading);
   font-size: 13px;
   color: var(--text-secondary);
   line-height: 1.5;
-  font-style: italic;
   overflow-wrap: break-word;
   word-break: break-word;
   cursor: pointer;

@@ -118,6 +118,7 @@
 }
 
 .quote {
+  font-family: var(--font-reading);
   font-size: var(--text-sm);
   line-height: var(--leading-normal);
   border-left: 3px solid var(--accent);
