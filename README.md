@@ -1,73 +1,75 @@
-# React + TypeScript + Vite
+# ReMargin
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+EPUB reader with margin annotations. Read, highlight, take notes — export everything as Markdown.
 
-Currently, two official plugins are available:
+**[→ Open ReMargin](https://remargin-sage.vercel.app)**
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+![ReMargin screenshot](https://remargin-sage.vercel.app/og-image.png)
 
-## React Compiler
+## What it does
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+ReMargin is a local-first web app for reading EPUB books and annotating them with highlights and margin notes. All data stays on your device. Export to Markdown for Obsidian, Notion, or any PKM workflow.
 
-## Expanding the ESLint configuration
+## Features
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+- **5-color highlights** with keyboard shortcuts (1–5)
+- **Margin notes** with connector lines to highlighted text
+- **Formatted citation copy** (Ctrl+Shift+C)
+- **In-book search** with navigation
+- **Reading surfaces** — light, sepia, dark
+- **Cross-book annotation dashboard** (Notes view)
+- **Export** — per-note Markdown with YAML frontmatter, per-book zip, bulk export
+- **Global page numbering** via epub.js locations
+- **Auto cover fetching** — Google Books → Open Library fallback
+- **PWA** — installable, works offline
+- **Mobile responsive** — bottom sheet annotations, swipe navigation
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+## Stack
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+- React 19 + TypeScript
+- epub.js (rendering, pagination, annotations)
+- IndexedDB (file storage) + localStorage (metadata)
+- CSS Modules
+- Vite
+- Vercel
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+## Typography
+
+- **UI**: Space Grotesk
+- **Reading**: Newsreader
+- **Logo**: DM Serif Display
+
+## Architecture
+
+~4500 lines TypeScript. Key components:
+
+| Component | Lines | Role |
+|-----------|-------|------|
+| EpubReader | ~1000 | EPUB rendering, highlights, annotations, search |
+| ReaderShell | ~400 | Immersive chrome, settings drawer, navigation |
+| BookGrid | ~365 | Library, search, sort, grid/notes views |
+| NotesView | ~250 | Cross-book annotation dashboard with export |
+
+## Design decisions
+
+- **Local-first**: IndexedDB for files, localStorage for metadata. No server, no auth, no lock-in.
+- **epub.js native API**: After 8 failed rewrites of custom scroll/append logic, settled on `manager: 'continuous'` + `flow: 'scrolled'` — let the library do its job.
+- **Margin notes as first-class**: Not hidden in a sidebar. Visible on the page margin with connector lines, like handwritten marginalia.
+- **Export-first annotations**: Every highlight exports to Markdown with YAML frontmatter. Built for Obsidian/Zettelkasten workflows.
+
+## Run locally
+
+```bash
+git clone https://github.com/ostf14/remargin
+cd remargin
+npm install
+npm run dev
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+## License
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+MIT
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+---
+
+Built by [Aleksandr Mihhailovski](https://mihhailovski-product-designer.vercel.app)
