@@ -149,6 +149,12 @@ export function EpubReader({ book }: Props) {
   const autoFocusIdRef = useRef<string | null>(null);
   autoFocusIdRef.current = autoFocusId;
   const [relocateTick, setRelocateTick] = useState(0);
+  // Bumped each time a fresh rendition is wired in. The highlights effect uses this
+  // as a dep so it re-evaluates AFTER the rendition exists — without it, annotations
+  // that finish loading from IDB before the rendition is created would hit an
+  // early-return (renditionRef.current === null) and never paint, since no later
+  // dep change would re-trigger the effect.
+  const [renditionEpoch, setRenditionEpoch] = useState(0);
   const [fontOffset, setFontOffset] = useState(() => clampFontOffset(loadAppState().epubFontSizeOffset));
   const fontOffsetRef = useRef(fontOffset);
   fontOffsetRef.current = fontOffset;
@@ -611,6 +617,11 @@ export function EpubReader({ book }: Props) {
       };
 
       rendition = createRendition();
+      // Tell the highlights effect a live rendition is now wired up. Without this
+      // signal, annotations that finished loading before this point would have run
+      // the effect, hit renditionRef.current === null, early-returned, and never
+      // been re-triggered.
+      setRenditionEpoch((e) => e + 1);
 
       const startCfi = initialCfiRef.current;
       if (startCfi) {
@@ -725,10 +736,19 @@ export function EpubReader({ book }: Props) {
 
   // Tracks which CFIs we've drawn on the current rendition, with their colour, so we
   // diff-paint (only the deltas) instead of repainting every highlight on every change.
+  // drawnEpochRef remembers which rendition the entries belong to — when the
+  // rendition is recreated (renditionEpoch bumps), wipe the map so the diff doesn't
+  // incorrectly skip CFIs as "already drawn" on an iframe that no longer exists.
   const drawnHighlightsRef = useRef<Map<string, string>>(new Map());
+  const drawnEpochRef = useRef(-1);
   useEffect(() => {
     const rendition = renditionRef.current;
     if (!rendition) return;
+
+    if (drawnEpochRef.current !== renditionEpoch) {
+      drawnHighlightsRef.current.clear();
+      drawnEpochRef.current = renditionEpoch;
+    }
 
     const want = new Map<string, { color: string; ann: Annotation }>();
     for (const a of annotations) {
@@ -770,7 +790,7 @@ export function EpubReader({ book }: Props) {
       );
       drawnHighlightsRef.current.set(cfi, color);
     }
-  }, [annotations, openSavedHighlight]);
+  }, [annotations, openSavedHighlight, renditionEpoch]);
 
   // Recompute note positions whenever annotations, focus, or the page changes.
   useEffect(() => {
