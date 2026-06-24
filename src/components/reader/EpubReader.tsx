@@ -119,7 +119,7 @@ export function EpubReader({ book }: Props) {
   const epubRef = useRef<EpubBook | null>(null);
   const renditionRef = useRef<Rendition | null>(null);
   const { patchBook } = useLibrary();
-  const { showAnnotations, readingSurface, pendingAnchor } = useReader();
+  const { showAnnotations, setShowAnnotations, readingSurface, pendingAnchor } = useReader();
   const readingSurfaceRef = useRef(readingSurface);
   readingSurfaceRef.current = readingSurface;
   // Opened from the Notes view targeting a highlight → start at its CFI instead of the
@@ -1214,6 +1214,19 @@ export function EpubReader({ book }: Props) {
             book={book}
             onUpdate={updateAnnotation}
             onDelete={deleteAnnotation}
+            onNavigate={(cfi) => {
+              renditionRef.current?.display(cfi);
+              // Mobile: the panel is a full-screen overlay over the reader, so
+              // close it after navigating — otherwise the user can't see the page
+              // they just jumped to. Desktop keeps it open: it's a side panel and
+              // the reader is still visible alongside.
+              if (
+                typeof window !== 'undefined' &&
+                window.matchMedia('(max-width: 600px)').matches
+              ) {
+                setShowAnnotations(false);
+              }
+            }}
           />
         )}
       </div>
