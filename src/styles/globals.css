@@ -44,9 +44,8 @@
 
   /* ═══════════════════════ RADII (Linear scale) ═══════════════════════ */
   --radius-sm: 4px;   /* badges, chips */
-  --radius-md: 6px;   /* blocks, cards */
-  --radius-lg: 8px;   /* inputs, buttons, dropdowns */
-  --radius-xl: 12px;  /* large cards (continue reading) */
+  --radius-md: 8px;   /* blocks, cards, inputs, buttons */
+  --radius-lg: 12px;  /* large cards, dialogs, overlays */
   --radius-full: 9999px;
 
   /* ═══════════════════════ TRANSITIONS ═══════════════════════ */

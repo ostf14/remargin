@@ -20,7 +20,7 @@
   padding: var(--space-16) var(--space-12);
   background: var(--bg-elevated);
   border: 2px dashed var(--accent);
-  border-radius: var(--radius-xl);
+  border-radius: var(--radius-lg);
   box-shadow: var(--shadow-xl);
   color: var(--accent);
 }

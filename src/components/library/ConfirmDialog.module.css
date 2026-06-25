@@ -17,7 +17,7 @@
   max-width: 360px;
   background: var(--bg-elevated);
   border: 1px solid var(--border);
-  border-radius: var(--radius-xl);
+  border-radius: var(--radius-lg);
   padding: var(--space-8);
   box-shadow: var(--shadow-xl);
   animation: popIn var(--duration-normal) var(--ease-out);
