@@ -5,7 +5,7 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  padding-top: 48px; /* clear the fixed 48px reader top bar */
+  padding-top: var(--space-12); /* clear the fixed 48px reader top bar */
 }
 
 .header {

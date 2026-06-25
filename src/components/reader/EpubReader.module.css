@@ -73,7 +73,7 @@
   flex: 1;
   min-width: 0;
   position: relative;
-  padding: 40px 24px 40px 56px;
+  padding: var(--space-10) var(--space-6) var(--space-10) 56px;
 }
 
 .viewer {
@@ -123,6 +123,6 @@
     box-shadow: none;
   }
   .textZone {
-    padding: 16px 12px;
+    padding: var(--space-4) var(--space-3);
   }
 }
